@@ -22,6 +22,7 @@ import org.ohdsi.webapi.cohortanalysis.CohortAnalysis;
 import org.ohdsi.webapi.cohortanalysis.CohortAnalysisTask;
 import org.ohdsi.webapi.cohortanalysis.CohortAnalysisTasklet;
 import org.ohdsi.webapi.cohortanalysis.CohortSummary;
+import org.ohdsi.webapi.cohortresults.CohortDashboard;
 import org.ohdsi.webapi.helper.ResourceHelper;
 import org.ohdsi.webapi.job.JobExecutionResource;
 import org.ohdsi.webapi.job.JobTemplate;
@@ -142,23 +143,23 @@ public class CohortAnalysisService extends AbstractDaoService {
         summary.setAnalyses(this.getCohortAnalysesForCohortDefinition(id));
         
         // total patients
-        List<Map<String, String>> cohortSize = this.resultsService.getCohortResults(id, "cohortSize", null, null);
+        List<Map<String, String>> cohortSize = this.resultsService.getCohortResultsRaw(id, "cohortSpecific", "cohortSize", null, null);
         if (cohortSize != null && cohortSize.size() > 0) {
             summary.setTotalPatients(cohortSize.get(0).get("NUM_PERSONS"));
         }
         
-        List<Map<String, String>> ageAtIndexDistribution = this.resultsService.getCohortResults(id, "ageAtIndexDistribution", null, null);
+        List<Map<String, String>> ageAtIndexDistribution = this.resultsService.getCohortResultsRaw(id, "cohortSpecific", "ageAtIndexDistribution", null, null);
         if (ageAtIndexDistribution != null && ageAtIndexDistribution.size() > 0) {
         	summary.setMeanAge(ageAtIndexDistribution.get(0).get("AVG_VALUE"));
         }
         
         // TODO mean obs period
-        
-        // gender distribution
-        summary.setGenderDistribution(this.resultsService.getCohortResults(id, "gender", null, null));
-        
-        // age distribution
-        summary.setAgeDistribution(this.resultsService.getCohortResults(id, "ageAtIndex", null, null));
+
+        CohortDashboard dashboard = this.resultsService.getDashboard(id, null, null, true);
+        if (dashboard != null) {
+        	summary.setGenderDistribution(dashboard.getGender());
+        	summary.setAgeDistribution(dashboard.getAgeAtFirstObservation());
+        }
         
         return summary;
     }
