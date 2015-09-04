@@ -39,14 +39,14 @@
     <!-- Note: Schema name is case-sensitive. -->
     <flyway.schemas>${datasource.ohdsi.schema}</flyway.schemas>
     <flyway.validateOnMigrate>false</flyway.validateOnMigrate>
-		
+
     <!-- CDM properties -->
     <source.name>CDM_NAME</source.name>
     <cdm.version>5</cdm.version>
 
     <spring.batch.repository.tableprefix>BATCH_</spring.batch.repository.tableprefix>
     <spring.batch.repository.isolationLevelForCreate>ISOLATION_READ_COMMITTED</spring.batch.repository.isolationLevelForCreate>
-		
+
     <spring.profiles.active>default</spring.profiles.active>
   </properties>
   <build>
@@ -181,7 +181,7 @@
       <id>ohdsi.thirdparty</id>
       <name>repo.ohdsi.org</name>
       <url>http://repo.ohdsi.org:8085/nexus/content/repositories/thirdparty</url>
-    </repository>    
+    </repository>
     <repository>
       <id>ohdsi.snapshots</id>
       <name>repo.ohdsi.org-snapshots</name>
@@ -227,7 +227,7 @@
     </dependencies>
   </dependencyManagement>
   <dependencies>
-    <!-- <dependency> <groupId>org.springframework.boot</groupId> <artifactId>spring-boot-starter-actuator</artifactId> 
+    <!-- <dependency> <groupId>org.springframework.boot</groupId> <artifactId>spring-boot-starter-actuator</artifactId>
     <version>${spring.boot.version}</version> </dependency> -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -282,8 +282,8 @@
       <version>3.1.0</version>
       <scope>provided</scope>
     </dependency>
-    <!-- <dependency> <groupId>org.glassfish.jersey.containers</groupId> <artifactId>jersey-container-servlet</artifactId> 
-    </dependency> <dependency> <groupId>org.glassfish.jersey.media</groupId> 
+    <!-- <dependency> <groupId>org.glassfish.jersey.containers</groupId> <artifactId>jersey-container-servlet</artifactId>
+    </dependency> <dependency> <groupId>org.glassfish.jersey.media</groupId>
     <artifactId>jersey-media-json-jackson</artifactId> </dependency> -->
     <dependency>
       <groupId>org.ohdsi.sql</groupId>
@@ -336,6 +336,11 @@
       <artifactId>postgresql</artifactId>
       <version>9.4-1201-jdbc41</version>
       <type>jar</type>
+    </dependency>
+    <dependency>
+      <groupId>org.ahocorasick</groupId>
+      <artifactId>ahocorasick</artifactId>
+      <version>0.2.3</version>
     </dependency>
   </dependencies>
   <profiles>
@@ -405,8 +410,8 @@
           <version>4.0</version>
           <type>jar</type>
         </dependency>
-      </dependencies>	            
-    </profile>  
+      </dependencies>
+    </profile>
     <profile>
       <id>webapi-local</id>
       <properties>
@@ -430,7 +435,7 @@
           <version>4.0</version>
           <type>jar</type>
         </dependency>
-      </dependencies>	            
-    </profile>                         
+      </dependencies>
+    </profile>
   </profiles>
 </project>
