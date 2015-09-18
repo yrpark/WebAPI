@@ -1408,7 +1408,7 @@ public class CohortResultsAnalysisRunner {
 			entity.setCohortDefinitionId(cohortDefinitionId);
 			entity.setSourceId(sourceId);
 			entity.setVisualizationKey(visualizationKey);
-			entity.setEndTime(new Date());
+			entity.setEndTime(new java.sql.Time(new Date().getTime()));
 
 			String dataString = mapper.writeValueAsString(dataObject);
 			entity.setData(dataString);
@@ -1448,7 +1448,7 @@ public class CohortResultsAnalysisRunner {
 			entity.setSourceId(sourceId);
 			entity.setVisualizationKey(visualizationKey);
 			entity.setDrilldownId(drilldownId);
-			entity.setEndTime(new Date());
+			entity.setEndTime(new java.sql.Time(new Date().getTime()));
 
 			String dataString = mapper.writeValueAsString(dataObject);
 			entity.setData(dataString);
