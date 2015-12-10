@@ -13,7 +13,9 @@
 package org.ohdsi.webapi.panacea.repository.impl;
 
 import javax.persistence.EntityManager;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -21,15 +23,16 @@ import javax.ws.rs.core.MediaType;
 
 import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
 import org.ohdsi.webapi.panacea.repository.PanaceaStudyRepository;
+import org.ohdsi.webapi.service.AbstractDaoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
  *
  */
-@Path("/panacea/")
+@Path("/panacea")
 @Component
-public class PanaceaService {
+public class PanaceaService extends AbstractDaoService {
     
     @Autowired
     private PanaceaStudyRepository panaceaStudyRepository;
@@ -38,18 +41,43 @@ public class PanaceaService {
     private EntityManager em;
     
     /**
-     * Auto generated method comment
+     * Get PanaceaStudy by id
      * 
      * @param studyId Long
      * @return PanaceaStudy
      */
     @GET
-    @Path("{id}")
+    @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     public PanaceaStudy getPanaceaStudyWithId(@PathParam("id") final Long studyId) {
         
         final PanaceaStudy study = this.getPanaceaStudyRepository().getPanaceaStudyWithId(studyId);
         return study;
+    }
+    
+    /**
+     * Create new PanaceaStudy and save
+     * 
+     * @param newStudy PanaceaStudy
+     * @return PanaceaStudy
+     */
+    @POST
+    @Path("/newstudy")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public PanaceaStudy createStudy(final PanaceaStudy newStudy) {
+        final PanaceaStudy ps = new PanaceaStudy();
+        ps.setCohortDefId(newStudy.getCohortDefId());
+        ps.setConcepSetDef(newStudy.getConcepSetDef());
+        ps.setEndDate(newStudy.getEndDate());
+        ps.setStartDate(newStudy.getStartDate());
+        ps.setStudyDesc(newStudy.getStudyDesc());
+        ps.setStudyDetail(newStudy.getStudyDetail());
+        ps.setStudyDuration(newStudy.getStudyDuration());
+        ps.setStudyName(newStudy.getStudyName());
+        ps.setSwitchWindow(newStudy.getSwitchWindow());
+        
+        return this.getPanaceaStudyRepository().save(ps);
     }
     
     /**

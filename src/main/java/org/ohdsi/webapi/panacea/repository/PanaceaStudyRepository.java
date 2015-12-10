@@ -27,7 +27,7 @@ public interface PanaceaStudyRepository extends CrudRepository<PanaceaStudy, Lon
      * @param studyId Long
      * @return PanaceaStudy
      */
-    @Query("from PanaceaStudy where study_id = ?1")
+    @Query("from PanaceaStudy where study_id = ?")
     public PanaceaStudy getPanaceaStudyWithId(Long studyId);
     
 }
