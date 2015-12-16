@@ -95,4 +95,18 @@ public class PanaceaTest extends TestCase {
             e.printStackTrace();
         }
     }
+    
+    @Test
+    public void testGetAllCombForStudyWithMap() {
+        try {
+            /**
+             * http://localhost:8080/WebAPI/panacea/pncstudycombinationwithmapforstudy/2
+             */
+            final List<PanaceaStageCombination> combList = this.pncService
+                    .getPanaceaStageCombinationWithMapByStudyId(new Long(2));
+            log.info("testGetAllCombForStudyWithMap: " + combList.toString());
+        } catch (final Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

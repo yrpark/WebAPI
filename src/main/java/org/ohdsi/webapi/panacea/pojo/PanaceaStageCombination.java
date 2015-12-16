@@ -104,19 +104,11 @@ public class PanaceaStageCombination implements Serializable {
         this.combMapList = combMapList;
     }
     
-    /* (non-Jsdoc)
+    /**
      * @see java.lang.Object#toString()
      */
     @Override
     public String toString() {
         return "PanaceaStageCombination [pncTxStgCmbId=" + this.pncTxStgCmbId + ", studyId=" + this.studyId + "]";
     }
-    //    /**
-    //     * @see java.lang.Object#toString()
-    //     */
-    //    @Override
-    //    public String toString() {
-    //        return "PanaceaStageCombination [pncTxStgCmbId=" + this.pncTxStgCmbId + ", studyId=" + this.studyId
-    //                + ", combMapList=" + this.combMapList + "]";
-    //    }
 }
