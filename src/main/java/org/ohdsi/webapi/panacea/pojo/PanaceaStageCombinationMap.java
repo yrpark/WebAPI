@@ -127,13 +127,4 @@ public class PanaceaStageCombinationMap implements Serializable {
         return "PanaceaStageCombinationMap [pncTxStgCmbMpId=" + this.pncTxStgCmbMpId + ", conceptId=" + this.conceptId
                 + ", conceptName=" + this.conceptName + "]";
     }
-    //    /**
-    //     * @see java.lang.Object#toString()
-    //     */
-    //    @Override
-    //    public String toString() {
-    //        return "PanaceaStageCombinationMap [pncTxStgCmbMpId=" + this.pncTxStgCmbMpId + ", conceptId=" + this.conceptId
-    //                + ", conceptName=" + this.conceptName + ", pncStgCmb=" + this.pncStgCmb + "]";
-    //    }
-    
 }

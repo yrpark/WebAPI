@@ -135,6 +135,20 @@ public class PanaceaService extends AbstractDaoService {
     }
     
     /**
+     * Get eagerly fetched PanaceaStageCombination by studyId (with
+     * PanaceaStageCombination.combMapList fetched)
+     * 
+     * @param studyId Long
+     * @return List of PanaceaStageCombination
+     */
+    @GET
+    @Path("/pncstudycombinationwithmapforstudy/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<PanaceaStageCombination> getPanaceaStageCombinationWithMapByStudyId(@PathParam("id") final Long studyId) {
+        return this.getPncStageCombinationRepository().getAllStageCombination(studyId);
+    }
+    
+    /**
      * Get PanaceaStageCombinationMap by id
      * 
      * @param pncStageCombMpId Long
@@ -149,7 +163,7 @@ public class PanaceaService extends AbstractDaoService {
                 .getPanaceaStageCombinationMapById(pncStageCombMpId);
         return pncStgCmbMp;
     }
-
+    
     /**
      * Get PanaceaStageCombination by studyId
      * 
