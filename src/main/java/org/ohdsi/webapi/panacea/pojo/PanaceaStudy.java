@@ -59,6 +59,9 @@ public class PanaceaStudy implements Serializable {
     @Column(name = "cohort_definition_id")
     private Integer cohortDefId;
     
+    @Column(name = "source_id")
+    private Integer sourceId;
+    
     @Column(name = "study_detail", insertable = true, updatable = true, unique = false)
     //    @Type(type = "org.hibernate.type.StringClobType")
     private String studyDetail;
@@ -216,13 +219,29 @@ public class PanaceaStudy implements Serializable {
     }
     
     /**
+     * @return the sourceId
+     */
+    public Integer getSourceId() {
+        return this.sourceId;
+    }
+    
+    /**
+     * @param sourceId the sourceId to set
+     */
+    public void setSourceId(final Integer sourceId) {
+        this.sourceId = sourceId;
+    }
+    
+    /**
      * @see java.lang.Object#toString()
      */
     @Override
     public String toString() {
         return "PanaceaStudy [studyId=" + this.studyId + ", studyName=" + this.studyName + ", studyDesc=" + this.studyDesc
-                + ", concepSetDef=" + this.concepSetDef + ", cohortDefId=" + this.cohortDefId + ", studyDetail="
-                + this.studyDetail + ", switchWindow=" + this.switchWindow + ", studyDuration=" + this.studyDuration
-                + ", startDate=" + this.startDate + ", endDate=" + this.endDate + "]";
+                + ", concepSetDef=" + this.concepSetDef + ", cohortDefId=" + this.cohortDefId + ", sourceId="
+                + this.sourceId + ", studyDetail=" + this.studyDetail + ", switchWindow=" + this.switchWindow
+                + ", studyDuration=" + this.studyDuration + ", startDate=" + this.startDate + ", endDate=" + this.endDate
+                + "]";
     }
+    
 }
