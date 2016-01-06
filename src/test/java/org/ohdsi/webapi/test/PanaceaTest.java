@@ -22,6 +22,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.ohdsi.webapi.WebApi;
+import org.ohdsi.webapi.panacea.pojo.PanaceaPatientSequenceCount;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
 import org.ohdsi.webapi.panacea.repository.impl.PanaceaService;
@@ -108,5 +109,22 @@ public class PanaceaTest extends TestCase {
         } catch (final Exception e) {
             e.printStackTrace();
         }
+    }
+    
+    //    @Test
+    //    public void testTasklet() {
+    //        try {
+    //            this.pncService.runPatientSequenceCount(new Long(18));
+    //            
+    //        } catch (final Exception e) {
+    //            e.printStackTrace();
+    //        }
+    //    }
+    
+    @Test
+    public void testGetPanaceaPatientSequenceCountById() {
+        final PanaceaPatientSequenceCount ppsc = this.pncService.getPanaceaPatientSequenceCountById(new Long(777));
+        
+        log.info(ppsc);
     }
 }
