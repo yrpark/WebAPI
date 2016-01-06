@@ -27,16 +27,27 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.ohdsi.sql.SqlRender;
 import org.ohdsi.sql.SqlTranslate;
+import org.ohdsi.webapi.helper.ResourceHelper;
+import org.ohdsi.webapi.job.JobExecutionResource;
+import org.ohdsi.webapi.job.JobTemplate;
 import org.ohdsi.webapi.panacea.mapper.PanaceaStageCombinationMapper;
+import org.ohdsi.webapi.panacea.pojo.PanaceaPatientSequenceCount;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
+import org.ohdsi.webapi.panacea.repository.PanaceaPatientSequenceCountRepository;
 import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationMapRepository;
 import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationRepository;
 import org.ohdsi.webapi.panacea.repository.PanaceaStudyRepository;
 import org.ohdsi.webapi.service.AbstractDaoService;
 import org.ohdsi.webapi.source.Source;
 import org.ohdsi.webapi.source.SourceDaimon;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.item.ItemStreamException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -59,7 +70,22 @@ public class PanaceaService extends AbstractDaoService {
     private PanaceaStageCombinationMapRepository pncStageCombinationMapRepository;
     
     @Autowired
+    private PanaceaPatientSequenceCountRepository pncPatientSequenceCountRepository;
+    
+    @Autowired
     private EntityManager em;
+    
+    @Autowired
+    private JobTemplate jobTemplate;
+    
+    @Autowired
+    private JobBuilderFactory jobBuilders;
+    
+    @Autowired
+    private StepBuilderFactory stepBuilders;
+    
+    @Autowired
+    private PanaceaJobConfiguration pncJobConfig;
     
     /**
      * Get PanaceaStudy by id
@@ -164,6 +190,10 @@ public class PanaceaService extends AbstractDaoService {
         return pncStgCmbMp;
     }
     
+    public PanaceaPatientSequenceCount getPanaceaPatientSequenceCountById(final Long ppscId) {
+        return this.pncPatientSequenceCountRepository.getPanaceaPatientSequenceCountById(ppscId);
+    }
+    
     /**
      * Get PanaceaStageCombination by studyId
      * 
@@ -209,6 +239,143 @@ public class PanaceaService extends AbstractDaoService {
     //            return null;
     //        }
     //    }
+    
+    public String getPanaceaPatientSequenceCountSql(final Long studyId) {
+        final PanaceaStudy pncStudy = this.getPanaceaStudyWithId(studyId);
+        
+        String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/getDrugCohortPatientCount.sql");
+        
+        final Source source = getSourceRepository().findOne(pncStudy.getSourceId());
+        final String resultsTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
+        final String cdmTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
+        
+        final String cohortDefId = pncStudy.getCohortDefId().toString();
+        final String[] params = new String[] { "cds_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId" };
+        //TODO -- for testing only!!!!!!!!!!!
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId, studyId.toString(),
+                "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315" };
+        
+        sql = SqlRender.renderSql(sql, params, values);
+        sql = SqlTranslate.translateSql(sql, source.getSourceDialect(), source.getSourceDialect());
+        
+        return sql;
+    }
+    
+    //    public JobExecutionResource runTestJob() {
+    //        
+    //        final Job job = this.pncJobConfig.createMarkSheet(this.jobBuilders, this.stepBuilders);
+    //        
+    //        final JobParametersBuilder builder = new JobParametersBuilder();
+    //        final JobParameters jobParameters = builder.toJobParameters();
+    //        
+    //        final JobExecutionResource jobExec = this.jobTemplate.launch(job, jobParameters);
+    //        return jobExec;
+    //    }
+    
+    //    public JobExecutionResource runPanaceaJob(final Long studyId) {
+    public void runPanaceaJob(final Long studyId) {
+        if (studyId != null) {
+            final PanaceaStudy pncStudy = this.getPanaceaStudyWithId(studyId);
+            if (pncStudy != null) {
+                final Source source = getSourceRepository().findOne(pncStudy.getSourceId());
+                final String resultsTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
+                final String cdmTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
+                
+                final JobParametersBuilder builder = new JobParametersBuilder();
+                
+                final String cohortDefId = pncStudy.getCohortDefId().toString();
+                
+                builder.addString("cds_schema", cdmTableQualifier);
+                builder.addString("ohdsi_schema", resultsTableQualifier);
+                builder.addString("cohortDefId", cohortDefId);
+                builder.addString("studyId", studyId.toString());
+                //TODO -- for testin only!!!
+                builder.addString("drugConceptId", "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315");
+                
+                final JobParameters jobParameters = builder.toJobParameters();
+                
+                final Job job = this.pncJobConfig.createPanaceaJob(getSourceJdbcTemplate(source));
+                
+                try {
+                    
+                    /**
+                     * thread sleeping sometime works. it used to be job launched and nothing
+                     * happens. no error, no warning. set a break point after
+                     * jobTemplate.launch(job, jobParameters) and wait worked. So sleep works too.
+                     * Figured create a runnable and run asynchronously works after that.
+                     */
+                    //                    try {
+                    //                        Thread.sleep(10000);
+                    //                    } catch (final InterruptedException ex) {
+                    //                        log.error("sleeping thread goes wrong:");
+                    //                        ex.printStackTrace();
+                    //                        Thread.currentThread().interrupt();
+                    //                    }
+                    
+                    //                                        final Runnable runJob = new Runnable() {
+                    //                                            
+                    //                                            @Override
+                    //                                            public void run() {
+                    //                                                final JobExecutionResource jobExec = PanaceaService.this.jobTemplate.launch(job, jobParameters);
+                    //                                                /**
+                    //                                                 * thread sleeping sometime works. it used to be job launched and
+                    //                                                 * nothing happens. no error, no warning. set a break point after
+                    //                                                 * jobTemplate.launch(job, jobParameters) and wait worked. So sleep
+                    //                                                 * works too. Figured create a runnable and run asynchronously works
+                    //                                                 * after that.
+                    //                                                 */
+                    //                                                try {
+                    //                                                    Thread.sleep(10000);
+                    //                                                } catch (final InterruptedException ex) {
+                    //                                                    log.error("sleeping thread 222222 goes wrong:");
+                    //                                                    ex.printStackTrace();
+                    //                                                    Thread.currentThread().interrupt();
+                    //                                                }
+                    //                                            }
+                    //                                            
+                    //                                        };
+                    
+                    //                    final Thread newT = new Thread(new Runnable() {
+                    //                        
+                    //                        @Override
+                    //                        public void run() {
+                    //                            final JobExecutionResource jobExec = PanaceaService.this.jobTemplate.launch(job, jobParameters);
+                    //                            /**
+                    //                             * thread sleeping sometime works. it used to be job launched and
+                    //                             * nothing happens. no error, no warning. set a break point after
+                    //                             * jobTemplate.launch(job, jobParameters) and wait worked. So sleep
+                    //                             * works too. Figured create a runnable and run asynchronously works
+                    //                             * after that.
+                    //                             */
+                    //                            try {
+                    //                                Thread.sleep(10000);
+                    //                            } catch (final InterruptedException ex) {
+                    //                                log.error("sleeping thread 222222 goes wrong:");
+                    //                                ex.printStackTrace();
+                    //                                Thread.currentThread().interrupt();
+                    //                            }
+                    //                        }
+                    //                    });
+                    //                    
+                    //                    newT.start();
+                    
+                    //runJob.run();
+                    
+                    final JobExecutionResource jobExec = this.jobTemplate.launch(job, jobParameters);
+                    try {
+                        Thread.sleep(10000);
+                    } catch (final InterruptedException ex) {
+                        log.error("sleeping thread 222222 goes wrong:");
+                        ex.printStackTrace();
+                        Thread.currentThread().interrupt();
+                    }
+                    //                    return jobExec;
+                } catch (final ItemStreamException e) {
+                    e.printStackTrace();
+                }
+            }
+        } else {}
+    }
     
     /**
      * @return the panaceaStudyRepository
@@ -266,4 +433,17 @@ public class PanaceaService extends AbstractDaoService {
         this.em = em;
     }
     
+    /**
+     * @return the jobTemplate
+     */
+    public JobTemplate getJobTemplate() {
+        return this.jobTemplate;
+    }
+    
+    /**
+     * @param jobTemplate the jobTemplate to set
+     */
+    public void setJobTemplate(final JobTemplate jobTemplate) {
+        this.jobTemplate = jobTemplate;
+    }
 }
