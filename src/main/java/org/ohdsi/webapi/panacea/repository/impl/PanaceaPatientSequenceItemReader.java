@@ -14,11 +14,13 @@ package org.ohdsi.webapi.panacea.repository.impl;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.ohdsi.sql.SqlRender;
+import org.ohdsi.sql.SqlTranslate;
+import org.ohdsi.webapi.helper.ResourceHelper;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.annotation.BeforeStep;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
-import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * @param <T>
@@ -30,19 +32,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 public class PanaceaPatientSequenceItemReader<PanaceaPatientSequenceCount> extends JdbcCursorItemReader<PanaceaPatientSequenceCount> {// implements StepExecutionListener {
 
     private static final Log log = LogFactory.getLog(PanaceaPatientSequenceItemReader.class);
-    
-    //    private JdbcTemplate jdbcTemplate;
-    //    
-    //    private TransactionTemplate transactionTemplate;
-    //    
-    //    private JobExecution jobExecution;
-    //
-    @Autowired
-    private PanaceaService pncService;
-    
-    //    
-    //    //private PanaceaStudy pncStudy;
-    //
     
     //@Value("#{jobParameters['studyId']}")
     private Long studyId;
@@ -118,40 +107,72 @@ public class PanaceaPatientSequenceItemReader<PanaceaPatientSequenceCount> exten
     //        super.afterPropertiesSet();
     //    }
     
-    /**
-     * @return the pncService
-     */
-    public PanaceaService getPncService() {
-        return this.pncService;
-    }
-    
-    /**
-     * @param pncService the pncService to set
-     */
-    public void setPncService(final PanaceaService pncService) {
-        this.pncService = pncService;
-    }
-    
     //    @Override
     @BeforeStep
-    public void beforeStep(final StepExecution stepexecution)
+    public void beforeStep(final StepExecution stepExecution)
     
     {
-        log.info("PanaceaPatientSequenceItemReader: in beforeStep");
-        log.info("PanaceaPatientSequenceItemReader: before setting sql = " + this.getSql());
+        log.debug("PanaceaPatientSequenceItemReader: in beforeStep");
+        log.debug("PanaceaPatientSequenceItemReader: before setting sql = " + this.getSql());
         
-        final String studyIdFromJobParam = stepexecution.getJobParameters().getString("studyId");
+        final String studyIdFromJobParam = stepExecution.getJobParameters().getString("studyId");
         
         this.studyId = new Long(studyIdFromJobParam);
         
-        //TODO -- testing sql
+        //TODO -- testing sql (this works first, then test a fairly real sql)
         this.setSql("select study_id from panacea_study");
         
-//        final String realSql = this.pncService.getPanaceaPatientSequenceCountSql(this.studyId);
+        /**
+         * Fairly real sql for testing for a patient: from getDrugCohortPatientCount.sql: SELECT
+         * DISTINCT era.person_id person_id, era.drug_concept_id drug_concept_id,
+         * myConcept.concept_name concept_name, era.drug_era_start_date drug_era_start_date,
+         * era.drug_era_end_date drug_era_end_date, study.study_id study_id, era.drug_era_end_date -
+         * era.drug_era_start_date duration FROM
+         * 
+         * @cds_schema.drug_era era, (SELECT DISTINCT subject_id, COHORT_START_DATE, cohort_end_date
+         *                      FROM @ohdsi_schema.cohort WHERE COHORT_DEFINITION_ID = @cohortDefId
+         *                      AND subject_id = 2000000030415658) myCohort, (SELECT concept_name,
+         *                      concept_id FROM @cds_schema.concept) myConcept, (SELECT
+         *                      cohort_definition_id, study_duration, start_date, end_date, study_id
+         *                      FROM @ohdsi_schema.panacea_study WHERE study_id = @studyId) study
+         *                      WHERE myCohort.cohort_start_date < era.drug_era_start_date AND
+         *                      era.drug_era_start_date < myCohort.cohort_end_date AND
+         *                      myCohort.cohort_start_date > study.start_date AND
+         *                      myCohort.cohort_start_date < study.end_date AND
+         *                      myCohort.cohort_end_date < study.end_date AND
+         *                      era.drug_era_start_date > study.start_date AND
+         *                      era.drug_era_start_date < study.end_date AND era.drug_era_end_date <
+         *                      (era.drug_era_start_date + study.study_duration) AND
+         *                      myCohort.subject_id = era.person_id AND drug_concept_id in
+         *                      (@drugConceptId) AND era.drug_concept_id = myConcept.concept_id
+         *                      ORDER BY person_id, drug_era_start_date
+         */
+        final String realSql = getRealSql(this.studyId, stepExecution);
         
-        log.info("PanaceaPatientSequenceItemReader: Getting studyId =" + this.studyId);
-        log.info("PanaceaPatientSequenceItemReader: sql = " + this.getSql());
-//        log.info("PanaceaPatientSequenceItemReader: real sql = " + realSql);
+        this.setSql(realSql);
+        
+        log.debug("PanaceaPatientSequenceItemReader: Getting studyId =" + this.studyId);
+        log.debug("PanaceaPatientSequenceItemReader: sql = " + this.getSql());
+        log.debug("PanaceaPatientSequenceItemReader: real sql = " + realSql);
+    }
+    
+    private String getRealSql(final Long studyId, final StepExecution stepExecution) {
+        String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/getDrugCohortPatientCount.sql");
+        
+        final String cdmTableQualifier = stepExecution.getJobParameters().getString("cds_schema");
+        final String resultsTableQualifier = stepExecution.getJobParameters().getString("ohdsi_schema");
+        final String cohortDefId = stepExecution.getJobParameters().getString("cohortDefId");
+        final String drugConceptId = stepExecution.getJobParameters().getString("drugConceptId");
+        final String sourceDialect = stepExecution.getJobParameters().getString("sourceDialect");
+        
+        final String[] params = new String[] { "cds_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId, studyId.toString(),
+                drugConceptId };
+        
+        sql = SqlRender.renderSql(sql, params, values);
+        sql = SqlTranslate.translateSql(sql, sourceDialect, sourceDialect);
+        
+        return sql;
     }
     
     /* (non-Jsdoc)
