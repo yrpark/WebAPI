@@ -261,6 +261,9 @@ public class PanaceaService extends AbstractDaoService {
         return sql;
     }
     
+    /**
+     * Test file to file chunk job
+     */
     //    public JobExecutionResource runTestJob() {
     //        
     //        final Job job = this.pncJobConfig.createMarkSheet(this.jobBuilders, this.stepBuilders);
@@ -272,8 +275,10 @@ public class PanaceaService extends AbstractDaoService {
     //        return jobExec;
     //    }
     
-    //    public JobExecutionResource runPanaceaJob(final Long studyId) {
-    public void runPanaceaJob(final Long studyId) {
+    /**
+     * Test DB to file job
+     */
+    public void runTestPanaceaJob(final Long studyId) {
         if (studyId != null) {
             final PanaceaStudy pncStudy = this.getPanaceaStudyWithId(studyId);
             if (pncStudy != null) {
@@ -285,12 +290,15 @@ public class PanaceaService extends AbstractDaoService {
                 
                 final String cohortDefId = pncStudy.getCohortDefId().toString();
                 
+                final String sql = this.getPanaceaPatientSequenceCountSql(studyId);
+                
                 builder.addString("cds_schema", cdmTableQualifier);
                 builder.addString("ohdsi_schema", resultsTableQualifier);
                 builder.addString("cohortDefId", cohortDefId);
                 builder.addString("studyId", studyId.toString());
                 //TODO -- for testin only!!!
                 builder.addString("drugConceptId", "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315");
+                builder.addString("sourceDialect", source.getSourceDialect());
                 
                 final JobParameters jobParameters = builder.toJobParameters();
                 
@@ -299,82 +307,36 @@ public class PanaceaService extends AbstractDaoService {
                 try {
                     
                     /**
-                     * thread sleeping sometime works. it used to be job launched and nothing
+                     * Unit test doesn't work with ThreadPoolTaskExecutor. Had to wait for the job
+                     * to execute and return. WebAPI works fine with app server. (In unit test:
+                     * thread sleeping for sometime works. it used to be job launched and nothing
                      * happens. no error, no warning. set a break point after
-                     * jobTemplate.launch(job, jobParameters) and wait worked. So sleep works too.
-                     * Figured create a runnable and run asynchronously works after that.
+                     * jobTemplate.launch(job, jobParameters) and wait worked. So sleep works too.)
                      */
-                    //                    try {
-                    //                        Thread.sleep(10000);
-                    //                    } catch (final InterruptedException ex) {
-                    //                        log.error("sleeping thread goes wrong:");
-                    //                        ex.printStackTrace();
-                    //                        Thread.currentThread().interrupt();
-                    //                    }
-                    
-                    //                                        final Runnable runJob = new Runnable() {
-                    //                                            
-                    //                                            @Override
-                    //                                            public void run() {
-                    //                                                final JobExecutionResource jobExec = PanaceaService.this.jobTemplate.launch(job, jobParameters);
-                    //                                                /**
-                    //                                                 * thread sleeping sometime works. it used to be job launched and
-                    //                                                 * nothing happens. no error, no warning. set a break point after
-                    //                                                 * jobTemplate.launch(job, jobParameters) and wait worked. So sleep
-                    //                                                 * works too. Figured create a runnable and run asynchronously works
-                    //                                                 * after that.
-                    //                                                 */
-                    //                                                try {
-                    //                                                    Thread.sleep(10000);
-                    //                                                } catch (final InterruptedException ex) {
-                    //                                                    log.error("sleeping thread 222222 goes wrong:");
-                    //                                                    ex.printStackTrace();
-                    //                                                    Thread.currentThread().interrupt();
-                    //                                                }
-                    //                                            }
-                    //                                            
-                    //                                        };
-                    
-                    //                    final Thread newT = new Thread(new Runnable() {
-                    //                        
-                    //                        @Override
-                    //                        public void run() {
-                    //                            final JobExecutionResource jobExec = PanaceaService.this.jobTemplate.launch(job, jobParameters);
-                    //                            /**
-                    //                             * thread sleeping sometime works. it used to be job launched and
-                    //                             * nothing happens. no error, no warning. set a break point after
-                    //                             * jobTemplate.launch(job, jobParameters) and wait worked. So sleep
-                    //                             * works too. Figured create a runnable and run asynchronously works
-                    //                             * after that.
-                    //                             */
-                    //                            try {
-                    //                                Thread.sleep(10000);
-                    //                            } catch (final InterruptedException ex) {
-                    //                                log.error("sleeping thread 222222 goes wrong:");
-                    //                                ex.printStackTrace();
-                    //                                Thread.currentThread().interrupt();
-                    //                            }
-                    //                        }
-                    //                    });
-                    //                    
-                    //                    newT.start();
-                    
-                    //runJob.run();
-                    
                     final JobExecutionResource jobExec = this.jobTemplate.launch(job, jobParameters);
-                    try {
-                        Thread.sleep(10000);
-                    } catch (final InterruptedException ex) {
-                        log.error("sleeping thread 222222 goes wrong:");
-                        ex.printStackTrace();
-                        Thread.currentThread().interrupt();
-                    }
-                    //                    return jobExec;
+                    //                                                            try {
+                    //                                                                Thread.sleep(20000);
+                    //                                                            } catch (final InterruptedException ex) {
+                    //                                                                log.error("sleeping thread 222222 goes wrong:");
+                    //                                                                ex.printStackTrace();
+                    //                                                                Thread.currentThread().interrupt();
+                    //                                                            }
                 } catch (final ItemStreamException e) {
                     e.printStackTrace();
                 }
             }
-        } else {}
+        } else {//TODO
+        }
+    }
+    
+    /**
+     * Test DB to file job
+     */
+    @GET
+    @Path("/testpncjob")
+    @Produces(MediaType.APPLICATION_JSON)
+    public void testPncJob() {
+        runTestPanaceaJob(new Long(18));
     }
     
     /**
