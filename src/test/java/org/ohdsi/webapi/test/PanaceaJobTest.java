@@ -56,6 +56,6 @@ public class PanaceaJobTest extends TestCase {
         /**
          * test with browser too: http://localhost:8080/WebAPI/panacea/testpncjob
          */
-        this.pncService.runTestPanaceaJob(new Long(18));
+        this.pncService.runTestPanaceaJob(new Long(18), new Integer(1));
     }
 }

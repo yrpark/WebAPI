@@ -49,6 +49,9 @@ public class PanaceaPatientSequenceCount implements Serializable {
     @Column(name = "study_id")
     private Long studyId;
     
+    @Column(name = "source_id")
+    private Integer sourceId;
+    
     @Column(name = "person_id")
     private Long personId;
     
@@ -197,14 +200,28 @@ public class PanaceaPatientSequenceCount implements Serializable {
     }
     
     /**
+     * @return the sourceId
+     */
+    public Integer getSourceId() {
+        return this.sourceId;
+    }
+    
+    /**
+     * @param sourceId the sourceId to set
+     */
+    public void setSourceId(final Integer sourceId) {
+        this.sourceId = sourceId;
+    }
+    
+    /**
      * @see java.lang.Object#toString()
      */
     @Override
     public String toString() {
         return "PanaceaPatientSequenceCount [patientSequenceCountId=" + this.patientSequenceCountId + ", studyId="
-                + this.studyId + ", personId=" + this.personId + ", txSequence=" + this.txSequence + ", conceptId="
-                + this.conceptId + ", conceptName=" + this.conceptName + ", startDate=" + this.startDate + ", endDate="
-                + this.endDate + ", durationDay=" + this.durationDay + "]";
+                + this.studyId + ", sourceId=" + this.sourceId + ", personId=" + this.personId + ", txSequence="
+                + this.txSequence + ", conceptId=" + this.conceptId + ", conceptName=" + this.conceptName + ", startDate="
+                + this.startDate + ", endDate=" + this.endDate + ", durationDay=" + this.durationDay + "]";
     }
     
 }
