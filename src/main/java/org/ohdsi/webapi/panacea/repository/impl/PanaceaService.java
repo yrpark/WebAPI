@@ -240,12 +240,12 @@ public class PanaceaService extends AbstractDaoService {
     //        }
     //    }
     
-    public String getPanaceaPatientSequenceCountSql(final Long studyId) {
+    public String getPanaceaPatientSequenceCountSql(final Long studyId, final Integer sourceId) {
         final PanaceaStudy pncStudy = this.getPanaceaStudyWithId(studyId);
         
         String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/getDrugCohortPatientCount.sql");
         
-        final Source source = getSourceRepository().findOne(pncStudy.getSourceId());
+        final Source source = getSourceRepository().findOne(sourceId);
         final String resultsTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
         final String cdmTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
         
@@ -278,11 +278,11 @@ public class PanaceaService extends AbstractDaoService {
     /**
      * Test DB to file job
      */
-    public void runTestPanaceaJob(final Long studyId) {
+    public void runTestPanaceaJob(final Long studyId, final Integer sourceId) {
         if (studyId != null) {
             final PanaceaStudy pncStudy = this.getPanaceaStudyWithId(studyId);
             if (pncStudy != null) {
-                final Source source = getSourceRepository().findOne(pncStudy.getSourceId());
+                final Source source = getSourceRepository().findOne(sourceId);
                 final String resultsTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
                 final String cdmTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
                 
@@ -290,7 +290,7 @@ public class PanaceaService extends AbstractDaoService {
                 
                 final String cohortDefId = pncStudy.getCohortDefId().toString();
                 
-                final String sql = this.getPanaceaPatientSequenceCountSql(studyId);
+                final String sql = this.getPanaceaPatientSequenceCountSql(studyId, sourceId);
                 
                 builder.addString("cds_schema", cdmTableQualifier);
                 builder.addString("ohdsi_schema", resultsTableQualifier);
@@ -314,13 +314,13 @@ public class PanaceaService extends AbstractDaoService {
                      * jobTemplate.launch(job, jobParameters) and wait worked. So sleep works too.)
                      */
                     final JobExecutionResource jobExec = this.jobTemplate.launch(job, jobParameters);
-                    //                                                            try {
-                    //                                                                Thread.sleep(20000);
-                    //                                                            } catch (final InterruptedException ex) {
-                    //                                                                log.error("sleeping thread 222222 goes wrong:");
-                    //                                                                ex.printStackTrace();
-                    //                                                                Thread.currentThread().interrupt();
-                    //                                                            }
+                    //                    try {
+                    //                        Thread.sleep(20000);
+                    //                    } catch (final InterruptedException ex) {
+                    //                        log.error("sleeping thread 222222 goes wrong:");
+                    //                        ex.printStackTrace();
+                    //                        Thread.currentThread().interrupt();
+                    //                    }
                 } catch (final ItemStreamException e) {
                     e.printStackTrace();
                 }
@@ -336,7 +336,7 @@ public class PanaceaService extends AbstractDaoService {
     @Path("/testpncjob")
     @Produces(MediaType.APPLICATION_JSON)
     public void testPncJob() {
-        runTestPanaceaJob(new Long(18));
+        runTestPanaceaJob(new Long(18), new Integer(1));
     }
     
     /**

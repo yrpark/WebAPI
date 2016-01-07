@@ -66,11 +66,11 @@ public class PanaceaTasklet implements Tasklet {
     @Override
     public RepeatStatus execute(final StepContribution contribution, final ChunkContext chunkContext) throws Exception {
         try {
-            final String sql = this.pncService.getPanaceaPatientSequenceCountSql(this.pncStudy.getStudyId());
+            //            final String sql = this.pncService.getPanaceaPatientSequenceCountSql(this.pncStudy.getStudyId());
             
-            PanaceaTasklet.log.info("PanaceaTasklet execute: " + sql);
+            //            PanaceaTasklet.log.info("PanaceaTasklet execute: " + sql);
             
-            PanaceaTasklet.log.info("PanaceaTasklet execute: " + sql);
+            //            PanaceaTasklet.log.info("PanaceaTasklet execute: " + sql);
             
             return RepeatStatus.FINISHED;
         } catch (final Exception e) {
