@@ -49,7 +49,7 @@ public class PanaceaJobTest extends TestCase {
     //        log.info("PanaceaJobTest.testJob: " + pncJob.toString());
     //    }
     
-    @Test
+    @Ignore
     public void testLaunchJob() {
         //        this.pncService.runJob(new Long(18));
         //this.pncService.runTestJob();
@@ -57,5 +57,18 @@ public class PanaceaJobTest extends TestCase {
          * test with browser too: http://localhost:8080/WebAPI/panacea/testpncjob
          */
         this.pncService.runTestPanaceaJob(new Long(18), new Integer(1));
+    }
+    
+    @Test
+    public void testTasklet() {
+        /**
+         * test: localhost:8080/WebAPI/panacea/runPncTasklet/CCAE/18
+         */
+        /**
+         * set break point in JobTemplate.launchJob() at line of
+         * "exec = this.jobLauncher.run(job, jobParameters)" to get around the thread pool executor
+         * problem for unit test.
+         */
+        this.pncService.runPanaceaTasklet("CCAE", new Long(18));
     }
 }

@@ -27,6 +27,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.ohdsi.sql.SqlRender;
 import org.ohdsi.sql.SqlTranslate;
+import org.ohdsi.webapi.TerminateJobStepExceptionHandler;
 import org.ohdsi.webapi.helper.ResourceHelper;
 import org.ohdsi.webapi.job.JobExecutionResource;
 import org.ohdsi.webapi.job.JobTemplate;
@@ -45,6 +46,7 @@ import org.ohdsi.webapi.source.SourceDaimon;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.item.ItemStreamException;
@@ -250,10 +252,12 @@ public class PanaceaService extends AbstractDaoService {
         final String cdmTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
         
         final String cohortDefId = pncStudy.getCohortDefId().toString();
-        final String[] params = new String[] { "cds_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId" };
+        final String[] params = new String[] { "cds_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId",
+                "sourceId" };
         //TODO -- for testing only!!!!!!!!!!!
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId, studyId.toString(),
-                "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315" };
+                "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315",
+                (new Integer(source.getSourceId())).toString() };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, source.getSourceDialect(), source.getSourceDialect());
@@ -337,6 +341,72 @@ public class PanaceaService extends AbstractDaoService {
     @Produces(MediaType.APPLICATION_JSON)
     public void testPncJob() {
         runTestPanaceaJob(new Long(18), new Integer(1));
+    }
+    
+    /**
+     * Test DB to file job
+     */
+    @GET
+    @Path("/runPncTasklet/{sourceKey}/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public void runPncTasklet(@PathParam("sourceKey") final String sourceKey, @PathParam("id") final Long studyId) {
+        /**
+         * test: localhost:8080/WebAPI/panacea/runPncTasklet/CCAE/18
+         */
+        runPanaceaTasklet(sourceKey, studyId);
+    }
+    
+    public void runPanaceaTasklet(final String sourceKey, final Long studyId) {
+        if ((studyId != null) && (sourceKey != null)) {
+            final PanaceaStudy pncStudy = this.getPanaceaStudyWithId(studyId);
+            if (pncStudy != null) {
+                
+                final Source source = getSourceRepository().findBySourceKey(sourceKey);
+                if (source != null) {
+                    final String resultsTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
+                    final String cdmTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
+                    
+                    final JobParametersBuilder builder = new JobParametersBuilder();
+                    
+                    final String cohortDefId = pncStudy.getCohortDefId().toString();
+                    
+                    builder.addString("cdm_schema", cdmTableQualifier);
+                    builder.addString("ohdsi_schema", resultsTableQualifier);
+                    builder.addString("cohortDefId", cohortDefId);
+                    builder.addString("studyId", studyId.toString());
+                    //TODO -- for testin only!!!
+                    builder.addString("drugConceptId",
+                        "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315");
+                    builder.addString("sourceDialect", source.getSourceDialect());
+                    builder.addString("sourceId", new Integer(source.getSourceId()).toString());
+                    
+                    final JobParameters jobParameters = builder.toJobParameters();
+                    
+                    final PanaceaTasklet pncTasklet = new PanaceaTasklet(this.getSourceJdbcTemplate(source),
+                            this.getTransactionTemplate(), this, pncStudy);
+                    
+                    final Step pncStep1 = this.stepBuilders.get("panaceaStudyStep1").tasklet(pncTasklet)
+                            .exceptionHandler(new TerminateJobStepExceptionHandler()).build();
+                    
+                    //                    final PanaceaTasklet2 pncTasklet2 = new PanaceaTasklet2(this.getSourceJdbcTemplate(source),
+                    //                            this.getTransactionTemplate(), this, pncStudy);
+                    //                    
+                    //                    final Step pncStep2 = this.stepBuilders.get("panaceaStudyStep2").tasklet(pncTasklet2)
+                    //                            .exceptionHandler(new TerminateJobStepExceptionHandler()).build();
+                    //                    
+                    //                    final Job pncStudyJob = this.jobBuilders.get("panaceaStudy").start(pncStep1).next(pncStep2).build();
+                    final Job pncStudyJob = this.jobBuilders.get("panaceaStudy").start(pncStep1).build();
+                    
+                    final JobExecutionResource jobExec = this.jobTemplate.launch(pncStudyJob, jobParameters);
+                } else {
+                    //TODO
+                    log.error("");
+                }
+            }
+        } else {
+            //TODO
+            log.error("");
+        }
     }
     
     /**
