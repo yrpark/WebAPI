@@ -12,14 +12,24 @@
  */
 package org.ohdsi.webapi.panacea.repository.impl;
 
+import java.util.Map;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.ohdsi.sql.SqlRender;
+import org.ohdsi.sql.SqlSplit;
+import org.ohdsi.sql.SqlTranslate;
+import org.ohdsi.webapi.helper.ResourceHelper;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
 import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
+import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -36,13 +46,6 @@ public class PanaceaTasklet implements Tasklet {
     private PanaceaService pncService;
     
     private PanaceaStudy pncStudy;
-    
-    /**
-     * 
-     */
-    public PanaceaTasklet() {
-        super();
-    }
     
     /**
      * @param jdbcTemplate
@@ -66,18 +69,36 @@ public class PanaceaTasklet implements Tasklet {
     @Override
     public RepeatStatus execute(final StepContribution contribution, final ChunkContext chunkContext) throws Exception {
         try {
-            //            final String sql = this.pncService.getPanaceaPatientSequenceCountSql(this.pncStudy.getStudyId());
+            final Map<String, Object> jobParams = chunkContext.getStepContext().getJobParameters();
             
-            //            PanaceaTasklet.log.info("PanaceaTasklet execute: " + sql);
+            final String sql = this.getSql(jobParams);
             
-            //            PanaceaTasklet.log.info("PanaceaTasklet execute: " + sql);
+            final int[] ret = this.transactionTemplate.execute(new TransactionCallback<int[]>() {
+                
+                @Override
+                public int[] doInTransaction(final TransactionStatus status) {
+                    
+                    final String[] stmts = SqlSplit.splitSql(sql);
+                    
+                    return PanaceaTasklet.this.jdbcTemplate.batchUpdate(stmts);
+                }
+            });
+            log.debug("PanaceaTasklet execute returned size: " + ret.length);
             
             return RepeatStatus.FINISHED;
         } catch (final Exception e) {
             e.printStackTrace();
             
             return RepeatStatus.CONTINUABLE;
+        } finally {
+            //TODO
+            final DefaultTransactionDefinition completeTx = new DefaultTransactionDefinition();
+            completeTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            final TransactionStatus completeStatus = this.transactionTemplate.getTransactionManager().getTransaction(
+                completeTx);
+            this.transactionTemplate.getTransactionManager().commit(completeStatus);
         }
+        
     }
     
     /**
@@ -136,4 +157,24 @@ public class PanaceaTasklet implements Tasklet {
         this.pncStudy = pncStudy;
     }
     
+    private String getSql(final Map<String, Object> jobParams) {
+        String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/runPanaceaStudy.sql");
+        
+        final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
+        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+        final String cohortDefId = (String) jobParams.get("cohortDefId");
+        final String drugConceptId = (String) jobParams.get("drugConceptId");
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        final String sourceId = (String) jobParams.get("sourceId");
+        
+        final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId",
+                "sourceId" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId,
+                this.pncStudy.getStudyId().toString(), drugConceptId, sourceId };
+        
+        sql = SqlRender.renderSql(sql, params, values);
+        sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
+        
+        return sql;
+    }
 }

@@ -33,7 +33,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- *
+ * Turn on Configuration and EnableBatchProcessing for using this config!!!
  */
 @Configuration
 @EnableBatchProcessing
