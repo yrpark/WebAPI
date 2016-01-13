@@ -42,7 +42,7 @@ ON myCohort.cohort_start_date < era.drug_era_start_date
 INNER JOIN @cdm_schema.concept myConcept
 ON era.drug_concept_id = myConcept.concept_id
 WHERE
-    study.study_id = 18
+    study.study_id = @studyId
 ORDER BY person_id, drug_era_start_date, drug_era_end_date;
 
 
@@ -58,3 +58,55 @@ ON
      ptsq.rowid = ptsq1.the_rowid
 )
 WHEN MATCHED THEN UPDATE SET ptsq.tx_seq = ptsq1.real_tx_seq;
+
+
+CREATE TABLE #_pnc_ptstg_ct
+(
+  study_id INT,
+  source_id INT,
+  person_id INT,
+  tx_stg_cmb_id INT,
+  tx_seq INT,
+  stg_start_date DATE,
+  stg_end_date DATE,
+  stg_duration_days INT
+);
+
+
+MERGE INTO @results_schema.pnc_tx_stage_combination_map combo
+USING
+  (SELECT DISTINCT ptsq.concept_id concept_id, ptsq.concept_name concept_name FROM #_pnc_ptsq_ct ptsq
+    WHERE ptsq.concept_id NOT IN 
+      (select exist_combo.concept_id from 
+        (SELECT comb_map.concept_id concept_id FROM @results_schema.pnc_tx_stage_combination comb
+        JOIN @results_schema.pnc_tx_stage_combination_map comb_map
+        ON comb_map.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
+        WHERE comb.study_id = @studyId) exist_combo
+      )
+  ) adding_concept
+  ON
+  (
+    1 = 0
+  )
+WHEN NOT MATCHED THEN INSERT (PNC_TX_STG_CMB_MP_ID, PNC_TX_STG_CMB_ID, CONCEPT_ID, CONCEPT_NAME)
+VALUES (@results_schema.seq_pnc_tx_stg_cmb_mp.NEXTVAL, @results_schema.seq_pnc_tx_stg_cmb.NEXTVAL, adding_concept.concept_id, adding_concept.concept_name);
+
+
+MERGE INTO @results_schema.pnc_tx_stage_combination comb
+USING
+  (
+    SELECT combo_map.pnc_tx_stg_cmb_id pnc_tx_stg_cmb_id FROM @results_schema.pnc_tx_stage_combination_map combo_map
+  ) adding_combo
+  ON
+  (
+    comb.pnc_tx_stg_cmb_id = adding_combo.pnc_tx_stg_cmb_id
+  )
+WHEN NOT MATCHED THEN INSERT (PNC_TX_STG_CMB_ID,STUDY_ID)
+VALUES (adding_combo.pnc_tx_stg_cmb_id, @studyId);
+
+
+TRUNCATE TABLE #_pnc_ptsq_ct;
+DROP TABLE #_pnc_ptsq_ct;
+
+TRUNCATE TABLE #_pnc_ptstg_ct;
+DROP TABLE #_pnc_ptstg_ct;
