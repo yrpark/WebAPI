@@ -59,6 +59,8 @@ ON
 )
 WHEN MATCHED THEN UPDATE SET ptsq.tx_seq = ptsq1.real_tx_seq;
 
+IF OBJECT_ID('tempdb..#_pnc_ptstg_ct', 'U') IS NOT NULL
+  DROP TABLE #_pnc_ptstg_ct;
 
 CREATE TABLE #_pnc_ptstg_ct
 (
@@ -105,8 +107,74 @@ WHEN NOT MATCHED THEN INSERT (PNC_TX_STG_CMB_ID,STUDY_ID)
 VALUES (adding_combo.pnc_tx_stg_cmb_id, @studyId);
 
 
-TRUNCATE TABLE #_pnc_ptsq_ct;
-DROP TABLE #_pnc_ptsq_ct;
+-- insert from #_pnc_ptsq_ct ptsq into #_pnc_ptstg_ct (remove same patient/same drug small time window inside large time window. EX: 1/2/2015 ~ 1/31/2015 inside 1/1/2015 ~ 3/1/2015) 
+insert into #_pnc_ptstg_ct (study_id, source_id, person_id, tx_stg_cmb_id, stg_start_date, stg_end_date, stg_duration_days)
+select insertingPTSQ.study_id, insertingPTSQ.source_id, insertingPTSQ.person_id, insertingPTSQ.pnc_tx_stg_cmb_id, insertingPTSQ.idx_start_date, insertingPTSQ.idx_end_date, insertingPTSQ.duration_days
+from (select ptsq.study_id, ptsq.source_id, ptsq.person_id, ptsq.idx_start_date, ptsq.idx_end_date, ptsq.duration_days, combo.pnc_tx_stg_cmb_id from #_pnc_ptsq_ct ptsq,
+  (SELECT comb.pnc_tx_stg_cmb_id, combmap.concept_id FROM @results_schema.pnc_tx_stage_combination comb
+    JOIN @results_schema.pnc_tx_stage_combination_map combMap
+    ON combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
+    where comb.study_id = @studyId
+  ) combo
+where ptsq.rowid not in
+  (select ptsq2.rowid from #_pnc_ptsq_ct ptsq1
+    join #_pnc_ptsq_ct ptsq2
+    on ptsq1.person_id = ptsq2.person_id
+    and ptsq1.concept_id = ptsq2.concept_id
+    where ((ptsq2.idx_start_date > ptsq1.idx_start_date)
+      and (ptsq2.idx_end_date < ptsq1.idx_end_date
+      or ptsq2.idx_end_date = ptsq1.idx_end_date))
+    or ((ptsq2.idx_start_date > ptsq1.idx_start_date
+      or ptsq2.idx_start_date = ptsq1.idx_start_date
+      ) and (ptsq2.idx_end_date < ptsq1.idx_end_date))
+  )
+and ptsq.study_id = @studyId
+AND combo.concept_id = ptsq.concept_id
+order by ptsq.person_id, ptsq.idx_start_date, ptsq.idx_end_date
+) insertingPTSQ;
 
-TRUNCATE TABLE #_pnc_ptstg_ct;
-DROP TABLE #_pnc_ptstg_ct;
+
+-- take care of expanded time window for same patient/same drug. 
+-- EX: 2/1/2015 ~ 4/1/2015 ptstg2, 1/1/2015 ~ 3/1/2015 ptstg1. Update ptstg1 with later end date and delete ptstg2   
+merge into #_pnc_ptstg_ct ptstg
+using
+  (
+    select ptstg2.rowid deleteRowId, ptstg1.rowid updateRowID,
+      case 
+        when ptstg1.stg_end_date > ptstg2.stg_end_date then ptstg1.stg_end_date
+        when ptstg2.stg_end_date > ptstg1.stg_end_date then ptstg2.stg_end_date
+        when ptstg2.stg_end_date = ptstg1.stg_end_date then ptstg2.stg_end_date
+      end as realEndDate
+    from #_pnc_ptstg_ct ptstg1
+    join #_pnc_ptstg_ct ptstg2
+    on ptstg1.person_id = ptstg2.person_id
+    and ptstg1.tx_stg_cmb_id = ptstg2.tx_stg_cmb_id
+    where ptstg2.stg_start_date < ptstg1.stg_end_date
+      and ptstg2.stg_start_date > ptstg1.stg_start_date
+  ) ptstgExpandDate
+  on
+  (
+     ptstg.rowid = ptstgExpandDate.updateRowID
+  )
+  WHEN MATCHED then update set ptstg.stg_end_date = ptstgExpandDate.realEndDate,
+    ptstg.stg_duration_days = (ptstgExpandDate.realEndDate - ptstg.stg_start_date + 1);
+
+    
+delete from #_pnc_ptstg_ct ptstg
+where ptstg.rowid in 
+  (
+    select ptstg2.rowid deleteRowId
+    from #_pnc_ptstg_ct ptstg1
+    join #_pnc_ptstg_ct ptstg2
+    on ptstg1.person_id = ptstg2.person_id
+    and ptstg1.tx_stg_cmb_id = ptstg2.tx_stg_cmb_id
+    where ptstg2.stg_start_date < ptstg1.stg_end_date
+      and ptstg2.stg_start_date > ptstg1.stg_start_date
+  );
+
+  
+--TRUNCATE TABLE #_pnc_ptsq_ct;
+--DROP TABLE #_pnc_ptsq_ct;
+
+--TRUNCATE TABLE #_pnc_ptstg_ct;
+--DROP TABLE #_pnc_ptstg_ct;
