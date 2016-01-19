@@ -27,7 +27,7 @@ SELECT distinct study.study_id AS study_id, myCohort.person_id AS person_id, @so
   myConcept.concept_name, era.drug_era_start_date, era.drug_era_end_date, era.drug_era_end_date - era.drug_era_start_date + 1
 FROM @results_schema.panacea_study study
 INNER JOIN (SELECT DISTINCT subject_id person_id, COHORT_START_DATE cohort_start_date, cohort_end_date cohort_end_date FROM @ohdsi_schema.cohort 
-        WHERE COHORT_DEFINITION_ID = 915 AND subject_id in (2000000030415658, 2000000032622347))  myCohort
+        WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347))  myCohort
 ON myCohort.cohort_start_date > study.start_date
    AND myCohort.cohort_start_date < study.end_date
    AND myCohort.cohort_end_date < study.end_date
@@ -172,7 +172,40 @@ where ptstg.rowid in
       and ptstg2.stg_start_date > ptstg1.stg_start_date
   );
 
+
+--DECLARE @au_id INT;
+--DECLARE authors_cursor CURSOR FOR 
+--SELECT peron_id
+--FROM #_pnc_ptstg_ct;
+
+--OPEN authors_cursor
+
+--FETCH NEXT FROM authors_cursor 
+--INTO @au_id
+
+--WHILE @@FETCH_STATUS = 0
+--BEGIN
+
+--   FETCH NEXT FROM authors_cursor 
+--   INTO @au_id
+--END
+
+--CLOSE authors_cursor
+--DEALLOCATE authors_cursor
+--GO 
   
+--DECLARE
+--  var_seq number(6) := 1;
+--  cursor var_cursor is select PNC_PT_STG_SQ_ID, person_id, tx_seq from pnc_tmp_pt_stg_sq_ct where study_id = 2 order by person_id, stg_start_date;
+--BEGIN
+--  for rec in var_cursor loop 
+  
+    --select NVL(MAX(tx_seq), 0) + 1 into var_seq from pnc_tmp_pt_stg_sq_ct where person_id = rec.person_id;
+    
+--  end loop;
+--END;
+
+
 --TRUNCATE TABLE #_pnc_ptsq_ct;
 --DROP TABLE #_pnc_ptsq_ct;
 
