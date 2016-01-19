@@ -395,7 +395,25 @@ public class PanaceaService extends AbstractDaoService {
                     //                            .exceptionHandler(new TerminateJobStepExceptionHandler()).build();
                     //                    
                     //                    final Job pncStudyJob = this.jobBuilders.get("panaceaStudy").start(pncStep1).next(pncStep2).build();
-                    final Job pncStudyJob = this.jobBuilders.get("panaceaStudy").start(pncStep1).build();
+                    
+                    //final Job pncStudyJob = this.jobBuilders.get("panaceaStudy").start(pncStep1).build();
+                    
+                    final PanaceaGetPersonIdsTasklet pncGetPersonIdsTasklet = new PanaceaGetPersonIdsTasklet(
+                            this.getSourceJdbcTemplate(source), this.getTransactionTemplate());
+                    
+                    final Step pncGetPersonIdsTaskletStep = this.stepBuilders.get("pncGetPersonIdsTaskletStep")
+                            .tasklet(pncGetPersonIdsTasklet).exceptionHandler(new TerminateJobStepExceptionHandler())
+                            .build();
+                    
+                    final PanaceaPatientDrugComboTasklet pncPatientDrugComboTasklet = new PanaceaPatientDrugComboTasklet(
+                            this.getSourceJdbcTemplate(source), this.getTransactionTemplate());
+                    
+                    final Step pncPatientDrugComboTaskletStep = this.stepBuilders.get("pncPatientDrugComboTaskletStep")
+                            .tasklet(pncPatientDrugComboTasklet).exceptionHandler(new TerminateJobStepExceptionHandler())
+                            .build();
+                    
+                    final Job pncStudyJob = this.jobBuilders.get("panaceaStudy").start(pncStep1)
+                            .next(pncGetPersonIdsTaskletStep).next(pncPatientDrugComboTaskletStep).build();
                     
                     final JobExecutionResource jobExec = this.jobTemplate.launch(pncStudyJob, jobParameters);
                 } else {
