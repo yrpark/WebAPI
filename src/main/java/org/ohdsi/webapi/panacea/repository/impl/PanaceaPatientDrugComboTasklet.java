@@ -15,10 +15,16 @@ package org.ohdsi.webapi.panacea.repository.impl;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.ohdsi.sql.SqlRender;
@@ -48,6 +54,17 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     private JdbcTemplate jdbcTemplate;
     
     private TransactionTemplate transactionTemplate;
+    
+    private final Comparator patientStageCombinationCountDateComparator = new Comparator<PatientStageCombinationCount>() {
+        
+        @Override
+        public int compare(final PatientStageCombinationCount pscc1, final PatientStageCombinationCount pscc2) {
+            if ((pscc1 != null) && (pscc2 != null) && (pscc1.getStartDate() != null) && (pscc2.getStartDate() != null)) {
+                return pscc1.getStartDate().before(pscc2.getStartDate()) ? -1 : 1;
+            }
+            return 0;
+        }
+    };
     
     /**
      * @param jdbcTemplate
@@ -92,13 +109,19 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             
             log.debug("PanaceaPatientDrugComboTasklet.execute, returned size -- " + patientStageCountList.size());
             
-            mergeComboOverlapWindow(patientStageCountList);
+            final List<PatientStageCombinationCount> calculatedOverlappingPSCCList = mergeComboOverlapWindow(patientStageCountList);
+            
+            if (calculatedOverlappingPSCCList != null) {
+                calculatedOverlappingPSCCList.toString();
+            }
             
             return RepeatStatus.FINISHED;
         } catch (final Exception e) {
             e.printStackTrace();
             
-            return RepeatStatus.CONTINUABLE;
+            //TODO -- consider this bad? and terminate the job?
+            //return RepeatStatus.CONTINUABLE;
+            return RepeatStatus.FINISHED;
         } finally {
             //TODO
             final DefaultTransactionDefinition completeTx = new DefaultTransactionDefinition();
@@ -175,39 +198,211 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
         return sql;
     }
     
-    private void mergeComboOverlapWindow(final List<PatientStageCount> patientStageCountList) {
-        if (patientStageCountList != null) {
+    private List<PatientStageCombinationCount> mergeComboOverlapWindow(final List<PatientStageCount> patientStageCountList) {
+        if ((patientStageCountList != null) && (patientStageCountList.size() > 0)) {
             final Map<Long, List<PatientStageCombinationCount>> mergedComboPatientMap = new HashMap<Long, List<PatientStageCombinationCount>>();
-            final Map<Long, List<PatientStageCombinationCount>> truncatedComboPatientMap = new HashMap<Long, List<PatientStageCombinationCount>>();
             
+            Long currentPersonId = patientStageCountList.get(0).getPersonId();
+            final List<PatientStageCombinationCount> mergedList = new ArrayList<PatientStageCombinationCount>();
+            final List<PatientStageCombinationCount> truncatedList = new ArrayList<PatientStageCombinationCount>();
             for (final PatientStageCount psc : patientStageCountList) {
-                if ((psc != null) && (psc.getPersonId() != null) && (psc.getCmbId() != null) && (psc.getStartDate() != null)
-                        && (psc.getEndDate() != null)) {
-                    if (mergedComboPatientMap.containsKey(psc.getPersonId())) {
-                        popCurrentPatientStageCount(mergedComboPatientMap.get(psc.getPersonId()),
-                            truncatedComboPatientMap.get(psc.getPersonId()), psc);
-                    } else {
-                        final PatientStageCombinationCount pscc = new PatientStageCombinationCount();
-                        pscc.setPersonId(psc.getPersonId());
-                        pscc.setComboIds(psc.getCmbId().toString());
-                        pscc.setStartDate(psc.getStartDate());
-                        pscc.setEndDate(psc.getEndDate());
-                        
-                        final List<PatientStageCombinationCount> psccList = new ArrayList<PatientStageCombinationCount>();
-                        psccList.add(pscc);
-                        
-                        mergedComboPatientMap.put(psc.getPersonId(), psccList);
+                if (psc.getPersonId().equals(currentPersonId)) {
+                    //from same patient
+                    while ((truncatedList.size() > 0) && truncatedList.get(0).getStartDate().before(psc.getStartDate())) {
+                        popAndMergeList(mergedList, truncatedList, null);
                     }
+                    
+                    final PatientStageCombinationCount newPSCC = new PatientStageCombinationCount();
+                    newPSCC.setPersonId(psc.getPersonId());
+                    newPSCC.setComboIds(psc.getCmbId().toString());
+                    newPSCC.setStartDate(psc.getStartDate());
+                    newPSCC.setEndDate(psc.getEndDate());
+                    
+                    popAndMergeList(mergedList, truncatedList, newPSCC);
+                    
+                    if (patientStageCountList.indexOf(psc) == (patientStageCountList.size() - 1)) {
+                        //last object in the original list
+                        
+                        while (truncatedList.size() > 0) {
+                            popAndMergeList(mergedList, truncatedList, null);
+                        }
+                        
+                        final List<PatientStageCombinationCount> currentPersonIdMergedList = new ArrayList<PatientStageCombinationCount>();
+                        currentPersonIdMergedList.addAll(mergedList);
+                        mergedComboPatientMap.put(currentPersonId, currentPersonIdMergedList);
+                        
+                        mergedList.clear();
+                        truncatedList.clear();
+                    }
+                } else {
+                    //read to roll to next patient after popping all from truncatedList 
+                    while (truncatedList.size() > 0) {
+                        popAndMergeList(mergedList, truncatedList, null);
+                    }
+                    
+                    final List<PatientStageCombinationCount> currentPersonIdMergedList = new ArrayList<PatientStageCombinationCount>();
+                    currentPersonIdMergedList.addAll(mergedList);
+                    mergedComboPatientMap.put(currentPersonId, currentPersonIdMergedList);
+                    
+                    mergedList.clear();
+                    truncatedList.clear();
+                    
+                    //first object for next patient
+                    currentPersonId = psc.getPersonId();
+                    
+                    final PatientStageCombinationCount newPSCC = new PatientStageCombinationCount();
+                    newPSCC.setPersonId(psc.getPersonId());
+                    newPSCC.setComboIds(psc.getCmbId().toString());
+                    newPSCC.setStartDate(psc.getStartDate());
+                    newPSCC.setEndDate(psc.getEndDate());
+                    
+                    popAndMergeList(mergedList, truncatedList, newPSCC);
                 }
             }
+            
+            final List<PatientStageCombinationCount> returnPSCCList = new ArrayList(mergedComboPatientMap.values());
+            
+            return returnPSCCList;
+            
         } else {
             //TODO - error logging
+            return null;
         }
     }
     
-    private void popCurrentPatientStageCount(final List<PatientStageCombinationCount> mergedComboPatientCountList,
-                                             final List<PatientStageCombinationCount> truncatedComboPatientCountList,
-                                             final PatientStageCount psc) {
+    private void popAndMergeList(final List<PatientStageCombinationCount> mergedList,
+                                 final List<PatientStageCombinationCount> truncatedList,
+                                 final PatientStageCombinationCount newConstructedPSCC) {
+        if ((mergedList != null) && (truncatedList != null)) {
+            PatientStageCombinationCount poppingPSCC = null;
+            boolean newPSCCFromOriginalList = false;
+            if (newConstructedPSCC == null) {
+                poppingPSCC = truncatedList.get(0);
+            } else {
+                poppingPSCC = newConstructedPSCC;
+                newPSCCFromOriginalList = true;
+            }
+            
+            if (mergedList.size() > 0) {
+                //mergedList has elements
+                final PatientStageCombinationCount lastMergedPSCC = mergedList.get(mergedList.size() - 1);
+                
+                if (lastMergedPSCC.getStartDate().after(poppingPSCC.getStartDate())) {
+                    
+                    log.error("Error in popAndMergeList -- starting date wrong in popAndMergeList");
+                }
+                
+                if (poppingPSCC.getStartDate().before(lastMergedPSCC.getEndDate())) {
+                    //overlapping
+                    
+                    if (poppingPSCC.getEndDate().before(lastMergedPSCC.getEndDate())) {
+                        //poping time window is "within" last merged object
+                        final PatientStageCombinationCount newPSCC = new PatientStageCombinationCount();
+                        newPSCC.setPersonId(poppingPSCC.getPersonId());
+                        newPSCC.setComboIds(lastMergedPSCC.getComboIds());
+                        newPSCC.setStartDate(poppingPSCC.getEndDate());
+                        newPSCC.setEndDate(lastMergedPSCC.getEndDate());
+                        
+                        poppingPSCC.setComboIds(mergeComboIds(lastMergedPSCC, poppingPSCC));
+                        
+                        lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
+                        
+                        //TODO - verify this more!!!
+                        if (lastMergedPSCC.getStartDate().equals(lastMergedPSCC.getEndDate())) {
+                            mergedList.remove(mergedList.size() - 1);
+                        }
+                        
+                        mergedList.add(poppingPSCC);
+                        
+                        if (!newPSCCFromOriginalList) {
+                            truncatedList.remove(0);
+                        }
+                        
+                        truncatedList.add(newPSCC);
+                        
+                        Collections.sort(truncatedList, this.patientStageCombinationCountDateComparator);
+                        
+                    } else if (poppingPSCC.getEndDate().after(lastMergedPSCC.getEndDate())) {
+                        //poping object end date is after last merged object
+                        final PatientStageCombinationCount newPSCC = new PatientStageCombinationCount();
+                        newPSCC.setPersonId(poppingPSCC.getPersonId());
+                        newPSCC.setComboIds(poppingPSCC.getComboIds());
+                        newPSCC.setStartDate(lastMergedPSCC.getEndDate());
+                        newPSCC.setEndDate(poppingPSCC.getEndDate());
+                        
+                        poppingPSCC.setComboIds(mergeComboIds(lastMergedPSCC, poppingPSCC));
+                        poppingPSCC.setEndDate(lastMergedPSCC.getEndDate());
+                        
+                        lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
+                        
+                        //TODO - verify this more!!!
+                        if (lastMergedPSCC.getStartDate().equals(lastMergedPSCC.getEndDate())) {
+                            mergedList.remove(mergedList.size() - 1);
+                        }
+                        
+                        mergedList.add(poppingPSCC);
+                        
+                        if (!newPSCCFromOriginalList) {
+                            truncatedList.remove(0);
+                        }
+                        
+                        truncatedList.add(newPSCC);
+                        
+                        Collections.sort(truncatedList, this.patientStageCombinationCountDateComparator);
+                    } else if (poppingPSCC.getEndDate().equals(lastMergedPSCC.getEndDate())) {
+                        //poping object end date is the same as last merged object
+                        poppingPSCC.setComboIds(mergeComboIds(lastMergedPSCC, poppingPSCC));
+                        
+                        lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
+                        
+                        mergedList.add(poppingPSCC);
+                        
+                        if (!newPSCCFromOriginalList) {
+                            truncatedList.remove(0);
+                        }
+                    }
+                } else {
+                    //no overlapping, just pop
+                    mergedList.add(poppingPSCC);
+                    
+                    if (!newPSCCFromOriginalList) {
+                        truncatedList.remove(0);
+                    }
+                }
+            } else {
+                //mergedList has no elements, just add the first one
+                mergedList.add(poppingPSCC);
+                
+                //TODO -- check if still needed
+                if (!newPSCCFromOriginalList) {
+                    truncatedList.remove(0);
+                }
+            }
+        } else {
+            //TODO -- error logging
+        }
+    }
+    
+    private String mergeComboIds(final PatientStageCombinationCount pscc1, final PatientStageCombinationCount pscc2) {
         
+        if ((pscc1 != null) && (pscc2 != null) && (pscc1.getComboIds() != null) && (pscc2.getComboIds() != null)) {
+            final String[] pscc1ComboStringArray = pscc1.getComboIds().split("\\|");
+            final List<String> psccCombos = new ArrayList<String>();
+            psccCombos.addAll(Arrays.asList(pscc1ComboStringArray));
+            
+            final String[] pscc2ComboStringArray = pscc2.getComboIds().split("\\|");
+            psccCombos.addAll(Arrays.asList(pscc2ComboStringArray));
+            
+            final Set<String> comboSet = new HashSet<String>(psccCombos);
+            
+            psccCombos.clear();
+            psccCombos.addAll(comboSet);
+            
+            Collections.sort(psccCombos);
+            
+            return StringUtils.join(psccCombos, "|");
+        }
+        
+        return null;
     }
 }
