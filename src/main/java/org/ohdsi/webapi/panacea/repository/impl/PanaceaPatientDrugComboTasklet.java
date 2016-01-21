@@ -27,6 +27,8 @@ import java.util.Set;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.joda.time.DateTime;
+import org.joda.time.Days;
 import org.ohdsi.sql.SqlRender;
 import org.ohdsi.sql.SqlTranslate;
 import org.springframework.batch.core.StepContribution;
@@ -109,7 +111,8 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             
             log.debug("PanaceaPatientDrugComboTasklet.execute, returned size -- " + patientStageCountList.size());
             
-            final List<PatientStageCombinationCount> calculatedOverlappingPSCCList = mergeComboOverlapWindow(patientStageCountList);
+            final List<PatientStageCombinationCount> calculatedOverlappingPSCCList = mergeComboOverlapWindow(
+                patientStageCountList, 30);
             
             if (calculatedOverlappingPSCCList != null) {
                 calculatedOverlappingPSCCList.toString();
@@ -198,7 +201,8 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
         return sql;
     }
     
-    private List<PatientStageCombinationCount> mergeComboOverlapWindow(final List<PatientStageCount> patientStageCountList) {
+    private List<PatientStageCombinationCount> mergeComboOverlapWindow(final List<PatientStageCount> patientStageCountList,
+                                                                       final int switchWindow) {
         if ((patientStageCountList != null) && (patientStageCountList.size() > 0)) {
             final Map<Long, List<PatientStageCombinationCount>> mergedComboPatientMap = new HashMap<Long, List<PatientStageCombinationCount>>();
             
@@ -209,7 +213,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                 if (psc.getPersonId().equals(currentPersonId)) {
                     //from same patient
                     while ((truncatedList.size() > 0) && truncatedList.get(0).getStartDate().before(psc.getStartDate())) {
-                        popAndMergeList(mergedList, truncatedList, null);
+                        popAndMergeList(mergedList, truncatedList, null, switchWindow);
                     }
                     
                     final PatientStageCombinationCount newPSCC = new PatientStageCombinationCount();
@@ -218,13 +222,13 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     newPSCC.setStartDate(psc.getStartDate());
                     newPSCC.setEndDate(psc.getEndDate());
                     
-                    popAndMergeList(mergedList, truncatedList, newPSCC);
+                    popAndMergeList(mergedList, truncatedList, newPSCC, switchWindow);
                     
                     if (patientStageCountList.indexOf(psc) == (patientStageCountList.size() - 1)) {
                         //last object in the original list
                         
                         while (truncatedList.size() > 0) {
-                            popAndMergeList(mergedList, truncatedList, null);
+                            popAndMergeList(mergedList, truncatedList, null, switchWindow);
                         }
                         
                         final List<PatientStageCombinationCount> currentPersonIdMergedList = new ArrayList<PatientStageCombinationCount>();
@@ -237,7 +241,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                 } else {
                     //read to roll to next patient after popping all from truncatedList 
                     while (truncatedList.size() > 0) {
-                        popAndMergeList(mergedList, truncatedList, null);
+                        popAndMergeList(mergedList, truncatedList, null, switchWindow);
                     }
                     
                     final List<PatientStageCombinationCount> currentPersonIdMergedList = new ArrayList<PatientStageCombinationCount>();
@@ -256,7 +260,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     newPSCC.setStartDate(psc.getStartDate());
                     newPSCC.setEndDate(psc.getEndDate());
                     
-                    popAndMergeList(mergedList, truncatedList, newPSCC);
+                    popAndMergeList(mergedList, truncatedList, newPSCC, switchWindow);
                 }
             }
             
@@ -272,7 +276,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     
     private void popAndMergeList(final List<PatientStageCombinationCount> mergedList,
                                  final List<PatientStageCombinationCount> truncatedList,
-                                 final PatientStageCombinationCount newConstructedPSCC) {
+                                 final PatientStageCombinationCount newConstructedPSCC, final int switchWindow) {
         if ((mergedList != null) && (truncatedList != null)) {
             PatientStageCombinationCount poppingPSCC = null;
             boolean newPSCCFromOriginalList = false;
@@ -296,61 +300,133 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     //overlapping
                     
                     if (poppingPSCC.getEndDate().before(lastMergedPSCC.getEndDate())) {
-                        //poping time window is "within" last merged object
-                        final PatientStageCombinationCount newPSCC = new PatientStageCombinationCount();
-                        newPSCC.setPersonId(poppingPSCC.getPersonId());
-                        newPSCC.setComboIds(lastMergedPSCC.getComboIds());
-                        newPSCC.setStartDate(poppingPSCC.getEndDate());
-                        newPSCC.setEndDate(lastMergedPSCC.getEndDate());
+                        //popping time window is "within" last merged object
                         
-                        poppingPSCC.setComboIds(mergeComboIds(lastMergedPSCC, poppingPSCC));
+                        final int overlappingDays = Days.daysBetween(new DateTime(poppingPSCC.getStartDate()),
+                            new DateTime(poppingPSCC.getEndDate())).getDays();
                         
-                        lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
-                        
-                        //TODO - verify this more!!!
-                        if (lastMergedPSCC.getStartDate().equals(lastMergedPSCC.getEndDate())) {
-                            mergedList.remove(mergedList.size() - 1);
+                        if (overlappingDays >= (switchWindow - 1)) {
+                            final PatientStageCombinationCount newPSCC = new PatientStageCombinationCount();
+                            newPSCC.setPersonId(poppingPSCC.getPersonId());
+                            newPSCC.setComboIds(lastMergedPSCC.getComboIds());
+                            newPSCC.setStartDate(poppingPSCC.getEndDate());
+                            newPSCC.setEndDate(lastMergedPSCC.getEndDate());
+                            
+                            poppingPSCC.setComboIds(mergeComboIds(lastMergedPSCC, poppingPSCC));
+                            
+                            lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
+                            
+                            //TODO - verify this more!!!
+                            if (lastMergedPSCC.getStartDate().equals(lastMergedPSCC.getEndDate())) {
+                                mergedList.remove(mergedList.size() - 1);
+                            }
+                            /**
+                             * see java doc for method combinationSplit()
+                             */
+                            /*                            else {
+                                                            final List<PatientStageCombinationCount> splittedEarlyMergedList = combinationSplit(
+                                                                lastMergedPSCC, switchWindow);
+                                                            if (splittedEarlyMergedList != null) {
+                                                                mergedList.remove(mergedList.size() - 1);
+                                                                mergedList.addAll(splittedEarlyMergedList);
+                                                            }
+                                                        }
+                            */
+                            mergedList.add(poppingPSCC);
+                            
+                            if (!newPSCCFromOriginalList) {
+                                truncatedList.remove(0);
+                            }
+                            
+                            /**
+                             * see java doc for combinationSplit()
+                             */
+                            /*                            final List<PatientStageCombinationCount> splittedNewList = combinationSplit(newPSCC,
+                                                            switchWindow);
+                                                        if (splittedNewList != null) {
+                                                            truncatedList.addAll(splittedNewList);
+                                                        } else {
+                                                            truncatedList.add(newPSCC);
+                                                        }*/
+                            
+                            truncatedList.add(newPSCC);
+                            
+                            Collections.sort(truncatedList, this.patientStageCombinationCountDateComparator);
+                        } else {
+                            //no overlapping, just pop
+                            mergedList.add(poppingPSCC);
+                            
+                            if (!newPSCCFromOriginalList) {
+                                truncatedList.remove(0);
+                            }
+                            
                         }
-                        
-                        mergedList.add(poppingPSCC);
-                        
-                        if (!newPSCCFromOriginalList) {
-                            truncatedList.remove(0);
-                        }
-                        
-                        truncatedList.add(newPSCC);
-                        
-                        Collections.sort(truncatedList, this.patientStageCombinationCountDateComparator);
-                        
                     } else if (poppingPSCC.getEndDate().after(lastMergedPSCC.getEndDate())) {
-                        //poping object end date is after last merged object
-                        final PatientStageCombinationCount newPSCC = new PatientStageCombinationCount();
-                        newPSCC.setPersonId(poppingPSCC.getPersonId());
-                        newPSCC.setComboIds(poppingPSCC.getComboIds());
-                        newPSCC.setStartDate(lastMergedPSCC.getEndDate());
-                        newPSCC.setEndDate(poppingPSCC.getEndDate());
+                        //popping object end date is after last merged object
                         
-                        poppingPSCC.setComboIds(mergeComboIds(lastMergedPSCC, poppingPSCC));
-                        poppingPSCC.setEndDate(lastMergedPSCC.getEndDate());
+                        final int overlappingDays = Days.daysBetween(new DateTime(poppingPSCC.getStartDate()),
+                            new DateTime(lastMergedPSCC.getEndDate())).getDays();
                         
-                        lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
-                        
-                        //TODO - verify this more!!!
-                        if (lastMergedPSCC.getStartDate().equals(lastMergedPSCC.getEndDate())) {
-                            mergedList.remove(mergedList.size() - 1);
+                        if (overlappingDays >= (switchWindow - 1)) {
+                            final PatientStageCombinationCount newPSCC = new PatientStageCombinationCount();
+                            newPSCC.setPersonId(poppingPSCC.getPersonId());
+                            newPSCC.setComboIds(poppingPSCC.getComboIds());
+                            newPSCC.setStartDate(lastMergedPSCC.getEndDate());
+                            newPSCC.setEndDate(poppingPSCC.getEndDate());
+                            
+                            poppingPSCC.setComboIds(mergeComboIds(lastMergedPSCC, poppingPSCC));
+                            poppingPSCC.setEndDate(lastMergedPSCC.getEndDate());
+                            
+                            lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
+                            
+                            //TODO - verify this more!!!
+                            if (lastMergedPSCC.getStartDate().equals(lastMergedPSCC.getEndDate())) {
+                                mergedList.remove(mergedList.size() - 1);
+                            }
+                            /**
+                             * see java doc for combinationSplit()
+                             */
+                            /*                            else {
+                                                            final List<PatientStageCombinationCount> splittedEarlyMergedList = combinationSplit(
+                                                                lastMergedPSCC, switchWindow);
+                                                            if (splittedEarlyMergedList != null) {
+                                                                mergedList.remove(mergedList.size() - 1);
+                                                                mergedList.addAll(splittedEarlyMergedList);
+                                                            }
+                                                        }
+                            */
+                            mergedList.add(poppingPSCC);
+                            
+                            if (!newPSCCFromOriginalList) {
+                                truncatedList.remove(0);
+                            }
+                            
+                            /**
+                             * see java doc for combinationSplit()
+                             */
+                            /*                            final List<PatientStageCombinationCount> splittedNewList = combinationSplit(newPSCC,
+                                                            switchWindow);
+                                                        if (splittedNewList != null) {
+                                                            truncatedList.addAll(splittedNewList);
+                                                        } else {
+                                                            truncatedList.add(newPSCC);
+                                                        }
+                            */
+                            truncatedList.add(newPSCC);
+                            
+                            Collections.sort(truncatedList, this.patientStageCombinationCountDateComparator);
+                        } else {
+                            //no overlapping, just pop
+                            mergedList.add(poppingPSCC);
+                            
+                            if (!newPSCCFromOriginalList) {
+                                truncatedList.remove(0);
+                            }
+                            
                         }
                         
-                        mergedList.add(poppingPSCC);
-                        
-                        if (!newPSCCFromOriginalList) {
-                            truncatedList.remove(0);
-                        }
-                        
-                        truncatedList.add(newPSCC);
-                        
-                        Collections.sort(truncatedList, this.patientStageCombinationCountDateComparator);
                     } else if (poppingPSCC.getEndDate().equals(lastMergedPSCC.getEndDate())) {
-                        //poping object end date is the same as last merged object
+                        //popping object end date is the same as last merged object
                         poppingPSCC.setComboIds(mergeComboIds(lastMergedPSCC, poppingPSCC));
                         
                         lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
@@ -404,5 +480,83 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
         }
         
         return null;
+    }
+    
+    /**
+     * This is to split combination PatientStageCombinationCount. For operating switch window
+     * parameter and split old combined combos. May not need it for I think as long the combination
+     * has bee combined, basically meaning they overlaps for long enough. When new drug comes in and
+     * overlapping with the combined windows, the rest of the window (truncated part and the part
+     * before current combination start date) should qualify the switch window too.
+     * 
+     * <pre>
+     * 
+     * For example:
+     * 
+     * A|B
+     *  time1       time2
+     *  l____________l
+     * 
+     * A|B|C
+     *      time3       time4
+     *      l____________l
+     * 
+     *  When C comes in and trucate combination A|B. The time between time1 and time3 should be considered
+     *  as "qualified" combination too because even it's trunkcated by C, A and B's actually length is 
+     *  between time1 and time2. So A and B should be considered as taken together.
+     *  
+     *  The same applies to following between time4 and time2 (A and B taking together):
+     * 
+     * A|B
+     *  time1             time2
+     *  l__________________l
+     * 
+     * A|B|C
+     *      time3    time4
+     *      l_______l
+     * 
+     * 
+     * </pre>
+     * 
+     * @param pscc
+     * @param switchWindow
+     * @return
+     */
+    private List<PatientStageCombinationCount> combinationSplit(final PatientStageCombinationCount pscc,
+                                                                final int switchWindow) {
+        if (pscc != null) {
+            
+            if ((pscc.getStartDate() != null) && (pscc.getEndDate() != null)) {
+                final int overlappingDays = Days.daysBetween(new DateTime(pscc.getStartDate()),
+                    new DateTime(pscc.getEndDate())).getDays();
+                
+                if ((pscc.getComboIds() != null) && pscc.getComboIds().contains("|")
+                        && (overlappingDays < (switchWindow - 1))) {
+                    final String[] psccComboStringArray = pscc.getComboIds().split("\\|");
+                    final List<String> psccCombos = new ArrayList<String>();
+                    psccCombos.addAll(Arrays.asList(psccComboStringArray));
+                    
+                    final List<PatientStageCombinationCount> psccList = new ArrayList<PatientStageCombinationCount>();
+                    for (final String comboID : psccCombos) {
+                        final PatientStageCombinationCount returnPscc = new PatientStageCombinationCount();
+                        returnPscc.setPersonId(pscc.getPersonId());
+                        returnPscc.setComboIds(comboID);
+                        returnPscc.setStartDate(pscc.getStartDate());
+                        returnPscc.setEndDate(pscc.getEndDate());
+                        
+                        psccList.add(returnPscc);
+                    }
+                    
+                    return psccList;
+                }
+            }
+            //TODO - verify this as returned value
+            //            final List<PatientStageCombinationCount> psccList = new ArrayList<PatientStageCombinationCount>();
+            //            psccList.add(pscc);
+            //            return psccList;
+            return null;
+        } else {
+            return null;
+        }
     }
 }
