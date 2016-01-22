@@ -35,9 +35,15 @@ public class PatientStageCombinationCount implements Serializable {
     
     private String comboIds;
     
+    private String comboSeq;
+    
+    private Integer stage;
+    
     private Date startDate;
     
     private Date endDate;
+    
+    private Integer duration;
     
     /**
      * @return the personId
@@ -110,12 +116,54 @@ public class PatientStageCombinationCount implements Serializable {
     }
     
     /**
+     * @return the stage
+     */
+    public Integer getStage() {
+        return this.stage;
+    }
+    
+    /**
+     * @param stage the stage to set
+     */
+    public void setStage(final Integer stage) {
+        this.stage = stage;
+    }
+    
+    /**
+     * @return the duration
+     */
+    public Integer getDuration() {
+        return this.duration;
+    }
+    
+    /**
+     * @param duration the duration to set
+     */
+    public void setDuration(final Integer duration) {
+        this.duration = duration;
+    }
+    
+    /**
+     * @return the comboSeq
+     */
+    public String getComboSeq() {
+        return this.comboSeq;
+    }
+    
+    /**
+     * @param comboSeq the comboSeq to set
+     */
+    public void setComboSeq(final String comboSeq) {
+        this.comboSeq = comboSeq;
+    }
+    
+    /**
      * @see java.lang.Object#toString()
      */
     @Override
     public String toString() {
-        return "PatientStageCombinationCount [personId=" + this.personId + ", comboIds=" + this.comboIds + ", startDate="
-                + this.startDate + ", endDate=" + this.endDate + "]";
+        return "PatientStageCombinationCount [personId=" + this.personId + ", comboIds=" + this.comboIds + ", comboSeq="
+                + this.comboSeq + ", stage=" + this.stage + ", startDate=" + this.startDate + ", endDate=" + this.endDate
+                + ", duration=" + this.duration + "]";
     }
-    
 }

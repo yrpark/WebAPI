@@ -12,6 +12,7 @@
  */
 package org.ohdsi.webapi.panacea.repository.impl;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -31,15 +32,18 @@ import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.ohdsi.sql.SqlRender;
 import org.ohdsi.sql.SqlTranslate;
+import org.ohdsi.webapi.helper.ResourceHelper;
 import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
+import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -118,6 +122,8 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                 calculatedOverlappingPSCCList.toString();
             }
             
+            persistentPatientStageCombinationCount(calculatedOverlappingPSCCList, jobParams);
+            
             return RepeatStatus.FINISHED;
         } catch (final Exception e) {
             e.printStackTrace();
@@ -167,7 +173,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     private String getSql(final Map<String, Object> jobParams, final ChunkContext chunkContext) {
         //String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/getPersonIds.sql");
         String sql = "select ptstg.person_id as person_id, ptstg.tx_stg_cmb_id cmb_id, ptstg.stg_start_date start_date, ptstg.stg_end_date end_date "
-                + "from HN31JHWQ_PNC_PTSTG_CT  ptstg "
+                + "from #_pnc_ptstg_ct  ptstg "
                 + "where "
                 + "person_id in (@allDistinctPersonId) "
                 + "order by person_id, stg_start_date, stg_end_date";
@@ -264,7 +270,26 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                 }
             }
             
-            final List<PatientStageCombinationCount> returnPSCCList = new ArrayList(mergedComboPatientMap.values());
+            final List<PatientStageCombinationCount> returnPSCCList = new ArrayList<PatientStageCombinationCount>();
+            for (final Map.Entry<Long, List<PatientStageCombinationCount>> entry : mergedComboPatientMap.entrySet()) {
+                int stage = 1;
+                String comboSeq = "";
+                for (final PatientStageCombinationCount pscc : entry.getValue()) {
+                    final int durationDays = Days.daysBetween(new DateTime(pscc.getStartDate()),
+                        new DateTime(pscc.getEndDate())).getDays();
+                    pscc.setDuration(durationDays);
+                    pscc.setStage(new Integer(stage));
+                    if (stage == 1) {
+                        comboSeq = pscc.getComboIds();
+                        
+                    } else {
+                        comboSeq = comboSeq.concat("->" + pscc.getComboIds());
+                    }
+                    pscc.setComboSeq(comboSeq);
+                    returnPSCCList.add(pscc);
+                    stage++;
+                }
+            }
             
             return returnPSCCList;
             
@@ -558,5 +583,86 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
         } else {
             return null;
         }
+    }
+    
+    private int[] persistentPatientStageCombinationCount(final List<PatientStageCombinationCount> psccList,
+                                                         final Map<String, Object> jobParams) {
+        
+        String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/insertPatientStageComboSequence.sql");
+        
+        final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
+        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+        final String cohortDefId = (String) jobParams.get("cohortDefId");
+        final String drugConceptId = (String) jobParams.get("drugConceptId");
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        final String sourceId = (String) jobParams.get("sourceId");
+        
+        final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "cohortDefId", "drugConceptId", "sourceId" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId, drugConceptId,
+                sourceId };
+        
+        sql = SqlRender.renderSql(sql, params, values);
+        sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
+        
+        /*        final String[] sqlStatements = SqlSplit.splitSql(sql);
+                
+                final int[] updateCounts = this.jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+                    
+                    @Override
+                    public void setValues(final PreparedStatement ps, final int i) throws SQLException {
+                        ps.setLong(1, 123);
+                        ps.setString(2, "dfad");
+                        ps.setDate(3, null);
+                        ps.setDate(4, null);
+                        ps.setInt(5, 1);
+                    }
+                    
+                    @Override
+                    public int getBatchSize() {
+                        return psccList.size();
+                    }
+                });
+        */
+        //TODO -- commit!!!!!
+        
+        try {
+            return this.batchInsertPSCC(sql, psccList);
+        } catch (final Exception e) {
+            // TODO Auto-generated catch block
+            log.error("Error generated", e);
+        }
+        
+        return null;
+    }
+    
+    private int[] batchInsertPSCC(final String sql, final List<PatientStageCombinationCount> psccList) throws Exception {
+        final int[] ret = this.transactionTemplate.execute(new TransactionCallback<int[]>() {
+            
+            @Override
+            public int[] doInTransaction(final TransactionStatus status) {
+                final int[] updateCounts = PanaceaPatientDrugComboTasklet.this.jdbcTemplate.batchUpdate(sql,
+                    new BatchPreparedStatementSetter() {
+                        
+                        @Override
+                        public void setValues(final PreparedStatement ps, final int i) throws SQLException {
+                            ps.setLong(1, psccList.get(i).getPersonId());
+                            ps.setString(2, psccList.get(i).getComboIds());
+                            ps.setInt(3, psccList.get(i).getStage());
+                            ps.setString(4, psccList.get(i).getComboSeq());
+                            ps.setDate(5, psccList.get(i).getStartDate());
+                            ps.setDate(6, psccList.get(i).getEndDate());
+                            ps.setInt(7, psccList.get(i).getDuration());
+                        }
+                        
+                        @Override
+                        public int getBatchSize() {
+                            return psccList.size();
+                        }
+                    });
+                
+                return updateCounts;
+            }
+        });
+        return ret;
     }
 }

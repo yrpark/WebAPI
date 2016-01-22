@@ -372,6 +372,7 @@ public class PanaceaService extends AbstractDaoService {
                     
                     builder.addString("cdm_schema", cdmTableQualifier);
                     builder.addString("ohdsi_schema", resultsTableQualifier);
+                    builder.addString("results_schema", resultsTableQualifier);
                     builder.addString("cohortDefId", cohortDefId);
                     builder.addString("studyId", studyId.toString());
                     //TODO -- for testin only!!!
@@ -412,8 +413,15 @@ public class PanaceaService extends AbstractDaoService {
                             .tasklet(pncPatientDrugComboTasklet).exceptionHandler(new TerminateJobStepExceptionHandler())
                             .build();
                     
+                    final PanaceaSummaryGenerateTasklet pncSummaryTasklet = new PanaceaSummaryGenerateTasklet(
+                            this.getSourceJdbcTemplate(source), this.getTransactionTemplate(), pncStudy);
+                    
+                    final Step pncSummaryStep = this.stepBuilders.get("pncSummaryStep").tasklet(pncSummaryTasklet)
+                            .exceptionHandler(new TerminateJobStepExceptionHandler()).build();
+                    
                     final Job pncStudyJob = this.jobBuilders.get("panaceaStudy").start(pncStep1)
-                            .next(pncGetPersonIdsTaskletStep).next(pncPatientDrugComboTaskletStep).build();
+                            .next(pncGetPersonIdsTaskletStep).next(pncPatientDrugComboTaskletStep).next(pncSummaryStep)
+                            .build();
                     
                     final JobExecutionResource jobExec = this.jobTemplate.launch(pncStudyJob, jobParameters);
                 } else {
