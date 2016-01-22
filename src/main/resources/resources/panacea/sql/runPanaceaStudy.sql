@@ -172,42 +172,25 @@ where ptstg.rowid in
       and ptstg2.stg_start_date > ptstg1.stg_start_date
   );
 
+IF OBJECT_ID('tempdb..#_pnc_tmp_cmb_sq_ct', 'U') IS NOT NULL
+  DROP TABLE #_pnc_tmp_cmb_sq_ct;
 
---DECLARE @au_id INT;
---DECLARE authors_cursor CURSOR FOR 
---SELECT peron_id
---FROM #_pnc_ptstg_ct;
-
---OPEN authors_cursor
-
---FETCH NEXT FROM authors_cursor 
---INTO @au_id
-
---WHILE @@FETCH_STATUS = 0
---BEGIN
-
---   FETCH NEXT FROM authors_cursor 
---   INTO @au_id
---END
-
---CLOSE authors_cursor
---DEALLOCATE authors_cursor
---GO 
-  
---DECLARE
---  var_seq number(6) := 1;
---  cursor var_cursor is select PNC_PT_STG_SQ_ID, person_id, tx_seq from pnc_tmp_pt_stg_sq_ct where study_id = 2 order by person_id, stg_start_date;
---BEGIN
---  for rec in var_cursor loop 
-  
-    --select NVL(MAX(tx_seq), 0) + 1 into var_seq from pnc_tmp_pt_stg_sq_ct where person_id = rec.person_id;
-    
---  end loop;
---END;
-
+CREATE TABLE #_pnc_tmp_cmb_sq_ct
+(
+	person_id INT,
+	combo_ids VARCHAR(255),
+	tx_seq INT,	
+	combo_seq VARCHAR(400),
+    start_date date,
+    end_date date,
+    combo_duration INT
+);
 
 --TRUNCATE TABLE #_pnc_ptsq_ct;
 --DROP TABLE #_pnc_ptsq_ct;
 
 --TRUNCATE TABLE #_pnc_ptstg_ct;
 --DROP TABLE #_pnc_ptstg_ct;
+
+--TRUNCATE TABLE #_pnc_tmp_cmb_sq_ct;
+--DROP TABLE #_pnc_tmp_cmb_sq_ct;
