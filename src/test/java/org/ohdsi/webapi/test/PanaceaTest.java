@@ -12,6 +12,7 @@
  */
 package org.ohdsi.webapi.test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import junit.framework.TestCase;
@@ -126,5 +127,32 @@ public class PanaceaTest extends TestCase {
         final PanaceaPatientSequenceCount ppsc = this.pncService.getPanaceaPatientSequenceCountById(new Long(777));
         
         log.info(ppsc);
+    }
+    
+    @Test
+    public void testInsertCombo() {
+        final PanaceaStageCombination pncCombo = new PanaceaStageCombination();
+        pncCombo.setStudyId(new Long(2));
+        
+        final PanaceaStageCombinationMap combMap1 = new PanaceaStageCombinationMap();
+        combMap1.setConceptId(new Long(1125315));
+        combMap1.setConceptName("Acetaminophen");
+        
+        final PanaceaStageCombinationMap combMap2 = new PanaceaStageCombinationMap();
+        combMap2.setConceptId(new Long(923645));
+        combMap2.setConceptName("Omeprazole");
+        
+        final List<PanaceaStageCombinationMap> mapList = new ArrayList<PanaceaStageCombinationMap>();
+        mapList.add(combMap1);
+        mapList.add(combMap2);
+        
+        pncCombo.setCombMapList(mapList);
+        
+        final List<PanaceaStageCombination> comboArrayList = new ArrayList<PanaceaStageCombination>();
+        comboArrayList.add(pncCombo);
+        
+        final List<PanaceaStageCombination> comboList = this.pncService.savePanaceaStageCombinationById(comboArrayList);
+        
+        log.info(comboList);
     }
 }
