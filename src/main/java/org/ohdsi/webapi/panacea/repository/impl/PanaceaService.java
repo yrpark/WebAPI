@@ -142,6 +142,7 @@ public class PanaceaService extends AbstractDaoService {
         
         final PanaceaStageCombination pncStgCmb = this.getPncStageCombinationRepository().getPanaceaStageCombinationById(
             pncStageCombId);
+        
         return pncStgCmb;
     }
     
@@ -241,6 +242,11 @@ public class PanaceaService extends AbstractDaoService {
     //            return null;
     //        }
     //    }
+    
+    public List<PanaceaStageCombination> savePanaceaStageCombinationById(final List<PanaceaStageCombination> pncStageCombinationList) {
+        
+        return (List<PanaceaStageCombination>) this.getPncStageCombinationRepository().save(pncStageCombinationList);
+    }
     
     public String getPanaceaPatientSequenceCountSql(final Long studyId, final Integer sourceId) {
         final PanaceaStudy pncStudy = this.getPanaceaStudyWithId(studyId);
@@ -407,7 +413,8 @@ public class PanaceaService extends AbstractDaoService {
                             .build();
                     
                     final PanaceaPatientDrugComboTasklet pncPatientDrugComboTasklet = new PanaceaPatientDrugComboTasklet(
-                            this.getSourceJdbcTemplate(source), this.getTransactionTemplate());
+                            this.getSourceJdbcTemplate(source), this.getTransactionTemplate(), pncStudy,
+                            this.pncStageCombinationRepository);
                     
                     final Step pncPatientDrugComboTaskletStep = this.stepBuilders.get("pncPatientDrugComboTaskletStep")
                             .tasklet(pncPatientDrugComboTasklet).exceptionHandler(new TerminateJobStepExceptionHandler())
@@ -419,9 +426,11 @@ public class PanaceaService extends AbstractDaoService {
                     final Step pncSummaryStep = this.stepBuilders.get("pncSummaryStep").tasklet(pncSummaryTasklet)
                             .exceptionHandler(new TerminateJobStepExceptionHandler()).build();
                     
+                    //                    final Job pncStudyJob = this.jobBuilders.get("panaceaStudy").start(pncStep1)
+                    //                            .next(pncGetPersonIdsTaskletStep).next(pncPatientDrugComboTaskletStep).next(pncSummaryStep)
+                    //                            .build();
                     final Job pncStudyJob = this.jobBuilders.get("panaceaStudy").start(pncStep1)
-                            .next(pncGetPersonIdsTaskletStep).next(pncPatientDrugComboTaskletStep).next(pncSummaryStep)
-                            .build();
+                            .next(pncGetPersonIdsTaskletStep).next(pncPatientDrugComboTaskletStep).build();
                     
                     final JobExecutionResource jobExec = this.jobTemplate.launch(pncStudyJob, jobParameters);
                 } else {

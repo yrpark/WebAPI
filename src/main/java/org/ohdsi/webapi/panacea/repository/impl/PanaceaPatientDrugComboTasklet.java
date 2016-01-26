@@ -33,6 +33,10 @@ import org.joda.time.Days;
 import org.ohdsi.sql.SqlRender;
 import org.ohdsi.sql.SqlTranslate;
 import org.ohdsi.webapi.helper.ResourceHelper;
+import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
+import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
+import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
+import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationRepository;
 import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
@@ -53,6 +57,8 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     
     private static final Log log = LogFactory.getLog(PanaceaPatientDrugComboTasklet.class);
     
+    private final PanaceaStageCombinationRepository pncStageCombinationRepository;
+    
     private static final int String = 0;
     
     private static final int List = 0;
@@ -60,6 +66,14 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     private JdbcTemplate jdbcTemplate;
     
     private TransactionTemplate transactionTemplate;
+    
+    private final PanaceaStudy pncStudy;
+    
+    //key-- comboIds concatenated with "|"
+    private final Map<String, PanaceaStageCombination> pncStgComboMap = new HashMap<String, PanaceaStageCombination>();
+    
+    //concept--comboId
+    private final Map<String, Long> pncStgSingleConceptComboMap = new HashMap<String, Long>();
     
     private final Comparator patientStageCombinationCountDateComparator = new Comparator<PatientStageCombinationCount>() {
         
@@ -78,10 +92,13 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
      * @param pncService
      * @param pncStudy
      */
-    public PanaceaPatientDrugComboTasklet(final JdbcTemplate jdbcTemplate, final TransactionTemplate transactionTemplate) {
+    public PanaceaPatientDrugComboTasklet(final JdbcTemplate jdbcTemplate, final TransactionTemplate transactionTemplate,
+        final PanaceaStudy pncStudy, final PanaceaStageCombinationRepository pncStageCombinationRepository) {
         super();
         this.jdbcTemplate = jdbcTemplate;
         this.transactionTemplate = transactionTemplate;
+        this.pncStudy = pncStudy;
+        this.pncStageCombinationRepository = pncStageCombinationRepository;
     }
     
     /**
@@ -116,7 +133,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             log.debug("PanaceaPatientDrugComboTasklet.execute, returned size -- " + patientStageCountList.size());
             
             final List<PatientStageCombinationCount> calculatedOverlappingPSCCList = mergeComboOverlapWindow(
-                patientStageCountList, 30);
+                patientStageCountList, 30, jobParams);
             
             if (calculatedOverlappingPSCCList != null) {
                 calculatedOverlappingPSCCList.toString();
@@ -208,7 +225,8 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     }
     
     private List<PatientStageCombinationCount> mergeComboOverlapWindow(final List<PatientStageCount> patientStageCountList,
-                                                                       final int switchWindow) {
+                                                                       final int switchWindow,
+                                                                       final Map<String, Object> jobParams) {
         if ((patientStageCountList != null) && (patientStageCountList.size() > 0)) {
             final Map<Long, List<PatientStageCombinationCount>> mergedComboPatientMap = new HashMap<Long, List<PatientStageCombinationCount>>();
             
@@ -271,6 +289,62 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             }
             
             final List<PatientStageCombinationCount> returnPSCCList = new ArrayList<PatientStageCombinationCount>();
+            
+            this.loadStudyPncStgSingleConceptCombo(jobParams);
+            this.loadStudyPncStgCombo(this.pncStudy.getStudyId());
+            
+            final Map<String, PanaceaStageCombination> newPatientStageCombination = new HashMap<String, PanaceaStageCombination>();
+            
+            final List<PanaceaStageCombination> newPSCombo = new ArrayList<PanaceaStageCombination>();
+            
+            for (final Map.Entry<Long, List<PatientStageCombinationCount>> entry : mergedComboPatientMap.entrySet()) {
+                for (final PatientStageCombinationCount pscc : entry.getValue()) {
+                    if (this.pncStgComboMap.get(pscc.getComboIds()) != null) {
+                        //existing combo
+                        pscc.setComboIds(this.pncStgComboMap.get(pscc.getComboIds()).getPncTxStgCmbId().toString());
+                    } else {
+                        //new combo
+                        if (!newPatientStageCombination.containsKey(pscc.getComboIds())) {
+                            final PanaceaStageCombination newCombo = new PanaceaStageCombination();
+                            newCombo.setStudyId(this.pncStudy.getStudyId());
+                            
+                            final List<PanaceaStageCombinationMap> mapList = new ArrayList<PanaceaStageCombinationMap>();
+                            
+                            final String[] psccComboStringArray = pscc.getComboIds().split("\\|");
+                            final List<String> psccCombos = new ArrayList<String>();
+                            psccCombos.addAll(Arrays.asList(psccComboStringArray));
+                            for (final String comboString : psccCombos) {
+                                final PanaceaStageCombinationMap combMap1 = new PanaceaStageCombinationMap();
+                                
+                                //TODO -- check on key-concept single concept generation (delete duplicates when job starts? may cause other other job run results fail...)
+                                //TODO -- should handle this with lowest combo_id check loadStudyPncStgSingleConceptCombo() method, script using min() function to remove duplicate single concept combo there 
+                                final PanaceaStageCombination conceptCombo = this.pncStgComboMap.get(comboString);
+                                
+                                if ((conceptCombo != null) && (conceptCombo.getCombMapList() != null)
+                                        && (conceptCombo.getCombMapList().size() == 1)) {
+                                    combMap1.setConceptId(conceptCombo.getCombMapList().get(0).getConceptId());
+                                    combMap1.setConceptName(conceptCombo.getCombMapList().get(0).getConceptName());
+                                } else {
+                                    //TODO -- error logging
+                                }
+                                
+                                mapList.add(combMap1);
+                            }
+                            
+                            newCombo.setCombMapList(mapList);
+                            
+                            newPSCombo.add(newCombo);
+                            newPatientStageCombination.put(pscc.getComboIds(), newCombo);
+                        }
+                    }
+                }
+            }
+            
+            this.pncStageCombinationRepository.save(newPSCombo);
+            
+            //TODO -- change this to manipulate the Map?
+            this.loadStudyPncStgCombo(this.pncStudy.getStudyId());
+            
             for (final Map.Entry<Long, List<PatientStageCombinationCount>> entry : mergedComboPatientMap.entrySet()) {
                 int stage = 1;
                 String comboSeq = "";
@@ -279,9 +353,16 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         new DateTime(pscc.getEndDate())).getDays();
                     pscc.setDuration(durationDays);
                     pscc.setStage(new Integer(stage));
+                    
+                    if (this.pncStgComboMap.get(pscc.getComboIds()) != null) {
+                        //existing combo
+                        pscc.setComboIds(this.pncStgComboMap.get(pscc.getComboIds()).getPncTxStgCmbId().toString());
+                    } else {
+                        //TODO -- error logging
+                    }
+                    
                     if (stage == 1) {
                         comboSeq = pscc.getComboIds();
-                        
                     } else {
                         comboSeq = comboSeq.concat("->" + pscc.getComboIds());
                     }
@@ -587,7 +668,6 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     
     private int[] persistentPatientStageCombinationCount(final List<PatientStageCombinationCount> psccList,
                                                          final Map<String, Object> jobParams) {
-        
         String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/insertPatientStageComboSequence.sql");
         
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
@@ -664,5 +744,99 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             }
         });
         return ret;
+    }
+    
+    private void loadStudyPncStgCombo(final Long studyId) {
+        final List<PanaceaStageCombination> pncStgCmbList = this.pncStageCombinationRepository
+                .getAllStageCombination(this.pncStudy.getStudyId());
+        
+        this.pncStgComboMap.clear();
+        
+        for (final PanaceaStageCombination pncStgCombo : pncStgCmbList) {
+            if ((pncStgCombo != null) && (pncStgCombo.getCombMapList() != null) && (pncStgCombo.getCombMapList() != null)) {
+                final String key = this.generateComboKey(this.pncStgSingleConceptComboMap, pncStgCombo);
+                if (!StringUtils.isEmpty(key)) {
+                    this.pncStgComboMap.put(key, pncStgCombo);
+                }
+            }
+        }
+    }
+    
+    private String generateComboKey(final Map<String, Long> singleConceptComboMap, final PanaceaStageCombination pncStgCombo) {
+        if ((pncStgCombo != null) && (singleConceptComboMap != null) && (pncStgCombo.getCombMapList() != null)) {
+            if ((pncStgCombo.getCombMapList().size() == 1)
+                    && singleConceptComboMap.containsKey(pncStgCombo.getCombMapList().get(0).getConceptId().toString())) {
+                return pncStgCombo.getPncTxStgCmbId().toString();
+            } else if (pncStgCombo.getCombMapList().size() == 1) {
+                //TODO -- error logging
+                return null;
+            } else {
+                String keyString = "";
+                for (final PanaceaStageCombinationMap comboMap : pncStgCombo.getCombMapList()) {
+                    final Long comboConceptComboId = singleConceptComboMap.get(comboMap.getConceptId().toString());
+                    
+                    if (comboConceptComboId != null) {
+                        keyString += StringUtils.isEmpty(keyString) ? comboConceptComboId.toString() : "|"
+                                + comboConceptComboId.toString();
+                    } else {
+                        //TODO -- error logging
+                    }
+                }
+                
+                return keyString;
+            }
+        } else {
+            //TODO -- error logging
+            return null;
+        }
+    }
+    
+    private void loadStudyPncStgSingleConceptCombo(final Map<String, Object> jobParams) {
+        //script order by combo_id
+        String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/getSingleConceptCombo.sql");
+        
+        final String resultsTableQualifier = (String) jobParams.get("results_schema");
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        
+        final String[] params = new String[] { "results_schema", "studyId" };
+        final String[] values = new String[] { resultsTableQualifier, this.pncStudy.getStudyId().toString() };
+        
+        sql = SqlRender.renderSql(sql, params, values);
+        sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
+        
+        log.debug("PanaceaPatientDrugComboTasklet.loadStudyPncStgSingleConceptCombo, begin... ");
+        
+        final List<PanaceaStageCombination> singleConceptPncStgCombo = this.jdbcTemplate.query(sql,
+            new RowMapper<PanaceaStageCombination>() {
+                
+                @Override
+                public PanaceaStageCombination mapRow(final ResultSet rs, final int rowNum) throws SQLException {
+                    final PanaceaStageCombination pncStgCombo = new PanaceaStageCombination();
+                    pncStgCombo.setPncTxStgCmbId(rs.getLong("combo_id"));
+                    pncStgCombo.setStudyId(PanaceaPatientDrugComboTasklet.this.pncStudy.getStudyId());
+                    
+                    final List<PanaceaStageCombinationMap> mapList = new ArrayList<PanaceaStageCombinationMap>();
+                    final PanaceaStageCombinationMap pncMap = new PanaceaStageCombinationMap();
+                    pncMap.setConceptId(rs.getLong("concept_id"));
+                    mapList.add(pncMap);
+                    
+                    pncStgCombo.setCombMapList(mapList);
+                    
+                    return pncStgCombo;
+                }
+            });
+        
+        log.debug("PanaceaPatientDrugComboTasklet.loadStudyPncStgSingleConceptCombo, returned size -- "
+                + singleConceptPncStgCombo.size());
+        
+        this.pncStgSingleConceptComboMap.clear();
+        
+        for (final PanaceaStageCombination combo : singleConceptPncStgCombo) {
+            if (!this.pncStgSingleConceptComboMap.containsKey(combo.getCombMapList().get(0).getConceptId().toString())) {
+                
+                this.pncStgSingleConceptComboMap.put(combo.getCombMapList().get(0).getConceptId().toString(),
+                    combo.getPncTxStgCmbId());
+            }
+        }
     }
 }
