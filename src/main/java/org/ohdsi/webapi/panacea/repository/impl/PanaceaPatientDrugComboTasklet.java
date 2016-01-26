@@ -364,7 +364,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     if (stage == 1) {
                         comboSeq = pscc.getComboIds();
                     } else {
-                        comboSeq = comboSeq.concat("->" + pscc.getComboIds());
+                        comboSeq = comboSeq.concat(">" + pscc.getComboIds());
                     }
                     pscc.setComboSeq(comboSeq);
                     returnPSCCList.add(pscc);
