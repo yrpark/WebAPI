@@ -27,7 +27,9 @@ SELECT distinct study.study_id AS study_id, myCohort.person_id AS person_id, @so
   myConcept.concept_name, era.drug_era_start_date, era.drug_era_end_date, era.drug_era_end_date - era.drug_era_start_date + 1
 FROM @results_schema.panacea_study study
 INNER JOIN (SELECT DISTINCT subject_id person_id, COHORT_START_DATE cohort_start_date, cohort_end_date cohort_end_date FROM @ohdsi_schema.cohort 
-        WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347))  myCohort
+--        WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347))  myCohort
+--        WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347, 2000000000085043,2000000000090467,2000000000118598,2000000000125769,2000000000125769,2000000000239227,2000000000239227,2000000000239227,2000000000239227,2000000000631458,2000000000959184,2000000000959184,2000000000959184,2000000001023133,2000000001050023,2000000001198966,2000000001198966,2000000001328233,2000000001328233,2000000001556222,2000000001572262,2000000001598664,2000000001663228,2000000001705565,2000000001705565,2000000001724335,2000000001913150,2000000001913150,2000000001915668,2000000001915668,2000000001953187,2000000001978178,2000000002067964,2000000002120363,2000000002265649,2000000002382712,2000000002382712,2000000002403404,2000000002857369,2000000002975421,2000000003048921,2000000003175220,2000000003395250,2000000003613126,2000000003622138,2000000008400409,2000000008400723,2000000008419771,2000000008419771,2000000008587433))  myCohort
+        WHERE COHORT_DEFINITION_ID = @cohortDefId)  myCohort
 ON myCohort.cohort_start_date > study.start_date
    AND myCohort.cohort_start_date < study.end_date
    AND myCohort.cohort_end_date < study.end_date
@@ -187,18 +189,21 @@ order by ptsq.person_id, ptsq.idx_start_date, ptsq.idx_end_date
 merge into #_pnc_ptstg_ct ptstg
 using
   (
-    select ptstg2.rowid deleteRowId, ptstg1.rowid updateRowID,
-      case 
-        when ptstg1.stg_end_date > ptstg2.stg_end_date then ptstg1.stg_end_date
-        when ptstg2.stg_end_date > ptstg1.stg_end_date then ptstg2.stg_end_date
-        when ptstg2.stg_end_date = ptstg1.stg_end_date then ptstg2.stg_end_date
-      end as realEndDate
-    from #_pnc_ptstg_ct ptstg1
-    join #_pnc_ptstg_ct ptstg2
-    on ptstg1.person_id = ptstg2.person_id
-    and ptstg1.tx_stg_cmb_id = ptstg2.tx_stg_cmb_id
-    where ptstg2.stg_start_date < ptstg1.stg_end_date
-      and ptstg2.stg_start_date > ptstg1.stg_start_date
+    select updateRowID updateRowID, max(realEndDate) as realEndDate from 
+    (
+      select ptstg2.rowid deleteRowId, ptstg1.rowid updateRowID,
+        case 
+          when ptstg1.stg_end_date > ptstg2.stg_end_date then ptstg1.stg_end_date
+          when ptstg2.stg_end_date > ptstg1.stg_end_date then ptstg2.stg_end_date
+          when ptstg2.stg_end_date = ptstg1.stg_end_date then ptstg2.stg_end_date
+        end as realEndDate
+      from #_pnc_ptstg_ct ptstg1
+      join #_pnc_ptstg_ct ptstg2
+      on ptstg1.person_id = ptstg2.person_id
+      and ptstg1.tx_stg_cmb_id = ptstg2.tx_stg_cmb_id
+      where ptstg2.stg_start_date < ptstg1.stg_end_date
+        and ptstg2.stg_start_date > ptstg1.stg_start_date
+    ) group by updateRowID
   ) ptstgExpandDate
   on
   (
