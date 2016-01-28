@@ -9,18 +9,35 @@ from
 merge into @results_schema.pnc_study_summary_path  m
 using
   (
-    select pathsum.rowid as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath from @results_schema.pnc_study_summary_path pathSum
+	select pathsum.rowid as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
+    parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, NVL(ROUND(pathSum.tx_stg_cnt/parentPath.tx_stg_cnt * 100,2),0) percentage
+    from @results_schema.pnc_study_summary_path pathSum
     join (select rowid, SUBSTR(tx_stg_cmb_pth , 0 , length(tx_stg_cmb_pth) - length(tx_stg_cmb) - 1 ) as parentPath
     from @results_schema.pnc_study_summary_path) updateParentPath
     on updateParentPath.rowid = pathSum.rowid
-    join pnc_study_summary_path parentPath
-    on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
+    join @results_schema.pnc_study_summary_path parentPath
+    on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth group by pathsum.rowid, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
   ) m1
   on
   (
      m.rowid = m1.the_rowid
   )
-  WHEN MATCHED then update set m.tx_path_parent_key = m1.parentKey;
+  WHEN MATCHED then update set m.tx_path_parent_key = m1.parentKey, m.tx_stg_percentage = m1.percentage;
+
+merge into @results_schema.pnc_study_summary_path  m
+using
+  (
+    select pathsum.rowid as the_rowid, rootCount.totalRootCount,
+    rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, NVL(ROUND(pathSum.tx_stg_cnt/rootCount.totalRootCount * 100,2),0) percentage
+    from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
+    where tx_path_parent_key is null) rootCount
+    where tx_path_parent_key is null
+  ) m1
+  on
+  (
+     m.rowid = m1.the_rowid
+  )
+  WHEN MATCHED then update set m.tx_stg_percentage = m1.percentage;
 
 delete from @results_schema.pnc_study_summary where study_id = @studyId and source_id = @sourceId;
   
@@ -51,6 +68,7 @@ from
     ,tx_seq                               as path_seq
     ,tx_stg_avg_dr                        as avg_duration
     ,tx_stg_cnt                           as pt_count
+    ,tx_stg_percentage                    as pt_percentage
     ,concepts.conceptsName                as concept_names
     ,concepts.conceptsArray               as combo_concepts
     ,LEVEL                                as Lvl
@@ -88,6 +106,7 @@ select
   || ' "combo_id" : ' || combo_id || ' '
   || ' ,"concept_names" : "' || concept_names || '" '  
   || ' ,"patient_counts" : ' || pt_count || ' '
+  || ' ,"percentage" : "' || pt_percentage || '" '  
   || ' ,"average_duration" : ' || avg_duration || ' '
   || ',"concepts" : ' || combo_concepts 
   || CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0 
@@ -98,7 +117,8 @@ from connect_by_query
 order by rnum) allRoots
 union all
 select rnum as rnum, table_row_id as table_row_id, to_clob(']}') as JSON from (
-  select distinct 1000000 as rnum, 1 as table_row_id from pnc_study_summary_path)
+	select distinct 1/0F as rnum, 1 as table_row_id from pnc_study_summary_path)
+--  select distinct 1000000 as rnum, 1 as table_row_id from pnc_study_summary_path)
 --sql render remove "dual", so I have to trick by using a real table(pnc_study_summary_path) select 1000000  as rnum, 1 as table_row_id, to_clob(']}') as JSON from dual
 )
 GROUP BY
