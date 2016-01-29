@@ -88,8 +88,9 @@ public class PanaceaTasklet implements Tasklet {
             return RepeatStatus.FINISHED;
         } catch (final Exception e) {
             e.printStackTrace();
-            
-            return RepeatStatus.CONTINUABLE;
+            //TODO -- stop the job...
+            //return RepeatStatus.CONTINUABLE;
+            return RepeatStatus.FINISHED;
         } finally {
             //TODO
             final DefaultTransactionDefinition completeTx = new DefaultTransactionDefinition();
