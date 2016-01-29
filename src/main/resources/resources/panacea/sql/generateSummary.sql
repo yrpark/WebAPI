@@ -1,7 +1,7 @@
 delete from @results_schema.pnc_study_summary_path where study_id = @studyId and source_id = @sourceId;
 
 insert into @results_schema.pnc_study_summary_path (pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_cnt, tx_stg_avg_dr)
-select seq_pnc_stdy_smry.nextval, 18, 2, null, aggregatePath.combo_ids, aggregatePath.combo_seq, aggregatePath.tx_seq, aggregatePath.patientCount, aggregatePath.averageDurationDays 
+select seq_pnc_stdy_smry.nextval, @studyId, @sourceId, null, aggregatePath.combo_ids, aggregatePath.combo_seq, aggregatePath.tx_seq, aggregatePath.patientCount, aggregatePath.averageDurationDays 
 from
   (select combo_ids combo_ids, combo_seq combo_seq, tx_seq tx_seq, count(*) patientCount, avg(combo_duration) averageDurationDays from #_PNC_TMP_CMB_SQ_CT ptTxPath
     group by combo_ids, combo_seq, tx_seq) aggregatePath;
@@ -83,15 +83,15 @@ from
     from @results_schema.pnc_tx_stage_combination comb
     join @results_schema.pnc_tx_stage_combination_map combMap 
     on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
-    and comb.study_id = 18) concept
+    and comb.study_id = @studyId) concept
   on concept.comb_id = sumPath.tx_stg_cmb
   group by sumpath.pnc_stdy_smry_id
   ) concepts
   on concepts.smry_id = smry.pnc_stdy_smry_id
   START WITH pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
         where 
-        study_id = 18
-        and source_id = 2
+        study_id = @studyId
+        and source_id = @sourceId
         and tx_path_parent_key is null)
   CONNECT BY PRIOR pnc_stdy_smry_id = tx_path_parent_key
   ORDER SIBLINGS BY pnc_stdy_smry_id

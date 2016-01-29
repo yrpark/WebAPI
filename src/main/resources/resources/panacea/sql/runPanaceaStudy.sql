@@ -27,9 +27,9 @@ SELECT distinct study.study_id AS study_id, myCohort.person_id AS person_id, @so
   myConcept.concept_name, era.drug_era_start_date, era.drug_era_end_date, era.drug_era_end_date - era.drug_era_start_date + 1
 FROM @results_schema.panacea_study study
 INNER JOIN (SELECT DISTINCT subject_id person_id, COHORT_START_DATE cohort_start_date, cohort_end_date cohort_end_date FROM @ohdsi_schema.cohort 
---        WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347))  myCohort
+        WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347))  myCohort
 --        WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347, 2000000000085043,2000000000090467,2000000000118598,2000000000125769,2000000000125769,2000000000239227,2000000000239227,2000000000239227,2000000000239227,2000000000631458,2000000000959184,2000000000959184,2000000000959184,2000000001023133,2000000001050023,2000000001198966,2000000001198966,2000000001328233,2000000001328233,2000000001556222,2000000001572262,2000000001598664,2000000001663228,2000000001705565,2000000001705565,2000000001724335,2000000001913150,2000000001913150,2000000001915668,2000000001915668,2000000001953187,2000000001978178,2000000002067964,2000000002120363,2000000002265649,2000000002382712,2000000002382712,2000000002403404,2000000002857369,2000000002975421,2000000003048921,2000000003175220,2000000003395250,2000000003613126,2000000003622138,2000000008400409,2000000008400723,2000000008419771,2000000008419771,2000000008587433))  myCohort
-        WHERE COHORT_DEFINITION_ID = @cohortDefId)  myCohort
+--        WHERE COHORT_DEFINITION_ID = @cohortDefId)  myCohort
 ON myCohort.cohort_start_date > study.start_date
    AND myCohort.cohort_start_date < study.end_date
    AND myCohort.cohort_end_date < study.end_date
@@ -40,7 +40,7 @@ ON myCohort.cohort_start_date < era.drug_era_start_date
   AND era.drug_era_start_date < study.end_date
   AND era.drug_era_end_date < (era.drug_era_start_date + study.study_duration)
   AND myCohort.person_id = era.person_id
-  AND era.drug_concept_id in (1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315)
+  AND era.drug_concept_id in (@drugConceptId)
 INNER JOIN @cdm_schema.concept myConcept
 ON era.drug_concept_id = myConcept.concept_id
 WHERE
@@ -76,30 +76,30 @@ CREATE TABLE #_pnc_ptstg_ct
   stg_duration_days INT
 );
 
-IF OBJECT_ID('tempdb..#_pnc_sngl_cmb', 'U') IS NOT NULL
-  DROP TABLE #_pnc_sngl_cmb;
+--IF OBJECT_ID('tempdb..#_pnc_sngl_cmb', 'U') IS NOT NULL
+--  DROP TABLE #_pnc_sngl_cmb;
 
-CREATE TABLE #_pnc_sngl_cmb
-(
-  tx_stg_cmb_id INT,
-  concept_id INT,
-  concept_name VARCHAR(255)
-);
+--CREATE TABLE #_pnc_sngl_cmb
+--(
+--  tx_stg_cmb_id INT,
+--  concept_id INT,
+--  concept_name VARCHAR(255)
+--);
 
 --get single concept combo
-insert into #_pnc_sngl_cmb (tx_stg_cmb_id, concept_id, concept_name)
-(select comb.pnc_tx_stg_cmb_id, combmap.concept_id, combmap.concept_name from @results_schema.pnc_tx_stage_combination comb
-join @results_schema.pnc_tx_stage_combination_map combMap 
-on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
-join 
-(select comb.pnc_tx_stg_cmb_id, count(*) from @results_schema.pnc_tx_stage_combination comb
-join @results_schema.pnc_tx_stage_combination_map combMap 
-on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
-where comb.study_id = @studyId
-group by comb.pnc_tx_stg_cmb_id
-having count(*) = 1) multiple_ids_combo
-on multiple_ids_combo.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
-);
+--insert into #_pnc_sngl_cmb (tx_stg_cmb_id, concept_id, concept_name)
+--(select comb.pnc_tx_stg_cmb_id, combmap.concept_id, combmap.concept_name from @results_schema.pnc_tx_stage_combination comb
+--join @results_schema.pnc_tx_stage_combination_map combMap 
+--on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
+--join 
+--(select comb.pnc_tx_stg_cmb_id, count(*) from @results_schema.pnc_tx_stage_combination comb
+--join @results_schema.pnc_tx_stage_combination_map combMap 
+--on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
+--where comb.study_id = @studyId
+--group by comb.pnc_tx_stg_cmb_id
+--having count(*) = 1) multiple_ids_combo
+--on multiple_ids_combo.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
+--);
 
 
 --MERGE INTO @results_schema.pnc_tx_stage_combination_map combo
@@ -122,9 +122,27 @@ on multiple_ids_combo.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
 
 MERGE INTO @results_schema.pnc_tx_stage_combination_map combo
 USING
-  (SELECT DISTINCT ptsq.concept_id concept_id, ptsq.concept_name concept_name FROM #_pnc_ptsq_ct ptsq
-    WHERE ptsq.concept_id NOT IN 
-      (select distinct concept_id from #_pnc_sngl_cmb 
+  (SELECT DISTINCT myConcept.concept_id concept_id, myConcept.concept_name concept_name FROM @cdm_schema.concept myConcept
+    where myconcept.concept_id in (@drugConceptId)
+    and myConcept.concept_id NOT IN
+--change to add all concepts into pnc_tx_stage_combination_map and pnc_tx_stage_combination instead of dynamically add not exising concepts in #_pnc_ptsq_ct, per Jon  
+--  (SELECT DISTINCT ptsq.concept_id concept_id, ptsq.concept_name concept_name FROM #_pnc_ptsq_ct ptsq
+--    WHERE ptsq.concept_id NOT IN 
+--      (select distinct concept_id from #_pnc_sngl_cmb 
+--      )
+      (select distinct concept_id from 
+        (select comb.pnc_tx_stg_cmb_id as comb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name from @results_schema.pnc_tx_stage_combination comb
+          join @results_schema.pnc_tx_stage_combination_map combMap 
+          on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
+          join 
+          (select comb.pnc_tx_stg_cmb_id, count(*) from @results_schema.pnc_tx_stage_combination comb
+          join @results_schema.pnc_tx_stage_combination_map combMap 
+          on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
+          where comb.study_id = @studyId
+          group by comb.pnc_tx_stg_cmb_id
+          having count(*) = 1) multiple_ids_combo
+          on multiple_ids_combo.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
+        )
       )
   ) adding_concept
   ON

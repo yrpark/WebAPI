@@ -383,7 +383,7 @@ public class PanaceaService extends AbstractDaoService {
                     builder.addString("studyId", studyId.toString());
                     //TODO -- for testin only!!!
                     builder.addString("drugConceptId",
-                        "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315");
+                        "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315,4304178");
                     builder.addString("sourceDialect", source.getSourceDialect());
                     builder.addString("sourceId", new Integer(source.getSourceId()).toString());
                     
