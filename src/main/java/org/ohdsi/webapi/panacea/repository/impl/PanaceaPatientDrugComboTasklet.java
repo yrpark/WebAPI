@@ -115,6 +115,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     .get("allDistinctPersonId");
             String allDistinctPersonIdStr = "";
             
+            final int switchWindow = new Integer((String) jobParams.get("switchWindow")).intValue();
             final int ptCountThreshold = 300;
             
             if ((allDistinctPersonId != null) && (allDistinctPersonId.size() > 0)) {
@@ -153,7 +154,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         log.debug("PanaceaPatientDrugComboTasklet.execute, returned size -- " + patientStageCountList.size());
                         
                         final List<PatientStageCombinationCount> calculatedOverlappingPSCCList = mergeComboOverlapWindow(
-                            patientStageCountList, 30, jobParams);
+                            patientStageCountList, switchWindow, jobParams);
                         
                         if (calculatedOverlappingPSCCList != null) {
                             calculatedOverlappingPSCCList.toString();

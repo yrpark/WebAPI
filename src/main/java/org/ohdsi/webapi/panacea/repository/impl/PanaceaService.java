@@ -12,6 +12,7 @@
  */
 package org.ohdsi.webapi.panacea.repository.impl;
 
+import java.util.Collection;
 import java.util.List;
 
 import javax.persistence.EntityManager;
@@ -23,6 +24,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.ohdsi.sql.SqlRender;
@@ -41,8 +43,10 @@ import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationMapRepository;
 import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationRepository;
 import org.ohdsi.webapi.panacea.repository.PanaceaStudyRepository;
 import org.ohdsi.webapi.service.AbstractDaoService;
+import org.ohdsi.webapi.service.VocabularyService;
 import org.ohdsi.webapi.source.Source;
 import org.ohdsi.webapi.source.SourceDaimon;
+import org.ohdsi.webapi.vocabulary.ConceptSetExpression;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
@@ -52,6 +56,8 @@ import org.springframework.batch.core.configuration.annotation.StepBuilderFactor
 import org.springframework.batch.item.ItemStreamException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  *
@@ -88,6 +94,9 @@ public class PanaceaService extends AbstractDaoService {
     
     @Autowired
     private PanaceaJobConfiguration pncJobConfig;
+    
+    @Autowired
+    private VocabularyService vocabService;
     
     /**
      * Get PanaceaStudy by id
@@ -381,9 +390,33 @@ public class PanaceaService extends AbstractDaoService {
                     builder.addString("results_schema", resultsTableQualifier);
                     builder.addString("cohortDefId", cohortDefId);
                     builder.addString("studyId", studyId.toString());
+                    builder.addString("switchWindow", pncStudy.getSwitchWindow().toString());
                     //TODO -- for testin only!!!
-                    builder.addString("drugConceptId",
-                        "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315,4304178");
+                    //builder.addString("drugConceptId",
+                    //   "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315,4304178");
+                    
+                    try {
+                        //this works locally for resolving the JSON: curl -X POST -H "Content-Type: application/json" -d '{"items" :[{"concept":{"CONCEPT_ID":72714,"CONCEPT_NAME":"Chronic polyarticular juvenile rheumatoid arthritis","STANDARD_CONCEPT":"S","INVALID_REASON":"V","CONCEPT_CODE":"1961000","DOMAIN_ID":"Condition","VOCABULARY_ID":"SNOMED","CONCEPT_CLASS_ID":"Clinical Finding","INVALID_REASON_CAPTION":"Valid","STANDARD_CONCEPT_CAPTION":"Standard"},"isExcluded":false,"includeDescendants":true,"includeMapped":true},{"concept":{"CONCEPT_ID":4253901,"CONCEPT_NAME":"Juvenile rheumatoid arthritis","STANDARD_CONCEPT":"S","INVALID_REASON":"V","CONCEPT_CODE":"410795001","DOMAIN_ID":"Condition","VOCABULARY_ID":"SNOMED","CONCEPT_CLASS_ID":"Clinical Finding","INVALID_REASON_CAPTION":"Valid","STANDARD_CONCEPT_CAPTION":"Standard"},"isExcluded":false,"includeDescendants":true,"includeMapped":true},{"concept":{"CONCEPT_ID":80809,"CONCEPT_NAME":"Rheumatoid arthritis","STANDARD_CONCEPT":"S","INVALID_REASON":"V","CONCEPT_CODE":"69896004","DOMAIN_ID":"Condition","VOCABULARY_ID":"SNOMED","CONCEPT_CLASS_ID":"Clinical Finding","INVALID_REASON_CAPTION":"Valid","STANDARD_CONCEPT_CAPTION":"Standard"},"isExcluded":false,"includeDescendants":true,"includeMapped":true}]}' http://localhost:8080/WebAPI/CCAE/vocabulary/resolveConceptSetExpression
+                        final ObjectMapper mapper = new ObjectMapper();
+                        final ConceptSetExpression expression = mapper.readValue(pncStudy.getConcepSetDef(),
+                            ConceptSetExpression.class);
+                        final Collection<Long> conceptsCol = this.vocabService.resolveConceptSetExpression(sourceKey,
+                            expression);
+                        
+                        if (conceptsCol != null) {
+                            String conceptIdsStr = "";
+                            for (final Long conceptId : conceptsCol) {
+                                conceptIdsStr = StringUtils.isEmpty(conceptIdsStr) ? conceptIdsStr.concat(conceptId
+                                        .toString()) : conceptIdsStr.concat("," + conceptId.toString());
+                            }
+                            
+                            builder.addString("drugConceptId", conceptIdsStr);
+                        }
+                    } catch (final Exception e) {
+                        log.error("Error generated for Parsing JSON with ConceptSetExpression - ", e);
+                        e.printStackTrace();
+                    }
+                    
                     builder.addString("sourceDialect", source.getSourceDialect());
                     builder.addString("sourceId", new Integer(source.getSourceId()).toString());
                     
