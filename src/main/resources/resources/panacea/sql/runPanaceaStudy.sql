@@ -22,21 +22,48 @@ CREATE TABLE #_pnc_ptsq_ct
 );
 
 
+--INSERT INTO #_pnc_ptsq_ct (study_id, person_id, source_id, concept_id, concept_name, idx_start_date, idx_end_date, duration_days)
+--SELECT distinct study.study_id AS study_id, myCohort.person_id AS person_id, @sourceId AS source_id, era.drug_concept_id,
+--  myConcept.concept_name, era.drug_era_start_date, era.drug_era_end_date, era.drug_era_end_date - era.drug_era_start_date + 1
+--FROM @results_schema.panacea_study study
+--INNER JOIN (SELECT DISTINCT subject_id person_id, COHORT_START_DATE cohort_start_date, cohort_end_date cohort_end_date FROM @ohdsi_schema.cohort 
+--       WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347))  myCohort
+--        WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347, 2000000000085043,2000000000090467,2000000000118598,2000000000125769,2000000000125769,2000000000239227,2000000000239227,2000000000239227,2000000000239227,2000000000631458,2000000000959184,2000000000959184,2000000000959184,2000000001023133,2000000001050023,2000000001198966,2000000001198966,2000000001328233,2000000001328233,2000000001556222,2000000001572262,2000000001598664,2000000001663228,2000000001705565,2000000001705565,2000000001724335,2000000001913150,2000000001913150,2000000001915668,2000000001915668,2000000001953187,2000000001978178,2000000002067964,2000000002120363,2000000002265649,2000000002382712,2000000002382712,2000000002403404,2000000002857369,2000000002975421,2000000003048921,2000000003175220,2000000003395250,2000000003613126,2000000003622138,2000000008400409,2000000008400723,2000000008419771,2000000008419771,2000000008587433))  myCohort
+--        WHERE COHORT_DEFINITION_ID = @cohortDefId)  myCohort
+--ON myCohort.cohort_start_date > study.start_date
+--   AND myCohort.cohort_start_date < study.end_date
+--   AND myCohort.cohort_end_date < study.end_date
+--INNER JOIN @cdm_schema.drug_era era   
+--ON myCohort.cohort_start_date < era.drug_era_start_date
+--  AND era.drug_era_start_date < myCohort.cohort_end_date
+--  AND era.drug_era_start_date > study.start_date
+----ON era.drug_era_start_date > study.start_date
+--  AND era.drug_era_start_date < study.end_date
+--  AND era.drug_era_end_date < (era.drug_era_start_date + study.study_duration)
+--  AND myCohort.person_id = era.person_id
+--  AND era.drug_concept_id in (@drugConceptId)
+--INNER JOIN @cdm_schema.concept myConcept
+--ON era.drug_concept_id = myConcept.concept_id
+--WHERE
+--    study.study_id = @studyId
+--ORDER BY person_id, drug_era_start_date, drug_era_end_date;
+
 INSERT INTO #_pnc_ptsq_ct (study_id, person_id, source_id, concept_id, concept_name, idx_start_date, idx_end_date, duration_days)
 SELECT distinct study.study_id AS study_id, myCohort.person_id AS person_id, @sourceId AS source_id, era.drug_concept_id,
   myConcept.concept_name, era.drug_era_start_date, era.drug_era_end_date, era.drug_era_end_date - era.drug_era_start_date + 1
 FROM @results_schema.panacea_study study
 INNER JOIN (SELECT DISTINCT subject_id person_id, COHORT_START_DATE cohort_start_date, cohort_end_date cohort_end_date FROM @ohdsi_schema.cohort 
-        WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347))  myCohort
+--        WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347))  myCohort
 --        WHERE COHORT_DEFINITION_ID = @cohortDefId AND subject_id in (2000000030415658, 2000000032622347, 2000000000085043,2000000000090467,2000000000118598,2000000000125769,2000000000125769,2000000000239227,2000000000239227,2000000000239227,2000000000239227,2000000000631458,2000000000959184,2000000000959184,2000000000959184,2000000001023133,2000000001050023,2000000001198966,2000000001198966,2000000001328233,2000000001328233,2000000001556222,2000000001572262,2000000001598664,2000000001663228,2000000001705565,2000000001705565,2000000001724335,2000000001913150,2000000001913150,2000000001915668,2000000001915668,2000000001953187,2000000001978178,2000000002067964,2000000002120363,2000000002265649,2000000002382712,2000000002382712,2000000002403404,2000000002857369,2000000002975421,2000000003048921,2000000003175220,2000000003395250,2000000003613126,2000000003622138,2000000008400409,2000000008400723,2000000008419771,2000000008419771,2000000008587433))  myCohort
---        WHERE COHORT_DEFINITION_ID = @cohortDefId)  myCohort
+        WHERE COHORT_DEFINITION_ID = @cohortDefId)  myCohort
 ON myCohort.cohort_start_date > study.start_date
    AND myCohort.cohort_start_date < study.end_date
    AND myCohort.cohort_end_date < study.end_date
 INNER JOIN @cdm_schema.drug_era era   
-ON myCohort.cohort_start_date < era.drug_era_start_date
-  AND era.drug_era_start_date < myCohort.cohort_end_date
-  AND era.drug_era_start_date > study.start_date
+--ON myCohort.cohort_start_date < era.drug_era_start_date
+--  AND era.drug_era_start_date < myCohort.cohort_end_date
+--  AND era.drug_era_start_date > study.start_date
+ON era.drug_era_start_date > study.start_date
   AND era.drug_era_start_date < study.end_date
   AND era.drug_era_end_date < (era.drug_era_start_date + study.study_duration)
   AND myCohort.person_id = era.person_id
@@ -46,8 +73,7 @@ ON era.drug_concept_id = myConcept.concept_id
 WHERE
     study.study_id = @studyId
 ORDER BY person_id, drug_era_start_date, drug_era_end_date;
-
-
+ 
 MERGE INTO #_pnc_ptsq_ct ptsq
 USING
 (SELECT rank() OVER (PARTITION BY person_id
@@ -254,7 +280,9 @@ CREATE TABLE #_pnc_tmp_cmb_sq_ct
 	combo_seq VARCHAR(400),
     start_date date,
     end_date date,
-    combo_duration INT
+    combo_duration INT,
+    result_version INT,
+    gap_days INT
 );
 
 --TRUNCATE TABLE #_pnc_ptsq_ct;

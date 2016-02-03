@@ -153,14 +153,16 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         
                         log.debug("PanaceaPatientDrugComboTasklet.execute, returned size -- " + patientStageCountList.size());
                         
-                        final List<PatientStageCombinationCount> calculatedOverlappingPSCCList = mergeComboOverlapWindow(
+                        //                        final List<PatientStageCombinationCount> calculatedOverlappingPSCCList = mergeComboOverlapWindow(
+                        //                            patientStageCountList, switchWindow, jobParams);
+                        //                        
+                        //                        persistentPatientStageCombinationCount(calculatedOverlappingPSCCList, jobParams);
+                        
+                        final Map<Integer, List<PatientStageCombinationCount>> calculatedOverlappingPSCCMap = mergeComboOverlapWindow(
                             patientStageCountList, switchWindow, jobParams);
                         
-                        if (calculatedOverlappingPSCCList != null) {
-                            calculatedOverlappingPSCCList.toString();
-                        }
-                        
-                        persistentPatientStageCombinationCount(calculatedOverlappingPSCCList, jobParams);
+                        persistentPatientStageCombinationCount(calculatedOverlappingPSCCMap.get(new Integer(1)), jobParams);
+                        persistentPatientStageCombinationCount(calculatedOverlappingPSCCMap.get(new Integer(2)), jobParams);
                         
                         if (ptIdIter.hasNext()) {
                             ptCount = 0;
@@ -246,9 +248,9 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
         return sql;
     }
     
-    private List<PatientStageCombinationCount> mergeComboOverlapWindow(final List<PatientStageCount> patientStageCountList,
-                                                                       final int switchWindow,
-                                                                       final Map<String, Object> jobParams) {
+    private Map<Integer, List<PatientStageCombinationCount>> mergeComboOverlapWindow(final List<PatientStageCount> patientStageCountList,
+                                                                                     final int switchWindow,
+                                                                                     final Map<String, Object> jobParams) {
         if ((patientStageCountList != null) && (patientStageCountList.size() > 0)) {
             final Map<Long, List<PatientStageCombinationCount>> mergedComboPatientMap = new HashMap<Long, List<PatientStageCombinationCount>>();
             
@@ -367,8 +369,11 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             //TODO -- change this to manipulate the Map?
             this.loadStudyPncStgCombo(this.pncStudy.getStudyId());
             
+            final List<PatientStageCombinationCount> collapsedPSCCList = new ArrayList<PatientStageCombinationCount>();
+            
             for (final Map.Entry<Long, List<PatientStageCombinationCount>> entry : mergedComboPatientMap.entrySet()) {
                 int stage = 1;
+                int collapseStage = 1;
                 String comboSeq = "";
                 for (final PatientStageCombinationCount pscc : entry.getValue()) {
                     final int durationDays = Days.daysBetween(new DateTime(pscc.getStartDate()),
@@ -389,12 +394,70 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         comboSeq = comboSeq.concat(">" + pscc.getComboIds());
                     }
                     pscc.setComboSeq(comboSeq);
+                    
+                    pscc.setResultVerstion(1);
+                    pscc.setGapDays(0);
+                    
                     returnPSCCList.add(pscc);
                     stage++;
+                    
+                    if (stage <= 2) {
+                        final PatientStageCombinationCount collapsePSCC = new PatientStageCombinationCount();
+                        collapsePSCC.setComboIds(pscc.getComboIds());
+                        collapsePSCC.setComboSeq(pscc.getComboSeq());
+                        collapsePSCC.setStartDate(pscc.getStartDate());
+                        collapsePSCC.setEndDate(pscc.getEndDate());
+                        collapsePSCC.setDuration(pscc.getDuration());
+                        collapsePSCC.setPersonId(pscc.getPersonId());
+                        collapsePSCC.setResultVerstion(2);
+                        collapsePSCC.setStage(collapseStage);
+                        collapsePSCC.setGapDays(0);
+                        
+                        collapsedPSCCList.add(collapsePSCC);
+                        collapseStage++;
+                    } else {
+                        final PatientStageCombinationCount lastCollapsedItem = collapsedPSCCList.get(collapsedPSCCList
+                                .size() - 1);
+                        if (lastCollapsedItem != null) {
+                            if (pscc.getPersonId().equals(lastCollapsedItem.getPersonId())
+                                    && pscc.getComboIds().equals(lastCollapsedItem.getComboIds())) {
+                                
+                                final int gap = Days.daysBetween(new DateTime(lastCollapsedItem.getEndDate()),
+                                    new DateTime(pscc.getStartDate())).getDays();
+                                
+                                lastCollapsedItem.setEndDate(pscc.getEndDate());
+                                
+                                final int durationDaysWithGap = Days.daysBetween(
+                                    new DateTime(lastCollapsedItem.getStartDate()),
+                                    new DateTime(lastCollapsedItem.getEndDate())).getDays() + 1;
+                                
+                                lastCollapsedItem.setDuration(durationDaysWithGap);
+                                lastCollapsedItem.setGapDays(lastCollapsedItem.getGapDays() + gap);
+                            } else {
+                                final PatientStageCombinationCount collapsePSCC = new PatientStageCombinationCount();
+                                collapsePSCC.setComboIds(pscc.getComboIds());
+                                collapsePSCC.setComboSeq(lastCollapsedItem.getComboSeq() + ">" + pscc.getComboIds());
+                                collapsePSCC.setStartDate(pscc.getStartDate());
+                                collapsePSCC.setEndDate(pscc.getEndDate());
+                                collapsePSCC.setDuration(pscc.getDuration());
+                                collapsePSCC.setPersonId(pscc.getPersonId());
+                                collapsePSCC.setResultVerstion(2);
+                                collapsePSCC.setStage(collapseStage);
+                                collapsePSCC.setGapDays(0);
+                                
+                                collapsedPSCCList.add(collapsePSCC);
+                                collapseStage++;
+                            }
+                        }
+                    }
                 }
             }
             
-            return returnPSCCList;
+            final Map<Integer, List<PatientStageCombinationCount>> psccMapWithVersion = new HashMap<Integer, List<PatientStageCombinationCount>>();
+            psccMapWithVersion.put(new Integer(1), returnPSCCList);
+            psccMapWithVersion.put(new Integer(2), collapsedPSCCList);
+            
+            return psccMapWithVersion;
             
         } else {
             //TODO - error logging
@@ -754,6 +817,8 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                             ps.setDate(5, psccList.get(i).getStartDate());
                             ps.setDate(6, psccList.get(i).getEndDate());
                             ps.setInt(7, psccList.get(i).getDuration());
+                            ps.setInt(8, psccList.get(i).getResultVerstion());
+                            ps.setInt(9, psccList.get(i).getGapDays());
                         }
                         
                         @Override

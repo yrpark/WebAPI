@@ -46,6 +46,16 @@ public class PatientStageCombinationCount implements Serializable {
     private Integer duration;
     
     /**
+     * <pre>
+     *      version = 1 => no collapse for non-continuous same drug time periods: 08-JUN-07 ~ 08-JUN-07, 03-NOV-07 ~ 03-NOV-07, consider 2 stages
+     *      version = 2 => collapse for non-continuous same drug time periods: 08-JUN-07 ~ 08-JUN-07, 03-NOV-07 ~ 03-NOV-07, consider 1 stage
+     * </pre>
+     */
+    private int resultVerstion = 1;
+    
+    private int gapDays = 0;
+    
+    /**
      * @return the personId
      */
     public Long getPersonId() {
@@ -158,12 +168,41 @@ public class PatientStageCombinationCount implements Serializable {
     }
     
     /**
+     * @return the resultVerstion
+     */
+    public int getResultVerstion() {
+        return this.resultVerstion;
+    }
+    
+    /**
+     * @param resultVerstion the resultVerstion to set
+     */
+    public void setResultVerstion(final int resultVerstion) {
+        this.resultVerstion = resultVerstion;
+    }
+    
+    /**
+     * @return the gapDays
+     */
+    public int getGapDays() {
+        return this.gapDays;
+    }
+    
+    /**
+     * @param gapDays the gapDays to set
+     */
+    public void setGapDays(final int gapDays) {
+        this.gapDays = gapDays;
+    }
+    
+    /**
      * @see java.lang.Object#toString()
      */
     @Override
     public String toString() {
         return "PatientStageCombinationCount [personId=" + this.personId + ", comboIds=" + this.comboIds + ", comboSeq="
                 + this.comboSeq + ", stage=" + this.stage + ", startDate=" + this.startDate + ", endDate=" + this.endDate
-                + ", duration=" + this.duration + "]";
+                + ", duration=" + this.duration + ", resultVerstion=" + this.resultVerstion + ", gapDays=" + this.gapDays
+                + "]";
     }
 }
