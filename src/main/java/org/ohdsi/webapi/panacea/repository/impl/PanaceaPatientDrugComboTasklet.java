@@ -116,7 +116,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             String allDistinctPersonIdStr = "";
             
             final int switchWindow = new Integer((String) jobParams.get("switchWindow")).intValue();
-            final int ptCountThreshold = 300;
+            final int ptCountThreshold = 400;
             
             if ((allDistinctPersonId != null) && (allDistinctPersonId.size() > 0)) {
                 final Iterator<String> ptIdIter = allDistinctPersonId.iterator();
@@ -161,8 +161,25 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         final Map<Integer, List<PatientStageCombinationCount>> calculatedOverlappingPSCCMap = mergeComboOverlapWindow(
                             patientStageCountList, switchWindow, jobParams);
                         
-                        persistentPatientStageCombinationCount(calculatedOverlappingPSCCMap.get(new Integer(1)), jobParams);
-                        persistentPatientStageCombinationCount(calculatedOverlappingPSCCMap.get(new Integer(2)), jobParams);
+                        int[] batchCount = persistentPatientStageCombinationCount(
+                            calculatedOverlappingPSCCMap.get(new Integer(1)), jobParams);
+                        if (batchCount != null) {
+                            int count = 0;
+                            for (final int cn : batchCount) {
+                                count += cn;
+                            }
+                            log.debug("PanaceaPatientDrugComboTasklet.execute, committed version 1 PSCC - " + count);
+                        }
+                        
+                        batchCount = persistentPatientStageCombinationCount(
+                            calculatedOverlappingPSCCMap.get(new Integer(2)), jobParams);
+                        if (batchCount != null) {
+                            int count = 0;
+                            for (final int cn : batchCount) {
+                                count += cn;
+                            }
+                            log.debug("PanaceaPatientDrugComboTasklet.execute, committed version 2 PSCC - " + count);
+                        }
                         
                         if (ptIdIter.hasNext()) {
                             ptCount = 0;
@@ -618,14 +635,29 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         
                     } else if (poppingPSCC.getEndDate().equals(lastMergedPSCC.getEndDate())) {
                         //popping object end date is the same as last merged object
-                        poppingPSCC.setComboIds(mergeComboIds(lastMergedPSCC, poppingPSCC));
                         
-                        lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
+                        final int overlappingDays = Days.daysBetween(new DateTime(poppingPSCC.getStartDate()),
+                            new DateTime(lastMergedPSCC.getEndDate())).getDays();
                         
-                        mergedList.add(poppingPSCC);
-                        
-                        if (!newPSCCFromOriginalList) {
-                            truncatedList.remove(0);
+                        if (overlappingDays >= (switchWindow - 1)) {
+                            
+                            poppingPSCC.setComboIds(mergeComboIds(lastMergedPSCC, poppingPSCC));
+                            
+                            lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
+                            
+                            mergedList.add(poppingPSCC);
+                            
+                            if (!newPSCCFromOriginalList) {
+                                truncatedList.remove(0);
+                            }
+                        } else {
+                            //no overlapping, just pop
+                            mergedList.add(poppingPSCC);
+                            
+                            if (!newPSCCFromOriginalList) {
+                                truncatedList.remove(0);
+                            }
+                            
                         }
                     }
                 } else {
