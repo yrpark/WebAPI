@@ -14,6 +14,7 @@ package org.ohdsi.webapi.test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import junit.framework.TestCase;
 
@@ -27,6 +28,8 @@ import org.ohdsi.webapi.panacea.pojo.PanaceaPatientSequenceCount;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
 import org.ohdsi.webapi.panacea.repository.impl.PanaceaService;
+import org.ohdsi.webapi.service.VocabularyService;
+import org.ohdsi.webapi.vocabulary.Concept;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.SpringApplicationConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -52,6 +55,9 @@ public class PanaceaTest extends TestCase {
     
     @Autowired
     private PanaceaService pncService;
+    
+    @Autowired
+    private VocabularyService vocabService;
     
     @Override
     protected void setUp() throws Exception {
@@ -129,7 +135,7 @@ public class PanaceaTest extends TestCase {
         log.info(ppsc);
     }
     
-    @Test
+    @Ignore
     public void testInsertCombo() {
         final PanaceaStageCombination pncCombo = new PanaceaStageCombination();
         pncCombo.setStudyId(new Long(2));
@@ -154,5 +160,16 @@ public class PanaceaTest extends TestCase {
         final List<PanaceaStageCombination> comboList = this.pncService.savePanaceaStageCombinationById(comboArrayList);
         
         log.info(comboList);
+    }
+    
+    @Test
+    public void testExpressionResolver() {
+        final String expressionString = "{\"items\" :[{\"concept\":{\"CONCEPT_ID\":2003406,\"CONCEPT_NAME\":\"Other and open repair of indirect inguinal hernia with graft or prosthesis\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"53.04\",\"DOMAIN_ID\":\"Procedure\",\"VOCABULARY_ID\":\"ICD9Proc\",\"CONCEPT_CLASS_ID\":\"4-dig billing code\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"0\",\"DESCENDANT_RECORD_COUNT\":\"0\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false},{\"concept\":{\"CONCEPT_ID\":1301025,\"CONCEPT_NAME\":\"Enoxaparin\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"67108\",\"DOMAIN_ID\":\"Drug\",\"VOCABULARY_ID\":\"RxNorm\",\"CONCEPT_CLASS_ID\":\"Ingredient\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"17\",\"DESCENDANT_RECORD_COUNT\":\"17\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false}]}";
+        final Map<Long, Concept> cMap = this.pncService.resolveConceptExpression(expressionString);
+        final String drugConceptIdsStr = this.pncService.getConceptIdsString(cMap, "Drug");
+        final String procedureConceptIdsStr = this.pncService.getConceptIdsString(cMap, "Procedure");
+        
+        log.info("testExpressionResolver: " + drugConceptIdsStr);
+        log.info("testExpressionResolver: " + procedureConceptIdsStr);
     }
 }

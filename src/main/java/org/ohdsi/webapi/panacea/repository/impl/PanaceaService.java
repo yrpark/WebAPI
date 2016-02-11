@@ -12,8 +12,11 @@
  */
 package org.ohdsi.webapi.panacea.repository.impl;
 
-import java.util.Collection;
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.persistence.EntityManager;
 import javax.ws.rs.Consumes;
@@ -46,7 +49,9 @@ import org.ohdsi.webapi.service.AbstractDaoService;
 import org.ohdsi.webapi.service.VocabularyService;
 import org.ohdsi.webapi.source.Source;
 import org.ohdsi.webapi.source.SourceDaimon;
+import org.ohdsi.webapi.vocabulary.Concept;
 import org.ohdsi.webapi.vocabulary.ConceptSetExpression;
+import org.ohdsi.webapi.vocabulary.ConceptSetExpression.ConceptSetItem;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
@@ -57,6 +62,8 @@ import org.springframework.batch.item.ItemStreamException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -395,27 +402,14 @@ public class PanaceaService extends AbstractDaoService {
                     //builder.addString("drugConceptId",
                     //   "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315,4304178");
                     
-                    try {
-                        //this works locally for resolving the JSON: curl -X POST -H "Content-Type: application/json" -d '{"items" :[{"concept":{"CONCEPT_ID":72714,"CONCEPT_NAME":"Chronic polyarticular juvenile rheumatoid arthritis","STANDARD_CONCEPT":"S","INVALID_REASON":"V","CONCEPT_CODE":"1961000","DOMAIN_ID":"Condition","VOCABULARY_ID":"SNOMED","CONCEPT_CLASS_ID":"Clinical Finding","INVALID_REASON_CAPTION":"Valid","STANDARD_CONCEPT_CAPTION":"Standard"},"isExcluded":false,"includeDescendants":true,"includeMapped":true},{"concept":{"CONCEPT_ID":4253901,"CONCEPT_NAME":"Juvenile rheumatoid arthritis","STANDARD_CONCEPT":"S","INVALID_REASON":"V","CONCEPT_CODE":"410795001","DOMAIN_ID":"Condition","VOCABULARY_ID":"SNOMED","CONCEPT_CLASS_ID":"Clinical Finding","INVALID_REASON_CAPTION":"Valid","STANDARD_CONCEPT_CAPTION":"Standard"},"isExcluded":false,"includeDescendants":true,"includeMapped":true},{"concept":{"CONCEPT_ID":80809,"CONCEPT_NAME":"Rheumatoid arthritis","STANDARD_CONCEPT":"S","INVALID_REASON":"V","CONCEPT_CODE":"69896004","DOMAIN_ID":"Condition","VOCABULARY_ID":"SNOMED","CONCEPT_CLASS_ID":"Clinical Finding","INVALID_REASON_CAPTION":"Valid","STANDARD_CONCEPT_CAPTION":"Standard"},"isExcluded":false,"includeDescendants":true,"includeMapped":true}]}' http://localhost:8080/WebAPI/CCAE/vocabulary/resolveConceptSetExpression
-                        final ObjectMapper mapper = new ObjectMapper();
-                        final ConceptSetExpression expression = mapper.readValue(pncStudy.getConcepSetDef(),
-                            ConceptSetExpression.class);
-                        final Collection<Long> conceptsCol = this.vocabService.resolveConceptSetExpression(sourceKey,
-                            expression);
-                        
-                        if (conceptsCol != null) {
-                            String conceptIdsStr = "";
-                            for (final Long conceptId : conceptsCol) {
-                                conceptIdsStr = StringUtils.isEmpty(conceptIdsStr) ? conceptIdsStr.concat(conceptId
-                                        .toString()) : conceptIdsStr.concat("," + conceptId.toString());
-                            }
-                            
-                            builder.addString("drugConceptId", conceptIdsStr);
-                        }
-                    } catch (final Exception e) {
-                        log.error("Error generated for Parsing JSON with ConceptSetExpression - ", e);
-                        e.printStackTrace();
-                    }
+                    //this works locally for resolving the JSON: curl -X POST -H "Content-Type: application/json" -d '{"items" :[{"concept":{"CONCEPT_ID":72714,"CONCEPT_NAME":"Chronic polyarticular juvenile rheumatoid arthritis","STANDARD_CONCEPT":"S","INVALID_REASON":"V","CONCEPT_CODE":"1961000","DOMAIN_ID":"Condition","VOCABULARY_ID":"SNOMED","CONCEPT_CLASS_ID":"Clinical Finding","INVALID_REASON_CAPTION":"Valid","STANDARD_CONCEPT_CAPTION":"Standard"},"isExcluded":false,"includeDescendants":true,"includeMapped":true},{"concept":{"CONCEPT_ID":4253901,"CONCEPT_NAME":"Juvenile rheumatoid arthritis","STANDARD_CONCEPT":"S","INVALID_REASON":"V","CONCEPT_CODE":"410795001","DOMAIN_ID":"Condition","VOCABULARY_ID":"SNOMED","CONCEPT_CLASS_ID":"Clinical Finding","INVALID_REASON_CAPTION":"Valid","STANDARD_CONCEPT_CAPTION":"Standard"},"isExcluded":false,"includeDescendants":true,"includeMapped":true},{"concept":{"CONCEPT_ID":80809,"CONCEPT_NAME":"Rheumatoid arthritis","STANDARD_CONCEPT":"S","INVALID_REASON":"V","CONCEPT_CODE":"69896004","DOMAIN_ID":"Condition","VOCABULARY_ID":"SNOMED","CONCEPT_CLASS_ID":"Clinical Finding","INVALID_REASON_CAPTION":"Valid","STANDARD_CONCEPT_CAPTION":"Standard"},"isExcluded":false,"includeDescendants":true,"includeMapped":true}]}' http://localhost:8080/WebAPI/CCAE/vocabulary/resolveConceptSetExpression
+                    final Map<Long, Concept> cMap = this.resolveConceptExpression(pncStudy.getConcepSetDef());
+                    
+                    final String drugConceptIdsStr = this.getConceptIdsString(cMap, "drug");
+                    final String procedureConceptIdsStr = this.getConceptIdsString(cMap, "procedure");
+                    
+                    builder.addString("drugConceptId", drugConceptIdsStr);
+                    builder.addString("procedureConceptId", procedureConceptIdsStr);
                     
                     builder.addString("sourceDialect", source.getSourceDialect());
                     builder.addString("sourceId", new Integer(source.getSourceId()).toString());
@@ -543,5 +537,63 @@ public class PanaceaService extends AbstractDaoService {
      */
     public void setJobTemplate(final JobTemplate jobTemplate) {
         this.jobTemplate = jobTemplate;
+    }
+    
+    public Map<Long, Concept> resolveConceptExpression(final String expressionString) {
+        if (!StringUtils.isEmpty(expressionString)) {
+            final ObjectMapper mapper = new ObjectMapper();
+            ConceptSetExpression expression;
+            try {
+                expression = mapper.readValue(expressionString, ConceptSetExpression.class);
+                
+                if (expression != null) {
+                    final ConceptSetItem[] items = expression.items;
+                    if ((items != null) && (items.length > 0)) {
+                        final Map<Long, Concept> cMap = new HashMap<Long, Concept>();
+                        for (final ConceptSetItem item : items) {
+                            if ((item != null) && (item.concept != null)) {
+                                cMap.put(item.concept.conceptId, item.concept);
+                            }
+                        }
+                        
+                        return cMap;
+                    }
+                }
+            } catch (final JsonParseException e) {
+                // TODO Auto-generated catch block
+                log.error("Error generated", e);
+            } catch (final JsonMappingException e) {
+                // TODO Auto-generated catch block
+                log.error("Error generated", e);
+            } catch (final IOException e) {
+                // TODO Auto-generated catch block
+                log.error("Error generated", e);
+            }
+        }
+        
+        return null;
+    }
+    
+    public String getConceptIdsString(final Map<Long, Concept> cMap, final String domainId) {
+        
+        if ((cMap != null) && (domainId != null)) {
+            String conceptIdsStr = "";
+            
+            for (final Entry<Long, Concept> entry : cMap.entrySet()) {
+                if ((entry.getKey() != null) && (entry.getValue() != null)) {
+                    if (entry.getValue().domainId != null) {
+                        if (entry.getValue().domainId.toLowerCase().equals(domainId.toLowerCase())) {
+                            conceptIdsStr = StringUtils.isEmpty(conceptIdsStr) ? conceptIdsStr.concat(entry.getKey()
+                                    .toString().toString()) : conceptIdsStr.concat("," + entry.getKey().toString());
+                        }
+                    }
+                }
+            }
+            
+            return conceptIdsStr;
+        } else {
+            //TODO - error logging...
+            return null;
+        }
     }
 }
