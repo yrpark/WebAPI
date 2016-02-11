@@ -126,20 +126,17 @@ from
     ,LEVEL                                as Lvl
   FROM @results_schema.pnc_study_summary_path smry
   join
-  (select pnc_stdy_smry_id smry_id, 
-    '[' || wm_concat('{"conceptName":' || '"' || concept.concept_name  || '"' || 
-    ',"conceptId":' || concept.concept_id || '}') || ']' conceptsArray,
-    wm_concat(concept.concept_name) conceptsName
-    from @results_schema.pnc_study_summary_path sumPath
-    join (select comb.pnc_tx_stg_cmb_id comb_id, combmap.concept_id concept_id, combmap.concept_name concept_name 
+  (select comb.pnc_tx_stg_cmb_id comb_id,
+    '[' || wm_concat('{"conceptName":' || '"' || combMap.concept_name  || '"' || 
+    ',"conceptId":' || combMap.concept_id || '}') || ']' conceptsArray,
+    wm_concat(combMap.concept_name) conceptsName
     from @results_schema.pnc_tx_stage_combination comb
     join @results_schema.pnc_tx_stage_combination_map combMap 
     on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
-    and comb.study_id = @studyId) concept
-  on concept.comb_id = sumPath.tx_stg_cmb
-  group by sumpath.pnc_stdy_smry_id
+    where comb.study_id = @studyId
+    group by comb.pnc_tx_stg_cmb_id
   ) concepts
-  on concepts.smry_id = smry.pnc_stdy_smry_id
+  on concepts.comb_id = smry.tx_stg_cmb
   START WITH pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
         where 
         study_id = @studyId
@@ -170,7 +167,7 @@ from connect_by_query
 order by rnum) allRoots
 union all
 select rnum as rnum, table_row_id as table_row_id, to_clob(']}') as JSON from (
-	select distinct 1/0F as rnum, 1 as table_row_id from pnc_study_summary_path)
+	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
 --  select distinct 1000000 as rnum, 1 as table_row_id from pnc_study_summary_path)
 --sql render remove "dual", so I have to trick by using a real table(pnc_study_summary_path) select 1000000  as rnum, 1 as table_row_id, to_clob(']}') as JSON from dual
 )
@@ -210,20 +207,17 @@ from
     ,LEVEL                                as Lvl
   FROM @results_schema.pnc_study_summary_path smry
   join
-  (select pnc_stdy_smry_id smry_id, 
-    '[' || wm_concat('{"conceptName":' || '"' || concept.concept_name  || '"' || 
-    ',"conceptId":' || concept.concept_id || '}') || ']' conceptsArray,
-    wm_concat(concept.concept_name) conceptsName
-    from @results_schema.pnc_study_summary_path sumPath
-    join (select comb.pnc_tx_stg_cmb_id comb_id, combmap.concept_id concept_id, combmap.concept_name concept_name 
+  (select comb.pnc_tx_stg_cmb_id comb_id,
+    '[' || wm_concat('{"conceptName":' || '"' || combMap.concept_name  || '"' || 
+    ',"conceptId":' || combMap.concept_id || '}') || ']' conceptsArray,
+    wm_concat(combMap.concept_name) conceptsName
     from @results_schema.pnc_tx_stage_combination comb
     join @results_schema.pnc_tx_stage_combination_map combMap 
     on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
-    and comb.study_id = @studyId) concept
-  on concept.comb_id = sumPath.tx_stg_cmb
-  group by sumpath.pnc_stdy_smry_id
+    where comb.study_id = @studyId
+    group by comb.pnc_tx_stg_cmb_id
   ) concepts
-  on concepts.smry_id = smry.pnc_stdy_smry_id
+  on concepts.comb_id = smry.tx_stg_cmb
   START WITH pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
         where 
         study_id = @studyId
@@ -255,7 +249,7 @@ from connect_by_query
 order by rnum) allRoots
 union all
 select rnum as rnum, table_row_id as table_row_id, to_clob(']}') as JSON from (
-	select distinct 1/0F as rnum, 1 as table_row_id from pnc_study_summary_path)
+	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
 )
 GROUP BY
    table_row_id))) 
