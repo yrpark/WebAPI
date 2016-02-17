@@ -13,6 +13,7 @@
 package org.ohdsi.webapi.panacea.repository.impl;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -118,6 +119,31 @@ public class PanaceaService extends AbstractDaoService {
         
         final PanaceaStudy study = this.getPanaceaStudyRepository().getPanaceaStudyWithId(studyId);
         return study;
+    }
+    
+    /**
+     * Get PanaceaStudy by id
+     * 
+     * @param studyId Long
+     * @return PanaceaStudy
+     */
+    @GET
+    @Path("/getAllStudy")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<PanaceaStudy> getAllStudy() {
+        final List<PanaceaStudy> studyList = new ArrayList<PanaceaStudy>();
+        
+        final Iterable<PanaceaStudy> allStudy = this.getPanaceaStudyRepository().findAll();
+        
+        if (allStudy != null) {
+            for (final PanaceaStudy s : allStudy) {
+                if (s != null) {
+                    studyList.add(s);
+                }
+            }
+        }
+        
+        return studyList;
     }
     
     /**

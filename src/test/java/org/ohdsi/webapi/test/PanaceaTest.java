@@ -27,6 +27,7 @@ import org.ohdsi.webapi.WebApi;
 import org.ohdsi.webapi.panacea.pojo.PanaceaPatientSequenceCount;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
+import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
 import org.ohdsi.webapi.panacea.repository.impl.PanaceaService;
 import org.ohdsi.webapi.service.VocabularyService;
 import org.ohdsi.webapi.vocabulary.Concept;
@@ -162,7 +163,7 @@ public class PanaceaTest extends TestCase {
         log.info(comboList);
     }
     
-    @Test
+    @Ignore
     public void testExpressionResolver() {
         final String expressionString = "{\"items\" :[{\"concept\":{\"CONCEPT_ID\":2003406,\"CONCEPT_NAME\":\"Other and open repair of indirect inguinal hernia with graft or prosthesis\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"53.04\",\"DOMAIN_ID\":\"Procedure\",\"VOCABULARY_ID\":\"ICD9Proc\",\"CONCEPT_CLASS_ID\":\"4-dig billing code\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"0\",\"DESCENDANT_RECORD_COUNT\":\"0\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false},{\"concept\":{\"CONCEPT_ID\":1301025,\"CONCEPT_NAME\":\"Enoxaparin\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"67108\",\"DOMAIN_ID\":\"Drug\",\"VOCABULARY_ID\":\"RxNorm\",\"CONCEPT_CLASS_ID\":\"Ingredient\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"17\",\"DESCENDANT_RECORD_COUNT\":\"17\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false}]}";
         final Map<Long, Concept> cMap = this.pncService.resolveConceptExpression(expressionString);
@@ -172,4 +173,19 @@ public class PanaceaTest extends TestCase {
         log.info("testExpressionResolver: " + drugConceptIdsStr);
         log.info("testExpressionResolver: " + procedureConceptIdsStr);
     }
+    
+    @Test
+    public void testGetAllStudy() {
+        try {
+            /**
+             * Use browser test too: http://localhost:8080/WebAPI/panacea/getAllStudy
+             */
+            final List<PanaceaStudy> studyList = this.pncService.getAllStudy();
+            
+            log.info("testGetAllStudy: " + studyList.toString());
+        } catch (final Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
 }
