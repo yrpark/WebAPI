@@ -13,6 +13,7 @@
 package org.ohdsi.webapi.panacea.repository.impl;
 
 import java.io.IOException;
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -122,9 +123,8 @@ public class PanaceaService extends AbstractDaoService {
     }
     
     /**
-     * Get PanaceaStudy by id
+     * Get all PanaceaStudy
      * 
-     * @param studyId Long
      * @return PanaceaStudy
      */
     @GET
@@ -144,6 +144,36 @@ public class PanaceaService extends AbstractDaoService {
         }
         
         return studyList;
+    }
+    
+    /**
+     * Save a study.
+     * 
+     * @param panaceaStudy PanaceaStudy
+     * @return PanaceaStudy
+     */
+    @POST
+    @Path("/savestudy")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public PanaceaStudy saveStudy(final PanaceaStudy panaceaStudy) {
+        final PanaceaStudy ps = new PanaceaStudy();
+        ps.setStudyId(panaceaStudy.getStudyId());
+        ps.setCohortDefId(panaceaStudy.getCohortDefId());
+        ps.setConcepSetDef(panaceaStudy.getConcepSetDef());
+        /**
+         * The date is being set to actual date - 1 day (like 3/15/2015 set to 3/14/2015). I think
+         * it's because it's set to mid-night. So I am subtract one day here for a quick fix.
+         */
+        ps.setEndDate(new Date(panaceaStudy.getEndDate().getTime() + (24 * 60 * 60 * 1000)));
+        ps.setStartDate(new Date(panaceaStudy.getStartDate().getTime() + (24 * 60 * 60 * 1000)));
+        ps.setStudyDesc(panaceaStudy.getStudyDesc());
+        ps.setStudyDetail(panaceaStudy.getStudyDetail());
+        ps.setStudyDuration(panaceaStudy.getStudyDuration());
+        ps.setStudyName(panaceaStudy.getStudyName());
+        ps.setSwitchWindow(panaceaStudy.getSwitchWindow());
+        
+        return this.getPanaceaStudyRepository().save(ps);
     }
     
     /**
@@ -169,6 +199,20 @@ public class PanaceaService extends AbstractDaoService {
         ps.setSwitchWindow(newStudy.getSwitchWindow());
         
         return this.getPanaceaStudyRepository().save(ps);
+    }
+    
+    /**
+     * Create new empty PanaceaStudy
+     * 
+     * @return PanaceaStudy
+     */
+    @GET
+    @Path("/getemptynewstudy")
+    @Produces(MediaType.APPLICATION_JSON)
+    public PanaceaStudy getNewEmptyStudy() {
+        final PanaceaStudy ps = new PanaceaStudy();
+        
+        return ps;
     }
     
     /**
