@@ -168,11 +168,13 @@ public class PanaceaTasklet implements Tasklet {
         final String procedureConceptId = (String) jobParams.get("procedureConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
+        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
+        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
         
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId",
-                "sourceId", "procedureConceptId" };
+                "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint", "procedureStudyOptionalDateConstraint" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId,
-                this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId };
+                this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId, drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
