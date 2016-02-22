@@ -483,6 +483,25 @@ public class PanaceaService extends AbstractDaoService {
                     
                     builder.addString("sourceDialect", source.getSourceDialect());
                     builder.addString("sourceId", new Integer(source.getSourceId()).toString());
+
+                    String drugEraStudyOptionalDateConstraint = "";
+                    if(pncStudy.getStartDate() != null){
+                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint.concat("AND (era.DRUG_ERA_START_DATE > study.START_DATE OR era.DRUG_ERA_START_DATE = study.START_DATE) \n");
+                    }
+                    if(pncStudy.getEndDate() != null){
+                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint.concat("AND (era.DRUG_ERA_START_DATE < study.END_DATE OR era.DRUG_ERA_START_DATE = study.END_DATE) \n");
+                    }
+                    
+                    String procedureStudyOptionalDateConstraint = "";
+                    if(pncStudy.getStartDate() != null){
+                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint.concat("AND (proc.PROCEDURE_DATE > study.START_DATE OR proc.PROCEDURE_DATE = study.START_DATE) \n");
+                    }
+                    if(pncStudy.getEndDate() != null){
+                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint.concat("AND (proc.PROCEDURE_DATE < study.END_DATE OR proc.PROCEDURE_DATE = study.END_DATE) \n");
+                    }                    
+                    
+                    builder.addString("drugEraStudyOptionalDateConstraint", drugEraStudyOptionalDateConstraint);
+                    builder.addString("procedureStudyOptionalDateConstraint", procedureStudyOptionalDateConstraint);
                     
                     final JobParameters jobParameters = builder.toJobParameters();
                     
