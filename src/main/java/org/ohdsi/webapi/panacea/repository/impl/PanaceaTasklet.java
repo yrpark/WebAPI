@@ -14,6 +14,7 @@ package org.ohdsi.webapi.panacea.repository.impl;
 
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.ohdsi.sql.SqlRender;
@@ -165,20 +166,90 @@ public class PanaceaTasklet implements Tasklet {
         final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
         final String cohortDefId = (String) jobParams.get("cohortDefId");
         final String drugConceptId = (String) jobParams.get("drugConceptId");
+        final String allConceptIdsStr = (String) jobParams.get("allConceptIdsStr");
         final String procedureConceptId = (String) jobParams.get("procedureConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
         final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
         final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
         
+        String insertFromDrugEra = this.getDrugEraInsertString(jobParams);
+        String insertFromProcedure = this.getProcedureInsertString(jobParams);
+        
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId",
-                "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint", "procedureStudyOptionalDateConstraint" };
+                "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
+                "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "insertFromDrugEra", "insertFromProcedure" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId,
-                this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId, drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint };
+                this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
+                drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr, insertFromDrugEra, insertFromProcedure };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
         
         return sql;
     }
+    
+    private String getDrugEraInsertString(final Map<String, Object> jobParams) {
+        String drugEraInsertString = ResourceHelper.GetResourceAsString("/resources/panacea/sql/drugEraInsert.sql");
+        
+        final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
+        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+        final String cohortDefId = (String) jobParams.get("cohortDefId");
+        final String drugConceptId = (String) jobParams.get("drugConceptId");
+        final String allConceptIdsStr = (String) jobParams.get("allConceptIdsStr");
+        final String procedureConceptId = (String) jobParams.get("procedureConceptId");
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        final String sourceId = (String) jobParams.get("sourceId");
+        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
+        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
+        
+        if (!StringUtils.isEmpty(drugConceptId)) {
+            final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId",
+                    "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
+                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr" };
+            final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId,
+                    this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
+                    drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr };
+            
+            drugEraInsertString = SqlRender.renderSql(drugEraInsertString, params, values);
+            drugEraInsertString = SqlTranslate.translateSql(drugEraInsertString, "sql server", sourceDialect, null,
+                resultsTableQualifier);
+        } else {
+            return "\n";
+        }
+        
+        return drugEraInsertString;
+    }
+    
+    private String getProcedureInsertString(final Map<String, Object> jobParams) {
+        String procedureInsertString = ResourceHelper.GetResourceAsString("/resources/panacea/sql/procedureInsert.sql");
+        
+        final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
+        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+        final String cohortDefId = (String) jobParams.get("cohortDefId");
+        final String drugConceptId = (String) jobParams.get("drugConceptId");
+        final String allConceptIdsStr = (String) jobParams.get("allConceptIdsStr");
+        final String procedureConceptId = (String) jobParams.get("procedureConceptId");
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        final String sourceId = (String) jobParams.get("sourceId");
+        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
+        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
+        
+        if (!StringUtils.isEmpty(procedureConceptId)) {
+            final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId",
+                    "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
+                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr" };
+            final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId,
+                    this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
+                    drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr };
+            
+            procedureInsertString = SqlRender.renderSql(procedureInsertString, params, values);
+            procedureInsertString = SqlTranslate.translateSql(procedureInsertString, "sql server", sourceDialect, null,
+                resultsTableQualifier);
+        } else {
+            return "\n";
+        }
+        
+        return procedureInsertString;
+    }    
 }
