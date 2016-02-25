@@ -21,6 +21,9 @@ using
     on updateParentPath.rowid = pathSum.rowid
     join @results_schema.pnc_study_summary_path parentPath
     on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
+    and parentPath.study_id = @studyId
+    and parentPath.tx_rslt_version = 1
+    and parentPath.source_id = @sourceId
     where pathSum.study_id = @studyId and pathSum.source_id = @sourceId
     and pathSum.tx_rslt_version = 1 
     and parentPath.tx_rslt_version = 1 
@@ -32,13 +35,16 @@ using
   )
   WHEN MATCHED then update set m.tx_path_parent_key = m1.parentKey, m.tx_stg_percentage = m1.percentage;
 
+
 merge into @results_schema.pnc_study_summary_path  m
 using
   (
     select pathsum.rowid as the_rowid, rootCount.totalRootCount,
     rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, NVL(ROUND(pathSum.tx_stg_cnt/rootCount.totalRootCount * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
-    where tx_path_parent_key is null and tx_rslt_version = 1) rootCount
+    where tx_path_parent_key is null and tx_rslt_version = 1
+      and study_id = @studyId and source_id = @sourceId
+      ) rootCount
     where tx_path_parent_key is null
     and pathSum.study_id = @studyId and pathSum.source_id = @sourceId
     and pathsum.tx_rslt_version = 1
@@ -63,6 +69,9 @@ using
     on updateParentPath.rowid = pathSum.rowid
     join @results_schema.pnc_study_summary_path parentPath
     on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
+    and parentPath.study_id = @studyId
+    and parentPath.tx_rslt_version = 2
+    and parentPath.source_id = @sourceId
     where pathSum.study_id = @studyId and pathSum.source_id = @sourceId
     and pathSum.tx_rslt_version = 2 
     and parentPath.tx_rslt_version = 2 
@@ -80,7 +89,9 @@ using
     select pathsum.rowid as the_rowid, rootCount.totalRootCount,
     rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, NVL(ROUND(pathSum.tx_stg_cnt/rootCount.totalRootCount * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
-    where tx_path_parent_key is null and tx_rslt_version = 2) rootCount
+    where tx_path_parent_key is null and tx_rslt_version = 2
+      and study_id = @studyId and source_id = @sourceId
+      ) rootCount
     where tx_path_parent_key is null
     and pathSum.study_id = @studyId and pathSum.source_id = @sourceId
     and pathsum.tx_rslt_version = 2
@@ -174,6 +185,7 @@ select rnum as rnum, table_row_id as table_row_id, to_clob(']}') as JSON from (
 GROUP BY
    table_row_id));
 
+----------------------------------version 2
 update @results_schema.pnc_study_summary set study_results_2 = (select JSON from (
 select JSON from (
 SELECT
