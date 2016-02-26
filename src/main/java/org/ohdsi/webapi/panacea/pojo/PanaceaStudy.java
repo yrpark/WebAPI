@@ -75,6 +75,15 @@ public class PanaceaStudy implements Serializable {
     @Column(name = "end_date")
     private Date endDate;
     
+    @Column(name = "min_unit_days")
+    private Integer minUnitDays;
+    
+    @Column(name = "min_unit_counts")
+    private Integer minUnitCounts;
+    
+    @Column(name = "gap_threshold")
+    private Double gapThreshold;
+    
     /**
      * @return the studyId
      */
@@ -216,6 +225,48 @@ public class PanaceaStudy implements Serializable {
     }
     
     /**
+     * @return the minUnitDays
+     */
+    public Integer getMinUnitDays() {
+        return this.minUnitDays;
+    }
+    
+    /**
+     * @param minUnitDays the minUnitDays to set
+     */
+    public void setMinUnitDays(final Integer minUnitDays) {
+        this.minUnitDays = minUnitDays;
+    }
+    
+    /**
+     * @return the minUnitCounts
+     */
+    public Integer getMinUnitCounts() {
+        return this.minUnitCounts;
+    }
+    
+    /**
+     * @param minUnitCounts the minUnitCounts to set
+     */
+    public void setMinUnitCounts(final Integer minUnitCounts) {
+        this.minUnitCounts = minUnitCounts;
+    }
+    
+    /**
+     * @return the gapThreshold
+     */
+    public Double getGapThreshold() {
+        return this.gapThreshold;
+    }
+    
+    /**
+     * @param gapThreshold the gapThreshold to set
+     */
+    public void setGapThreshold(final Double gapThreshold) {
+        this.gapThreshold = gapThreshold;
+    }
+    
+    /**
      * @see java.lang.Object#toString()
      */
     @Override
@@ -223,6 +274,7 @@ public class PanaceaStudy implements Serializable {
         return "PanaceaStudy [studyId=" + this.studyId + ", studyName=" + this.studyName + ", studyDesc=" + this.studyDesc
                 + ", concepSetDef=" + this.concepSetDef + ", cohortDefId=" + this.cohortDefId + ", studyDetail="
                 + this.studyDetail + ", switchWindow=" + this.switchWindow + ", studyDuration=" + this.studyDuration
-                + ", startDate=" + this.startDate + ", endDate=" + this.endDate + "]";
+                + ", startDate=" + this.startDate + ", endDate=" + this.endDate + ", minUnitDays=" + this.minUnitDays
+                + ", minUnitCounts=" + this.minUnitCounts + ", gapThreshold=" + this.gapThreshold + "]";
     }
 }

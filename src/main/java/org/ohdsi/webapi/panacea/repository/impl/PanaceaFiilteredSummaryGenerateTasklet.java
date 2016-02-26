@@ -14,6 +14,7 @@ package org.ohdsi.webapi.panacea.repository.impl;
 
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.ohdsi.sql.SqlRender;
@@ -51,8 +52,8 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
      * @param pncService
      * @param pncStudy
      */
-    public PanaceaFiilteredSummaryGenerateTasklet(final JdbcTemplate jdbcTemplate, final TransactionTemplate transactionTemplate,
-        final PanaceaStudy pncStudy) {
+    public PanaceaFiilteredSummaryGenerateTasklet(final JdbcTemplate jdbcTemplate,
+        final TransactionTemplate transactionTemplate, final PanaceaStudy pncStudy) {
         super();
         this.jdbcTemplate = jdbcTemplate;
         this.transactionTemplate = transactionTemplate;
@@ -65,11 +66,12 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
      */
     @Override
     public RepeatStatus execute(final StepContribution contribution, final ChunkContext chunkContext) throws Exception {
+        
         try {
+            
             final Map<String, Object> jobParams = chunkContext.getStepContext().getJobParameters();
             
             final String sql = this.getSql(jobParams);
-            
             final int[] ret = this.transactionTemplate.execute(new TransactionCallback<int[]>() {
                 
                 @Override
@@ -80,9 +82,10 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
                     return PanaceaFiilteredSummaryGenerateTasklet.this.jdbcTemplate.batchUpdate(stmts);
                 }
             });
-            log.debug("PanaceaFiilteredSummaryGenerateTasklet execute returned size: " + ret.length);
+            log.debug("PanaceaFiilteredSummaryGenerateTasklet with constraints execute returned size: " + ret.length);
             
             return RepeatStatus.FINISHED;
+            
         } catch (final Exception e) {
             e.printStackTrace();
             
@@ -97,7 +100,6 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
                 completeTx);
             this.transactionTemplate.getTransactionManager().commit(completeStatus);
         }
-        
     }
     
     /**
@@ -129,23 +131,71 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
     }
     
     private String getSql(final Map<String, Object> jobParams) {
-        String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary.sql");
+        String sql = "";
+        if (hasConstraint()) {
+            sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary.sql");
+        } else {
+            sql = "IF OBJECT_ID('\n tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_smrypth_fltr; \n"
+                    + "IF OBJECT_ID('tempdb..#_pnc_smry_ancstr', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_smry_ancstr; \n"
+                    + "IF OBJECT_ID('tempdb..#_pnc_ptsq_ct', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_ptsq_ct; \n"
+                    + "IF OBJECT_ID('tempdb..#_pnc_ptstg_ct', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_ptstg_ct; \n"
+                    + "IF OBJECT_ID('tempdb..#_pnc_tmp_cmb_sq_ct', 'U') IS NOT NULL \n"
+                    + "DROP TABLE #_pnc_tmp_cmb_sq_ct;\n";
+            
+        }
         
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
         final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
-        final String cohortDefId = (String) jobParams.get("cohortDefId");
-        final String drugConceptId = (String) jobParams.get("drugConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
+        final String constraintSql = getConstraintSql();
         
-        final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "cohortDefId", "studyId",
-                "drugConceptId", "sourceId" };
-        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
-                this.pncStudy.getStudyId().toString(), drugConceptId, sourceId };
+        final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "studyId", "sourceId",
+                "constraintSql" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
+                this.pncStudy.getStudyId().toString(), sourceId, constraintSql };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
         
         return sql;
+    }
+    
+    private String getConstraintSql() {
+        String constraintSql = "";
+        
+        if (this.pncStudy != null) {
+            if (this.pncStudy.getMinUnitDays() != null) {
+                constraintSql = constraintSql.concat("\n where tx_stg_avg_dr >= " + this.pncStudy.getMinUnitDays());
+            }
+            if (this.pncStudy.getMinUnitCounts() != null) {
+                constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql.concat("\n where tx_stg_cnt >= "
+                        + this.pncStudy.getMinUnitCounts()) : constraintSql.concat("\n and tx_stg_cnt >= "
+                        + this.pncStudy.getMinUnitCounts());
+            }
+            if (this.pncStudy.getGapThreshold() != null) {
+                constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql
+                        .concat("\n where NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
+                                + this.pncStudy.getGapThreshold()) : constraintSql
+                        .concat("\n and NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
+                                + this.pncStudy.getGapThreshold());
+            }
+            
+            constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql : constraintSql.concat("\n");
+        }
+        
+        return constraintSql;
+    }
+    
+    private boolean hasConstraint() {
+        if (this.pncStudy != null) {
+            if ((this.pncStudy.getMinUnitDays() != null) || (this.pncStudy.getMinUnitCounts() != null)
+                    || (this.pncStudy.getGapThreshold() != null)) {
+                return true;
+            }
+        }
+        
+        return false;
+        
     }
 }

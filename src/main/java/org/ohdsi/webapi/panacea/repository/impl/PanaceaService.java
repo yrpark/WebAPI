@@ -572,6 +572,61 @@ public class PanaceaService extends AbstractDaoService {
         }
     }
     
+    @GET
+    @Path("/runPncFilterSummaryTasklet/{sourceKey}/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public void runPncFilterSummaryTasklet(@PathParam("sourceKey") final String sourceKey,
+                                           @PathParam("id") final Long studyId) {
+        /**
+         * test: localhost:8080/WebAPI/panacea/runPncFilterSummaryTasklet/RIV5/19
+         */
+        runPanaceaFilterSummaryTasklet(sourceKey, studyId);
+    }
+    
+    public void runPanaceaFilterSummaryTasklet(final String sourceKey, final Long studyId) {
+        if ((studyId != null) && (sourceKey != null)) {
+            final PanaceaStudy pncStudy = this.getPanaceaStudyWithId(studyId);
+            if (pncStudy != null) {
+                
+                final Source source = getSourceRepository().findBySourceKey(sourceKey);
+                if (source != null) {
+                    final String resultsTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
+                    final String cdmTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
+                    
+                    final JobParametersBuilder builder = new JobParametersBuilder();
+                    
+                    final String cohortDefId = pncStudy.getCohortDefId().toString();
+                    
+                    builder.addString("cdm_schema", cdmTableQualifier);
+                    builder.addString("ohdsi_schema", resultsTableQualifier);
+                    builder.addString("results_schema", resultsTableQualifier);
+                    builder.addString("studyId", studyId.toString());
+                    builder.addString("sourceId", new Integer(source.getSourceId()).toString());
+                    
+                    final JobParameters jobParameters = builder.toJobParameters();
+                    
+                    final PanaceaFiilteredSummaryGenerateTasklet pncFilteredSummaryTasklet = new PanaceaFiilteredSummaryGenerateTasklet(
+                            this.getSourceJdbcTemplate(source), this.getTransactionTemplate(), pncStudy);
+                    
+                    final Step pncFilteredSummaryStep = this.stepBuilders.get("pncFilteredSummaryStep")
+                            .tasklet(pncFilteredSummaryTasklet).exceptionHandler(new TerminateJobStepExceptionHandler())
+                            .build();
+                    
+                    final Job pncStudyJob = this.jobBuilders.get("panaceaFilterSummaryStudy").start(pncFilteredSummaryStep)
+                            .build();
+                    
+                    final JobExecutionResource jobExec = this.jobTemplate.launch(pncStudyJob, jobParameters);
+                } else {
+                    //TODO
+                    log.error("");
+                }
+            }
+        } else {
+            //TODO
+            log.error("");
+        }
+    }
+    
     /**
      * @return the panaceaStudyRepository
      */

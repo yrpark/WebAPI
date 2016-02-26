@@ -37,7 +37,9 @@ delete from #_pnc_smrypth_fltr where pnc_stdy_smry_id not in (
     select pnc_stdy_smry_id from #_pnc_smrypth_fltr qualified
 --TODO!!!!!! change this with real condition string
 --    where tx_stg_avg_dr >= 50);
-    where tx_stg_avg_gap < 150);
+--    where tx_stg_avg_gap < 150
+@constraintSql
+);
 
 
 --table to hold null parent ids (which have been deleted from #_pnc_smrypth_fltr as not qualified rows) and all their ancestor_id with levels
@@ -184,3 +186,15 @@ select rnum as rnum, table_row_id as table_row_id, to_clob(']}') as JSON from (
 GROUP BY
    table_row_id)))
 where study_id = @studyId and source_id = @sourceId;
+
+
+IF OBJECT_ID('tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL
+  DROP TABLE #_pnc_smrypth_fltr;
+IF OBJECT_ID('tempdb..#_pnc_smry_ancstr', 'U') IS NOT NULL
+  DROP TABLE #_pnc_smry_ancstr;
+IF OBJECT_ID('tempdb..#_pnc_ptsq_ct', 'U') IS NOT NULL
+  DROP TABLE #_pnc_ptsq_ct;
+IF OBJECT_ID('tempdb..#_pnc_ptstg_ct', 'U') IS NOT NULL
+  DROP TABLE #_pnc_ptstg_ct;
+IF OBJECT_ID('tempdb..#_pnc_tmp_cmb_sq_ct', 'U') IS NOT NULL
+  DROP TABLE #_pnc_tmp_cmb_sq_ct;
