@@ -213,6 +213,7 @@ from
     ,tx_seq                               as path_seq
     ,tx_stg_avg_dr                        as avg_duration
     ,tx_stg_avg_gap                       as avg_gap
+    ,NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0)   as gap_pcnt
     ,tx_stg_cnt                           as pt_count
     ,tx_stg_percentage                    as pt_percentage
     ,concepts.conceptsName                as concept_names
@@ -253,6 +254,7 @@ select
   || ' ,"percentage" : "' || pt_percentage || '" '  
   || ' ,"average_duration" : ' || avg_duration || ' '
   || ' ,"average_gap_days" : ' || avg_gap || ' '
+  || ' ,"gap_percent" : "' || gap_pcnt || '" '  
   || ',"concepts" : ' || combo_concepts 
   || CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0 
      THEN '}' || rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
@@ -399,6 +401,7 @@ from
     ,tx_seq                               as path_seq
     ,tx_stg_avg_dr                        as avg_duration
     ,tx_stg_avg_gap                       as avg_gap
+    ,NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0)   as gap_pcnt
     ,tx_stg_cnt                           as pt_count
     ,tx_stg_percentage                    as pt_percentage
     ,concepts.conceptsName                as concept_names
@@ -439,6 +442,7 @@ select
   || ' ,"percentage" : "' || pt_percentage || '" '  
   || ' ,"average_duration" : ' || avg_duration || ' '
   || ' ,"average_gap_days" : ' || avg_gap || ' '
+  || ' ,"gap_percent" : "' || gap_pcnt || '" '
   || ',"concepts" : ' || combo_concepts 
   || CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0 
      THEN '}' || rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
