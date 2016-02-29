@@ -160,13 +160,18 @@ public class PanaceaService extends AbstractDaoService {
         final PanaceaStudy ps = new PanaceaStudy();
         ps.setStudyId(panaceaStudy.getStudyId());
         ps.setCohortDefId(panaceaStudy.getCohortDefId());
+        ps.setConceptSetId(panaceaStudy.getConceptSetId());
         ps.setConcepSetDef(panaceaStudy.getConcepSetDef());
         /**
          * The date is being set to actual date - 1 day (like 3/15/2015 set to 3/14/2015). I think
          * it's because it's set to mid-night. So I am subtract one day here for a quick fix.
          */
-        ps.setEndDate(new Date(panaceaStudy.getEndDate().getTime() + (24 * 60 * 60 * 1000)));
-        ps.setStartDate(new Date(panaceaStudy.getStartDate().getTime() + (24 * 60 * 60 * 1000)));
+        if (panaceaStudy.getEndDate() != null) {
+            ps.setEndDate(new Date(panaceaStudy.getEndDate().getTime() + (24 * 60 * 60 * 1000)));
+        }
+        if (panaceaStudy.getStartDate() != null) {
+            ps.setStartDate(new Date(panaceaStudy.getStartDate().getTime() + (24 * 60 * 60 * 1000)));
+        }
         ps.setStudyDesc(panaceaStudy.getStudyDesc());
         ps.setStudyDetail(panaceaStudy.getStudyDetail());
         ps.setStudyDuration(panaceaStudy.getStudyDuration());
