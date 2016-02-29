@@ -601,6 +601,7 @@ public class PanaceaService extends AbstractDaoService {
                     builder.addString("ohdsi_schema", resultsTableQualifier);
                     builder.addString("results_schema", resultsTableQualifier);
                     builder.addString("studyId", studyId.toString());
+                    builder.addString("sourceDialect", source.getSourceDialect());
                     builder.addString("sourceId", new Integer(source.getSourceId()).toString());
                     
                     final JobParameters jobParameters = builder.toJobParameters();

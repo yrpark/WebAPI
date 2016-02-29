@@ -119,7 +119,7 @@ SELECT
                '/document/V/text()').getclobval(),1) AS JSON
 FROM (select allRoots.rnum rnum, 1 table_row_id,
 CASE 
-    WHEN rnum = 1 THEN '{"combo_id": "root","children": [' || substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
+    WHEN rnum = 1 THEN '{"comboId": "root","children": [' || substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
     ELSE JSON_SNIPPET
 END
 as JSON
@@ -139,8 +139,8 @@ from
   FROM @results_schema.pnc_study_summary_path smry
   join
   (select comb.pnc_tx_stg_cmb_id comb_id,
-    '[' || wm_concat('{"conceptName":' || '"' || combMap.concept_name  || '"' || 
-    ',"conceptId":' || combMap.concept_id || '}') || ']' conceptsArray,
+    '[' || wm_concat('{"innerConceptName":' || '"' || combMap.concept_name  || '"' || 
+    ',"innerConceptId":' || combMap.concept_id || '}') || ']' conceptsArray,
     wm_concat(combMap.concept_name) conceptsName
     from @results_schema.pnc_tx_stage_combination comb
     join @results_schema.pnc_tx_stage_combination_map combMap 
@@ -165,11 +165,11 @@ select
     WHEN Lvl - LAG(Lvl) OVER (order by rnum) = 1 THEN ',"children" : [{' 
     ELSE ',{' 
   END 
-  || ' "combo_id" : ' || combo_id || ' '
-  || ' ,"concept_names" : "' || concept_names || '" '  
-  || ' ,"patient_counts" : ' || pt_count || ' '
+  || ' "comboId" : ' || combo_id || ' '
+  || ' ,"conceptName" : "' || concept_names || '" '  
+  || ' ,"patientCount" : ' || pt_count || ' '
   || ' ,"percentage" : "' || pt_percentage || '" '  
-  || ' ,"average_duration" : ' || avg_duration || ' '
+  || ' ,"avgDuration" : ' || avg_duration || ' '
   || ',"concepts" : ' || combo_concepts 
   || CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0 
      THEN '}' || rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
@@ -200,7 +200,7 @@ SELECT
                '/document/V/text()').getclobval(),1) AS JSON
 FROM (select allRoots.rnum rnum, 1 table_row_id,
 CASE 
-    WHEN rnum = 1 THEN '{"combo_id": "root","children": [' || substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
+    WHEN rnum = 1 THEN '{"comboId": "root","children": [' || substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
     ELSE JSON_SNIPPET
 END
 as JSON
@@ -222,8 +222,8 @@ from
   FROM @results_schema.pnc_study_summary_path smry
   join
   (select comb.pnc_tx_stg_cmb_id comb_id,
-    '[' || wm_concat('{"conceptName":' || '"' || combMap.concept_name  || '"' || 
-    ',"conceptId":' || combMap.concept_id || '}') || ']' conceptsArray,
+    '[' || wm_concat('{"innerConceptName":' || '"' || combMap.concept_name  || '"' || 
+    ',"innerConceptId":' || combMap.concept_id || '}') || ']' conceptsArray,
     wm_concat(combMap.concept_name) conceptsName
     from @results_schema.pnc_tx_stage_combination comb
     join @results_schema.pnc_tx_stage_combination_map combMap 
@@ -247,14 +247,14 @@ select
     WHEN Lvl = 1 THEN ',{'
     WHEN Lvl - LAG(Lvl) OVER (order by rnum) = 1 THEN ',"children" : [{' 
     ELSE ',{' 
-  END 
-  || ' "combo_id" : ' || combo_id || ' '
-  || ' ,"concept_names" : "' || concept_names || '" '  
-  || ' ,"patient_counts" : ' || pt_count || ' '
+  END
+  || ' "comboId" : ' || combo_id || ' '
+  || ' ,"conceptName" : "' || concept_names || '" '  
+  || ' ,"patientCount" : ' || pt_count || ' '
   || ' ,"percentage" : "' || pt_percentage || '" '  
-  || ' ,"average_duration" : ' || avg_duration || ' '
-  || ' ,"average_gap_days" : ' || avg_gap || ' '
-  || ' ,"gap_percent" : "' || gap_pcnt || '" '  
+  || ' ,"avgDuration" : ' || avg_duration || ' '
+  || ' ,"avgGapDay" : ' || avg_gap || ' '
+  || ' ,"gapPercent" : "' || gap_pcnt || '" '  
   || ',"concepts" : ' || combo_concepts 
   || CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0 
      THEN '}' || rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
