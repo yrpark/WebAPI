@@ -84,6 +84,9 @@ public class PanaceaStudy implements Serializable {
     @Column(name = "gap_threshold")
     private Double gapThreshold;
     
+    @Column(name = "concept_set_id")
+    private Integer conceptSetId;
+    
     /**
      * @return the studyId
      */
@@ -267,6 +270,22 @@ public class PanaceaStudy implements Serializable {
     }
     
     /**
+     * @return the conceptSetId
+     */
+    public Integer getConceptSetId() {
+        return this.conceptSetId;
+    }
+    
+    /**
+     * @param conceptSetId the conceptSetId to set
+     */
+    public void setConceptSetId(final Integer conceptSetId) {
+        this.conceptSetId = conceptSetId;
+    }
+    
+    /**
+     * (non-Jsdoc)
+     * 
      * @see java.lang.Object#toString()
      */
     @Override
@@ -275,6 +294,8 @@ public class PanaceaStudy implements Serializable {
                 + ", concepSetDef=" + this.concepSetDef + ", cohortDefId=" + this.cohortDefId + ", studyDetail="
                 + this.studyDetail + ", switchWindow=" + this.switchWindow + ", studyDuration=" + this.studyDuration
                 + ", startDate=" + this.startDate + ", endDate=" + this.endDate + ", minUnitDays=" + this.minUnitDays
-                + ", minUnitCounts=" + this.minUnitCounts + ", gapThreshold=" + this.gapThreshold + "]";
+                + ", minUnitCounts=" + this.minUnitCounts + ", gapThreshold=" + this.gapThreshold + ", conceptSetId="
+                + this.conceptSetId + "]";
     }
+    
 }
