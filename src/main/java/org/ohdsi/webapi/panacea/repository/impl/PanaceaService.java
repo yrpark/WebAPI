@@ -177,6 +177,9 @@ public class PanaceaService extends AbstractDaoService {
         ps.setStudyDuration(panaceaStudy.getStudyDuration());
         ps.setStudyName(panaceaStudy.getStudyName());
         ps.setSwitchWindow(panaceaStudy.getSwitchWindow());
+        ps.setMinUnitCounts(panaceaStudy.getMinUnitCounts());
+        ps.setMinUnitDays(panaceaStudy.getMinUnitDays());
+        ps.setGapThreshold(panaceaStudy.getGapThreshold());
         
         return this.getPanaceaStudyRepository().save(ps);
     }
