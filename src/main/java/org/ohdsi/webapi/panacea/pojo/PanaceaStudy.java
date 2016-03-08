@@ -331,4 +331,31 @@ public class PanaceaStudy implements Serializable {
                 + ", minUnitCounts=" + this.minUnitCounts + ", gapThreshold=" + this.gapThreshold + ", conceptSetId="
                 + this.conceptSetId + ", createTime=" + this.createTime + ", lastRunTime=" + this.lastRunTime + "]";
     }
+    
+    /**
+     * Clone a study -- dont set studyId
+     * 
+     * @return PanaceaStudy
+     */
+    public PanaceaStudy cloneStudy() {
+        final PanaceaStudy ps = new PanaceaStudy();
+        
+        ps.setCohortDefId(this.cohortDefId);
+        ps.setConcepSetDef(this.concepSetDef);
+        ps.setConceptSetId(this.conceptSetId);
+        ps.setCreateTime(this.createTime);
+        ps.setEndDate(this.endDate);
+        ps.setGapThreshold(this.gapThreshold);
+        ps.setLastRunTime(this.lastRunTime);
+        ps.setMinUnitCounts(this.minUnitCounts);
+        ps.setMinUnitDays(this.minUnitDays);
+        ps.setStartDate(this.startDate);
+        ps.setStudyDesc(this.studyDesc);
+        ps.setStudyDetail(this.studyDetail);
+        ps.setStudyDuration(this.studyDuration);
+        ps.setStudyName(this.studyName);
+        ps.setSwitchWindow(this.switchWindow);
+        
+        return ps;
+    }
 }
