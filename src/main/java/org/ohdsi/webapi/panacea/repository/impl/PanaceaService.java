@@ -14,6 +14,7 @@ package org.ohdsi.webapi.panacea.repository.impl;
 
 import java.io.IOException;
 import java.sql.Date;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +44,8 @@ import org.ohdsi.webapi.panacea.pojo.PanaceaPatientSequenceCount;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
+import org.ohdsi.webapi.panacea.pojo.PanaceaSummary;
+import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryLight;
 import org.ohdsi.webapi.panacea.repository.PanaceaPatientSequenceCountRepository;
 import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationMapRepository;
 import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationRepository;
@@ -62,6 +65,7 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.item.ItemStreamException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -133,7 +137,8 @@ public class PanaceaService extends AbstractDaoService {
     public List<PanaceaStudy> getAllStudy() {
         final List<PanaceaStudy> studyList = new ArrayList<PanaceaStudy>();
         
-        final Iterable<PanaceaStudy> allStudy = this.getPanaceaStudyRepository().findAll();
+        final Sort studySort = new Sort(Sort.Direction.ASC, "studyName", "createTime");
+        final Iterable<PanaceaStudy> allStudy = this.getPanaceaStudyRepository().findAll(studySort);
         
         if (allStudy != null) {
             for (final PanaceaStudy s : allStudy) {
@@ -144,6 +149,46 @@ public class PanaceaService extends AbstractDaoService {
         }
         
         return studyList;
+    }
+    
+    /**
+     * Get all PanaceaStudy getAllStudyWithLastRunTime
+     * 
+     * @return PanaceaStudy
+     */
+    @GET
+    @Path("/getAllStudyWithLastRunTime")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<PanaceaStudy> getAllStudyWithLastRunTime() {
+        final List<PanaceaStudy> psList = this.getAllStudy();
+        
+        if (psList != null) {
+            for (final PanaceaStudy ps : psList) {
+                final List<PanaceaSummaryLight> psSumList = this.panaceaStudyRepository.getPanaceaSummaryLightByStudyId(ps
+                        .getStudyId());
+                
+                if ((psSumList != null) && (psSumList.size() > 0)) {
+                    ps.setLastRunTime(psSumList.get(0).getLastUpdateTime());
+                }
+            }
+        }
+        
+        return psList;
+    }
+    
+    //TODO -- note: heavy load Clob. Be carefule to use: add WS annotation
+    public PanaceaSummary getStudySummary(final Long studyId, final Integer sourceId) {
+        return this.panaceaStudyRepository.getPanaceaSummaryByStudyIdSourceId(studyId, sourceId);
+    }
+    
+    //TODO -- note: heavy load Clob. Be carefule to use: add WS annotation
+    public List<PanaceaSummary> getStudySummary(final Long studyId) {
+        return this.panaceaStudyRepository.getPanaceaSummaryByStudyId(studyId);
+    }
+    
+    //TODO -- note: lazy load Clob.
+    public List<PanaceaSummaryLight> getStudySummaryLight(final Long studyId) {
+        return this.panaceaStudyRepository.getPanaceaSummaryLightByStudyId(studyId);
     }
     
     /**
@@ -180,6 +225,12 @@ public class PanaceaService extends AbstractDaoService {
         ps.setMinUnitCounts(panaceaStudy.getMinUnitCounts());
         ps.setMinUnitDays(panaceaStudy.getMinUnitDays());
         ps.setGapThreshold(panaceaStudy.getGapThreshold());
+        if (panaceaStudy.getCreateTime() != null) {
+            ps.setCreateTime(panaceaStudy.getCreateTime());
+        } else {
+            final java.util.Date date = new java.util.Date();
+            ps.setCreateTime(new Timestamp(date.getTime()));
+        }
         
         return this.getPanaceaStudyRepository().save(ps);
     }
@@ -205,6 +256,8 @@ public class PanaceaService extends AbstractDaoService {
         ps.setStudyDuration(newStudy.getStudyDuration());
         ps.setStudyName(newStudy.getStudyName());
         ps.setSwitchWindow(newStudy.getSwitchWindow());
+        final java.util.Date date = new java.util.Date();
+        ps.setCreateTime(new Timestamp(date.getTime()));
         
         return this.getPanaceaStudyRepository().save(ps);
     }

@@ -12,22 +12,32 @@
  */
 package org.ohdsi.webapi.panacea.repository;
 
+import java.util.List;
+
 import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
+import org.ohdsi.webapi.panacea.pojo.PanaceaSummary;
+import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryLight;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.PagingAndSortingRepository;
 
 /**
  *
  */
-public interface PanaceaStudyRepository extends CrudRepository<PanaceaStudy, Long> {
+public interface PanaceaStudyRepository extends PagingAndSortingRepository<PanaceaStudy, Long> {
     
     /**
-     * Auto generated method comment
-     * 
      * @param studyId Long
      * @return PanaceaStudy
      */
     @Query("from PanaceaStudy where study_id = ?")
     public PanaceaStudy getPanaceaStudyWithId(Long studyId);
     
+    @Query("from PanaceaSummary where study_id = ? and source_id = ?")
+    public PanaceaSummary getPanaceaSummaryByStudyIdSourceId(Long studyId, Integer sourceId);
+    
+    @Query("from PanaceaSummary where study_id = ? order by last_update_time")
+    public List<PanaceaSummary> getPanaceaSummaryByStudyId(Long studyId);
+    
+    @Query("from PanaceaSummaryLight where study_id = ? order by last_update_time desc")
+    public List<PanaceaSummaryLight> getPanaceaSummaryLightByStudyId(Long studyId);
 }

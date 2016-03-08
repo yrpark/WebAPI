@@ -28,6 +28,8 @@ import org.ohdsi.webapi.panacea.pojo.PanaceaPatientSequenceCount;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
+import org.ohdsi.webapi.panacea.pojo.PanaceaSummary;
+import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryLight;
 import org.ohdsi.webapi.panacea.repository.impl.PanaceaService;
 import org.ohdsi.webapi.service.VocabularyService;
 import org.ohdsi.webapi.vocabulary.Concept;
@@ -67,7 +69,7 @@ public class PanaceaTest extends TestCase {
         super.setUp();
     }
     
-    @Test
+    @Ignore
     public void testGetCombination() {
         try {
             /**
@@ -88,7 +90,7 @@ public class PanaceaTest extends TestCase {
         }
     }
     
-    @Test
+    @Ignore
     public void testLoadCombinationWithMap() {
         try {
             /**
@@ -107,7 +109,7 @@ public class PanaceaTest extends TestCase {
         }
     }
     
-    @Test
+    @Ignore
     public void testGetAllCombForStudyWithMap() {
         try {
             /**
@@ -131,7 +133,7 @@ public class PanaceaTest extends TestCase {
     //        }
     //    }
     
-    @Test
+    @Ignore
     public void testGetPanaceaPatientSequenceCountById() {
         final PanaceaPatientSequenceCount ppsc = this.pncService.getPanaceaPatientSequenceCountById(new Long(777));
         
@@ -190,4 +192,36 @@ public class PanaceaTest extends TestCase {
         }
     }
     
+    @Ignore
+    public void testGetStudySummary() {
+        try {
+            final PanaceaSummary summary = this.pncService.getStudySummary(new Long(31), new Integer(1));
+            
+            log.info("testGetStudySummary: " + summary);
+        } catch (final Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    @Ignore
+    public void testGetStudySummaryList() {
+        try {
+            final List<PanaceaSummary> summaryList = this.pncService.getStudySummary(new Long(31));
+            
+            log.info("testGetStudySummaryList: " + summaryList);
+        } catch (final Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    @Test
+    public void testGetStudySummaryLightList() {
+        try {
+            final List<PanaceaSummaryLight> summaryList = this.pncService.getStudySummaryLight(new Long(31));
+            
+            log.info("testGetStudySummaryLightList: " + summaryList);
+        } catch (final Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
