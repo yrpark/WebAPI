@@ -14,6 +14,7 @@ package org.ohdsi.webapi.panacea.pojo;
 
 import java.io.Serializable;
 import java.sql.Date;
+import java.sql.Timestamp;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -22,6 +23,7 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -86,6 +88,12 @@ public class PanaceaStudy implements Serializable {
     
     @Column(name = "concept_set_id")
     private Integer conceptSetId;
+    
+    @Column(name = "CREATE_TIME")
+    private Timestamp createTime;
+    
+    @Transient
+    private Timestamp lastRunTime;
     
     /**
      * @return the studyId
@@ -284,8 +292,34 @@ public class PanaceaStudy implements Serializable {
     }
     
     /**
-     * (non-Jsdoc)
-     * 
+     * @return the createTime
+     */
+    public Timestamp getCreateTime() {
+        return this.createTime;
+    }
+    
+    /**
+     * @param createTime the createTime to set
+     */
+    public void setCreateTime(final Timestamp createTime) {
+        this.createTime = createTime;
+    }
+    
+    /**
+     * @return the lastRunTime
+     */
+    public Timestamp getLastRunTime() {
+        return this.lastRunTime;
+    }
+    
+    /**
+     * @param lastRunTime the lastRunTime to set
+     */
+    public void setLastRunTime(final Timestamp lastRunTime) {
+        this.lastRunTime = lastRunTime;
+    }
+    
+    /**
      * @see java.lang.Object#toString()
      */
     @Override
@@ -295,7 +329,6 @@ public class PanaceaStudy implements Serializable {
                 + this.studyDetail + ", switchWindow=" + this.switchWindow + ", studyDuration=" + this.studyDuration
                 + ", startDate=" + this.startDate + ", endDate=" + this.endDate + ", minUnitDays=" + this.minUnitDays
                 + ", minUnitCounts=" + this.minUnitCounts + ", gapThreshold=" + this.gapThreshold + ", conceptSetId="
-                + this.conceptSetId + "]";
+                + this.conceptSetId + ", createTime=" + this.createTime + ", lastRunTime=" + this.lastRunTime + "]";
     }
-    
 }
