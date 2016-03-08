@@ -127,6 +127,32 @@ public class PanaceaService extends AbstractDaoService {
     }
     
     /**
+     * Clone a study and save
+     * 
+     * @param studyId Long
+     * @return PanaceaStudy
+     */
+    @GET
+    @Path("/cloneStudy/{studyId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public PanaceaStudy cloneStudy(@PathParam("studyId") final Long studyId) {
+        final PanaceaStudy ps = this.panaceaStudyRepository.getPanaceaStudyWithId(studyId);
+        
+        if (ps != null) {
+            final PanaceaStudy newStudy = ps.cloneStudy();
+            
+            final java.util.Date date = new java.util.Date();
+            
+            newStudy.setCreateTime(new Timestamp(date.getTime()));
+            
+            return this.saveStudy(newStudy);
+            
+        }
+        
+        return null;
+    }
+    
+    /**
      * Get all PanaceaStudy
      * 
      * @return PanaceaStudy
