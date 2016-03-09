@@ -184,7 +184,8 @@ select rnum as rnum, table_row_id as table_row_id, to_clob(']}') as JSON from (
 	select distinct 1/0F as rnum, 1 as table_row_id from #_pnc_smrypth_fltr)
 )
 GROUP BY
-   table_row_id)))
+   table_row_id))), 
+last_update_time = CURRENT_TIMESTAMP 
 where study_id = @studyId and source_id = @sourceId;
 
 
