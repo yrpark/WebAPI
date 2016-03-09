@@ -202,8 +202,10 @@ public class PanaceaService extends AbstractDaoService {
         return psList;
     }
     
-    //TODO -- note: heavy load Clob. Be carefule to use: add WS annotation
-    public PanaceaSummary getStudySummary(final Long studyId, final Integer sourceId) {
+    @GET
+    @Path("/getStudySummary/{studyId}/{sourceId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public PanaceaSummary getStudySummary(@PathParam("studyId")final Long studyId, @PathParam("sourceId")final Integer sourceId) {
         return this.panaceaStudyRepository.getPanaceaSummaryByStudyIdSourceId(studyId, sourceId);
     }
     
