@@ -131,9 +131,27 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
     }
     
     private String getSql(final Map<String, Object> jobParams) {
+        
+        final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
+        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        final String sourceId = (String) jobParams.get("sourceId");
+        final String constraintSql = getConstraintSql();
+        
         String sql = "";
         if (hasConstraint()) {
+            /**
+             * default as "oracle"
+             */
             sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary.sql");
+            
+            if("sql server".equalsIgnoreCase(sourceDialect))
+            {
+                sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary_mssql.sql");
+            }else if("postgresql".equalsIgnoreCase(sourceDialect)){
+                sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary_postgres.sql");
+            }
+
         } else {
             sql = "IF OBJECT_ID('\n tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_smrypth_fltr; \n"
                     + "IF OBJECT_ID('tempdb..#_pnc_smry_ancstr', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_smry_ancstr; \n"
@@ -143,12 +161,6 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
                     + "DROP TABLE #_pnc_tmp_cmb_sq_ct;\n";
             
         }
-        
-        final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
-        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
-        final String sourceDialect = (String) jobParams.get("sourceDialect");
-        final String sourceId = (String) jobParams.get("sourceId");
-        final String constraintSql = getConstraintSql();
         
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "studyId", "sourceId",
                 "constraintSql" };

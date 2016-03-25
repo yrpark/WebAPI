@@ -4,18 +4,18 @@ IF OBJECT_ID('tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL
 
 CREATE TABLE #_pnc_smrypth_fltr
 (
-    pnc_stdy_smry_id    NUMBER(*,0),
-    study_id    NUMBER(*,0),
-    source_id NUMBER(*,0),
-    tx_path_parent_key  NUMBER(*,0),
-    tx_stg_cmb    VARCHAR2(255 BYTE),
-    tx_stg_cmb_pth VARCHAR2(4000 BYTE),
-    tx_seq          NUMBER(*,0),
-    tx_stg_cnt      NUMBER(*,0),
-    tx_stg_percentage NUMBER(*,2),
-    tx_stg_avg_dr   NUMBER(*,0),
-    tx_stg_avg_gap   NUMBER(*,0),
-    tx_rslt_version NUMBER(*, 0)
+    pnc_stdy_smry_id int,
+    study_id    int,
+    source_id int,
+    tx_path_parent_key  int,
+    tx_stg_cmb    VARCHAR(255),
+    tx_stg_cmb_pth VARCHAR(4000),
+    tx_seq          int,
+    tx_stg_cnt      int,
+    tx_stg_percentage float,
+    tx_stg_avg_dr   int,
+    tx_stg_avg_gap   int,
+    tx_rslt_version int
 );
 
 insert into #_pnc_smrypth_fltr 
@@ -48,9 +48,9 @@ IF OBJECT_ID('tempdb..#_pnc_smry_ancstr', 'U') IS NOT NULL
 
 CREATE TABLE #_pnc_smry_ancstr
 (
-    pnc_stdy_parent_id    NUMBER(*,0),
-    pnc_ancestor_id    NUMBER(*,0),
-    reallevel number
+    pnc_stdy_parent_id    int,
+    pnc_ancestor_id    int,
+    reallevel int
 );
 
 insert into #_pnc_smry_ancstr

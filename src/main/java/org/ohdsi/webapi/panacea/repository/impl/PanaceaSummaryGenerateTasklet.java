@@ -129,7 +129,6 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
     }
     
     private String getSql(final Map<String, Object> jobParams) {
-        String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary.sql");
         
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
         final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
@@ -137,7 +136,19 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
         final String drugConceptId = (String) jobParams.get("drugConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
+
+        /**
+         * default as "oracle"
+         */
+        String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary.sql");
         
+        if("sql server".equalsIgnoreCase(sourceDialect))
+        {
+            sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary_mssql.sql");
+        }else if("postgresql".equalsIgnoreCase(sourceDialect)){
+            sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary_postgres.sql");
+        }
+
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "cohortDefId", "studyId",
                 "drugConceptId", "sourceId" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
