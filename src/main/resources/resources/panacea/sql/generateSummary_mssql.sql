@@ -112,8 +112,11 @@ IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
 CREATE TABLE #_pnc_smry_msql_cmb
 (
     pnc_tx_stg_cmb_id int,
-    conceptsArray text,
-	conceptsName text    
+    conceptsArray varchar(4000),
+	conceptsName varchar(4000)
+-- TODO: test this (4000 should be enough for one combo)
+--    conceptsArray text,
+--	conceptsName text    
 );
 
 insert into #_pnc_smry_msql_cmb (pnc_tx_stg_cmb_id, conceptsArray, conceptsName)
@@ -231,10 +234,11 @@ from
         FROM   @results_schema.pnc_study_summary_path t2, t1
         WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
       )
-      SEARCH DEPTH FIRST BY pnc_stdy_smry_id SET order1
+--      SEARCH DEPTH FIRST BY pnc_stdy_smry_id SET order1
       SELECT rownum as rnum, pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage
       FROM   t1
-    order by order1) smry
+      order by tx_stg_cmb_pth) smry
+--    order by order1) smry
   join #_pnc_smry_msql_cmb concepts 
   on concepts.comb_id = smry.tx_stg_cmb
 ) connect_by_query
@@ -327,10 +331,11 @@ from
         FROM   @results_schema.pnc_study_summary_path t2, t1
         WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
       )
-      SEARCH DEPTH FIRST BY pnc_stdy_smry_id SET order1
+--      SEARCH DEPTH FIRST BY pnc_stdy_smry_id SET order1
       SELECT rownum as rnum, pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap
       FROM   t1
-    order by order1) smry
+      order by tx_stg_cmb_pth) smry
+--    order by order1) smry
   join #_pnc_smry_msql_cmb concepts 
   on concepts.comb_id = smry.tx_stg_cmb
 ) connect_by_query
