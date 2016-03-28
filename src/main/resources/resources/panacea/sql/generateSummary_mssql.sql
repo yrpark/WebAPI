@@ -214,11 +214,12 @@ from
     ,concepts.conceptsArray               as combo_concepts
     ,smry.lvl                                as Lvl
   FROM 
-    (WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage) AS (
+    (WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, depthOrder) AS (
         SELECT 
            pnc_stdy_smry_id, tx_path_parent_key,
            1 AS lvl,
            tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage
+           ,pnc_stdy_smry_id||''
           FROM   @results_schema.pnc_study_summary_path
         WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
               where 
@@ -231,13 +232,14 @@ from
               t2.pnc_stdy_smry_id, t2.tx_path_parent_key,
               lvl+1,
               t2.tx_stg_cmb, t2.tx_stg_cmb_pth, t2.tx_seq, t2.tx_stg_avg_dr, t2.tx_stg_cnt, t2.tx_stg_percentage
+              ,depthOrder||'.'||t2.pnc_stdy_smry_id
         FROM   @results_schema.pnc_study_summary_path t2, t1
         WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
       )
 --      SEARCH DEPTH FIRST BY pnc_stdy_smry_id SET order1
-      SELECT rownum as rnum, pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage
+      SELECT row_number() over(order by depthOrder) as rnum, pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, depthOrder
       FROM   t1
-      order by tx_stg_cmb_pth) smry
+      order by depthOrder) smry
 --    order by order1) smry
   join #_pnc_smry_msql_cmb concepts 
   on concepts.comb_id = smry.tx_stg_cmb
@@ -311,11 +313,12 @@ from
     ,concepts.conceptsArray               as combo_concepts
     ,smry.lvl                                as Lvl
   FROM 
-    (WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap) AS (
+    (WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap, depthOrder) AS (
         SELECT 
            pnc_stdy_smry_id, tx_path_parent_key,
            1 AS lvl,
            tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap
+           ,pnc_stdy_smry_id||''
           FROM   @results_schema.pnc_study_summary_path
         WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
               where 
@@ -328,13 +331,14 @@ from
               t2.pnc_stdy_smry_id, t2.tx_path_parent_key,
               lvl+1,
               t2.tx_stg_cmb, t2.tx_stg_cmb_pth, t2.tx_seq, t2.tx_stg_avg_dr, t2.tx_stg_cnt, t2.tx_stg_percentage, t2.tx_stg_avg_gap
+              ,depthOrder||'.'||t2.pnc_stdy_smry_id
         FROM   @results_schema.pnc_study_summary_path t2, t1
         WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
       )
 --      SEARCH DEPTH FIRST BY pnc_stdy_smry_id SET order1
-      SELECT rownum as rnum, pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap
+      SELECT row_number() over(order by depthOrder) as rnum, pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap, depthOrder
       FROM   t1
-      order by tx_stg_cmb_pth) smry
+      order by depthOrder) smry
 --    order by order1) smry
   join #_pnc_smry_msql_cmb concepts 
   on concepts.comb_id = smry.tx_stg_cmb
