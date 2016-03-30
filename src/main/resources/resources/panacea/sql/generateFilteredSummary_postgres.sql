@@ -1,3 +1,45 @@
+--recreate #_pnc_smry_msql_cmb and #_pnc_smry_msql_cmb for making the filtered version tasklet run (they are not created from generateSummary script)
+---------------collapse/merge multiple rows to concatenate strings (JSON string for conceptsArrary and conceptsName) ------
+IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
+  DROP TABLE #_pnc_smry_msql_cmb;
+ 
+CREATE TABLE #_pnc_smry_msql_cmb
+(
+    pnc_tx_stg_cmb_id int,
+    conceptsArray varchar(4000),
+	conceptsName varchar(4000)
+-- TODO: test this (4000 should be enough for one combo)
+--    conceptsArray text,
+--	conceptsName text    
+);
+
+insert into #_pnc_smry_msql_cmb (pnc_tx_stg_cmb_id, conceptsArray, conceptsName)
+select comb_id,  conceptsArray, conceptsName 
+from
+(
+	select comb.pnc_tx_stg_cmb_id comb_id,
+    	'[' || array_to_string(array_agg('{"innerConceptName":' || '"' || combMap.concept_name  || '"' || 
+	    ',"innerConceptId":' || combMap.concept_id || '}'), ', ') || ']' conceptsArray,
+	    array_to_string(array_agg(combMap.concept_name), ', ')  conceptsName
+	from @results_schema.pnc_tx_stage_combination comb
+    join @results_schema.pnc_tx_stage_combination_map combMap 
+	on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
+    where comb.study_id = @studyId
+	group by comb.pnc_tx_stg_cmb_id
+) studyCombo;
+
+-----------------generate rows of JSON (based on hierarchical data, without using oracle connect/level, each path is a row) insert into temp table----------------------
+IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
+  DROP TABLE #_pnc_smry_msql_indvdl_json;
+ 
+CREATE TABLE #_pnc_smry_msql_indvdl_json
+(
+    rnum float,
+    table_row_id int,
+	rslt_vesion int,
+	JSON text
+);
+
 -------------------------filtering based on filter out conditions -----------------------
 IF OBJECT_ID('tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL
   DROP TABLE #_pnc_smrypth_fltr;
@@ -210,3 +252,5 @@ IF OBJECT_ID('tempdb..#_pnc_ptstg_ct', 'U') IS NOT NULL
   DROP TABLE #_pnc_ptstg_ct;
 IF OBJECT_ID('tempdb..#_pnc_tmp_cmb_sq_ct', 'U') IS NOT NULL
   DROP TABLE #_pnc_tmp_cmb_sq_ct;
+IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
+  DROP TABLE #_pnc_smry_msql_cmb;

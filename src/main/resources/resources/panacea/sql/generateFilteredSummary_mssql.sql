@@ -1,3 +1,68 @@
+--recreate #_pnc_smry_msql_cmb and #_pnc_smry_msql_cmb for making the filtered version tasklet run (they are not created from generateSummary script)
+---------------ms sql collapse/merge multiple rows to concatenate strings (JSON string for conceptsArrary and conceptsName) ------
+IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
+  DROP TABLE #_pnc_smry_msql_cmb;
+ 
+CREATE TABLE #_pnc_smry_msql_cmb
+(
+    pnc_tx_stg_cmb_id int,
+    conceptsArray varchar(4000),
+	conceptsName varchar(4000)
+-- TODO: test this (4000 should be enough for one combo)
+--    conceptsArray text,
+--	conceptsName text    
+);
+
+insert into #_pnc_smry_msql_cmb (pnc_tx_stg_cmb_id, conceptsArray, conceptsName)
+select pnc_tx_stg_cmb_id,  conceptsArray, conceptsName 
+from
+(
+select distinct tab1.pnc_tx_stg_cmb_id,
+  '[' + STUFF((SELECT distinct '{"innerConceptName":' + '"' + tab2.concept_name + '"' + 
+    ',"innerConceptId":' + convert(varchar, tab2.concept_id) + '}'
+         from 
+         (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
+            from @results_schema.pnc_tx_stage_combination comb
+            join @results_schema.pnc_tx_stage_combination_map combMap 
+              on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
+              where comb.study_id = @studyId
+         ) tab2
+         where tab1.pnc_tx_stg_cmb_id = tab2.pnc_tx_stg_cmb_id
+            FOR XML PATH(''), TYPE
+            ).value('.', 'NVARCHAR(MAX)') 
+        ,1,0,'') +  ']' conceptsArray,
+  STUFF((SELECT distinct tab2.concept_name + ','
+         from 
+         (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
+            from @results_schema.pnc_tx_stage_combination comb
+            join @results_schema.pnc_tx_stage_combination_map combMap 
+              on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
+              where comb.study_id = @studyId
+         ) tab2
+         where tab1.pnc_tx_stg_cmb_id = tab2.pnc_tx_stg_cmb_id
+            FOR XML PATH(''), TYPE
+            ).value('.', 'NVARCHAR(MAX)') 
+        ,1,0,'') conceptsName
+from (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
+        from @results_schema.pnc_tx_stage_combination comb
+        join @results_schema.pnc_tx_stage_combination_map combMap 
+          on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
+          where comb.study_id = @studyId) tab1
+) studyCombo;
+
+
+-----------------generate rows of JSON (based on hierarchical data, without using oracle connect/level, each path is a row) insert into temp table----------------------
+IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
+  DROP TABLE #_pnc_smry_msql_indvdl_json;
+ 
+CREATE TABLE #_pnc_smry_msql_indvdl_json
+(
+    rnum float,
+    table_row_id int,
+	rslt_vesion int,
+	JSON text
+);
+
 -------------------------filtering based on filter out conditions -----------------------
 IF OBJECT_ID('tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL
   DROP TABLE #_pnc_smrypth_fltr;
