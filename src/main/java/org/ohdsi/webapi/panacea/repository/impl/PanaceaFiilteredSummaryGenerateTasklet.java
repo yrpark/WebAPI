@@ -145,13 +145,12 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
              */
             sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary.sql");
             
-            if("sql server".equalsIgnoreCase(sourceDialect))
-            {
+            if ("sql server".equalsIgnoreCase(sourceDialect)) {
                 sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary_mssql.sql");
-            }else if("postgresql".equalsIgnoreCase(sourceDialect)){
+            } else if ("postgresql".equalsIgnoreCase(sourceDialect)) {
                 sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary_postgres.sql");
             }
-
+            
         } else {
             sql = "IF OBJECT_ID('\n tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_smrypth_fltr; \n"
                     + "IF OBJECT_ID('tempdb..#_pnc_smry_ancstr', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_smry_ancstr; \n"
@@ -202,7 +201,8 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
     private boolean hasConstraint() {
         if (this.pncStudy != null) {
             if ((this.pncStudy.getMinUnitDays() != null) || (this.pncStudy.getMinUnitCounts() != null)
-                    || (this.pncStudy.getGapThreshold() != null)) {
+                    || (this.pncStudy.getGapThreshold() != null) || (this.pncStudy.getStartDate() != null)
+                    || (this.pncStudy.getEndDate() != null)) {
                 return true;
             }
         }
