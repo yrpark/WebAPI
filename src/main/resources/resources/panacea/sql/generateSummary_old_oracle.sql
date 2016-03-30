@@ -104,35 +104,6 @@ using
 
 delete from @results_schema.pnc_study_summary where study_id = @studyId and source_id = @sourceId;
 
----------------collapse/merge multiple rows to concatenate strings (JSON string for conceptsArrary and conceptsName) ------
-IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
-  DROP TABLE #_pnc_smry_msql_cmb;
- 
-CREATE TABLE #_pnc_smry_msql_cmb
-(
-    pnc_tx_stg_cmb_id int,
-    conceptsArray varchar(4000),
-	conceptsName varchar(4000)
--- TODO: test this (4000 should be enough for one combo)
---    conceptsArray text,
---	conceptsName text    
-);
-
-insert into #_pnc_smry_msql_cmb (pnc_tx_stg_cmb_id, conceptsArray, conceptsName)
-select comb_id,  conceptsArray, conceptsName 
-from
-(
-	select comb.pnc_tx_stg_cmb_id comb_id,
-    '[' || wm_concat('{"innerConceptName":' || '"' || combMap.concept_name  || '"' || 
-    ',"innerConceptId":' || combMap.concept_id || '}') || ']' conceptsArray,
-    wm_concat(combMap.concept_name) conceptsName
-    from @results_schema.pnc_tx_stage_combination comb
-    join @results_schema.pnc_tx_stage_combination_map combMap 
-    on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
-    where comb.study_id = @studyId
-    group by comb.pnc_tx_stg_cmb_id
-) studyCombo;
-
 -------------------------------------version 1 -------------------------------------
 insert into @results_schema.pnc_study_summary (study_id, source_id, study_results)
 select @studyId, @sourceId, JSON from (
@@ -154,22 +125,7 @@ END
 as JSON
 from 
 (WITH connect_by_query as (
-      select  
-       individualPathNoParentConcepts.rnum                                as rnum
-      ,individualPathNoParentConcepts.combo_id                            as combo_id
-      ,individualPathNoParentConcepts.current_path                        as current_path
-      ,individualPathNoParentConcepts.path_seq                            as path_seq
-      ,individualPathNoParentConcepts.avg_duration                        as avg_duration
-      ,individualPathNoParentConcepts.pt_count                            as pt_count
-      ,individualPathNoParentConcepts.pt_percentage                       as pt_percentage
-      ,individualPathNoParentConcepts.concept_names                       as concept_names
-      ,individualPathNoParentConcepts.combo_concepts                      as combo_concepts
-      ,individualPathNoParentConcepts.Lvl                                 as Lvl
-    , parentConcepts.conceptsName                                         as parent_concept_names
-    , parentConcepts.conceptsArray                                        as parent_combo_concepts
-    from 
-    (
-  	SELECT 
+  SELECT 
      ROWNUM                               as rnum
     ,tx_stg_cmb                           as combo_id
     ,tx_stg_cmb_pth                       as current_path
@@ -180,12 +136,19 @@ from
     ,concepts.conceptsName                as concept_names
     ,concepts.conceptsArray               as combo_concepts
     ,LEVEL                                as Lvl
-    ,pnc_stdy_smry_id                     as self_id
-    ,tx_path_parent_key                   as parent_id
-    ,prior tx_stg_cmb                     as parent_comb
   FROM @results_schema.pnc_study_summary_path smry
-  join #_pnc_smry_msql_cmb concepts
-  on concepts.pnc_tx_stg_cmb_id = smry.tx_stg_cmb
+  join
+  (select comb.pnc_tx_stg_cmb_id comb_id,
+    '[' || wm_concat('{"innerConceptName":' || '"' || combMap.concept_name  || '"' || 
+    ',"innerConceptId":' || combMap.concept_id || '}') || ']' conceptsArray,
+    wm_concat(combMap.concept_name) conceptsName
+    from @results_schema.pnc_tx_stage_combination comb
+    join @results_schema.pnc_tx_stage_combination_map combMap 
+    on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
+    where comb.study_id = @studyId
+    group by comb.pnc_tx_stg_cmb_id
+  ) concepts
+  on concepts.comb_id = smry.tx_stg_cmb
   START WITH pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
         where 
         study_id = @studyId
@@ -194,10 +157,6 @@ from
         and tx_path_parent_key is null)
   CONNECT BY PRIOR pnc_stdy_smry_id = tx_path_parent_key
   ORDER SIBLINGS BY pnc_stdy_smry_id
-  ) individualPathNoParentConcepts
-  left join #_pnc_smry_msql_cmb parentConcepts
-  on parentConcepts.pnc_tx_stg_cmb_id = individualPathNoParentConcepts.parent_comb
-  order by rnum
 )
 select 
   rnum rnum,
@@ -212,11 +171,6 @@ select
   || ' ,"percentage" : "' || pt_percentage || '" '  
   || ' ,"avgDuration" : ' || avg_duration || ' '
   || ',"concepts" : ' || combo_concepts 
-  || CASE WHEN Lvl > 1 THEN    
-        ',"parentConcept": { "parentConceptName": "' || parent_concept_names || '", '  
-        || '"parentConcepts":' || parent_combo_concepts   || '}'
-     ELSE  NULL
-     END 
   || CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0 
      THEN '}' || rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
      ELSE NULL 
@@ -224,7 +178,7 @@ select
 from connect_by_query
 order by rnum) allRoots
 union all
-select rnum as rnum, table_row_id as table_row_id, ']}' as JSON from (
+select rnum as rnum, table_row_id as table_row_id, to_clob(']}') as JSON from (
 	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
 --  select distinct 1000000 as rnum, 1 as table_row_id from pnc_study_summary_path)
 --sql render remove "dual", so I have to trick by using a real table(pnc_study_summary_path) select 1000000  as rnum, 1 as table_row_id, to_clob(']}') as JSON from dual
@@ -252,24 +206,7 @@ END
 as JSON
 from 
 (WITH connect_by_query as (
-select  
-       individualPathNoParentConcepts.rnum                                as rnum
-      ,individualPathNoParentConcepts.combo_id                            as combo_id
-      ,individualPathNoParentConcepts.current_path                        as current_path
-      ,individualPathNoParentConcepts.path_seq                            as path_seq
-      ,individualPathNoParentConcepts.avg_duration                        as avg_duration
-	  ,individualPathNoParentConcepts.avg_gap                       	  as avg_gap
-      ,individualPathNoParentConcepts.gap_pcnt							  as gap_pcnt
-      ,individualPathNoParentConcepts.pt_count                            as pt_count
-      ,individualPathNoParentConcepts.pt_percentage                       as pt_percentage
-      ,individualPathNoParentConcepts.concept_names                       as concept_names
-      ,individualPathNoParentConcepts.combo_concepts                      as combo_concepts
-      ,individualPathNoParentConcepts.Lvl                                 as Lvl
-    , parentConcepts.conceptsName                                         as parent_concept_names
-    , parentConcepts.conceptsArray                                        as parent_combo_concepts
-    from 
-    (
-  	SELECT 
+  SELECT 
      ROWNUM                               as rnum
     ,tx_stg_cmb                           as combo_id
     ,tx_stg_cmb_pth                       as current_path
@@ -282,12 +219,19 @@ select
     ,concepts.conceptsName                as concept_names
     ,concepts.conceptsArray               as combo_concepts
     ,LEVEL                                as Lvl
-    ,pnc_stdy_smry_id                     as self_id
-    ,tx_path_parent_key                   as parent_id
-    ,prior tx_stg_cmb                     as parent_comb
   FROM @results_schema.pnc_study_summary_path smry
-  join #_pnc_smry_msql_cmb concepts
-  on concepts.pnc_tx_stg_cmb_id = smry.tx_stg_cmb
+  join
+  (select comb.pnc_tx_stg_cmb_id comb_id,
+    '[' || wm_concat('{"innerConceptName":' || '"' || combMap.concept_name  || '"' || 
+    ',"innerConceptId":' || combMap.concept_id || '}') || ']' conceptsArray,
+    wm_concat(combMap.concept_name) conceptsName
+    from @results_schema.pnc_tx_stage_combination comb
+    join @results_schema.pnc_tx_stage_combination_map combMap 
+    on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
+    where comb.study_id = @studyId
+    group by comb.pnc_tx_stg_cmb_id
+  ) concepts
+  on concepts.comb_id = smry.tx_stg_cmb
   START WITH pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
         where 
         study_id = @studyId
@@ -296,10 +240,6 @@ select
         and tx_path_parent_key is null)
   CONNECT BY PRIOR pnc_stdy_smry_id = tx_path_parent_key
   ORDER SIBLINGS BY pnc_stdy_smry_id
-  ) individualPathNoParentConcepts
-  left join #_pnc_smry_msql_cmb parentConcepts
-  on parentConcepts.pnc_tx_stg_cmb_id = individualPathNoParentConcepts.parent_comb
-  order by rnum
 )
 select 
   rnum rnum,
@@ -316,11 +256,6 @@ select
   || ' ,"avgGapDay" : ' || avg_gap || ' '
   || ' ,"gapPercent" : "' || gap_pcnt || '" '  
   || ',"concepts" : ' || combo_concepts 
-  || CASE WHEN Lvl > 1 THEN    
-        ',"parentConcept": { "parentConceptName": "' || parent_concept_names || '", '  
-        || '"parentConcepts":' || parent_combo_concepts   || '}'
-     ELSE  NULL
-     END 
   || CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0 
      THEN '}' || rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
      ELSE NULL 
@@ -328,7 +263,7 @@ select
 from connect_by_query
 order by rnum) allRoots
 union all
-select rnum as rnum, table_row_id as table_row_id, ']}' as JSON from (
+select rnum as rnum, table_row_id as table_row_id, to_clob(']}') as JSON from (
 	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
 )
 GROUP BY
