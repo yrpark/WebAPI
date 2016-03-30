@@ -175,6 +175,11 @@ from
   + ' ,"avgGapDay" : ' + avg_gap + ' '
   + ' ,"gapPercent" : "' + gap_pcnt + '" '  
   + ',"concepts" : ' + combo_concepts 
+  + CASE WHEN Lvl > 1 THEN    
+        ',"parentConcept": { "parentConceptName": "' || parent_concept_names || '", '  
+        || '"parentConcepts":' || parent_combo_concepts   || '}'
+    ELSE  NULL
+    END 
   + CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0 
      THEN '}' + rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
      ELSE NULL 
@@ -182,7 +187,7 @@ from
 from 
 (
   SELECT 
-     smry.ROWNUM                               as rnum
+     smry.rnum                               as rnum
     ,smry.tx_stg_cmb                           as combo_id
     ,smry.tx_stg_cmb_pth                       as current_path
     ,smry.tx_seq                               as path_seq
@@ -194,13 +199,15 @@ from
     ,concepts.conceptsName                as concept_names
     ,concepts.conceptsArray               as combo_concepts
     ,smry.lvl                                as Lvl
+    ,parentConcepts.conceptsName			 as parent_concept_names
+    ,parentConcepts.conceptsArray            as parent_combo_concepts
   FROM 
-    (WITH RECURSIVE t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap, depthOrder) AS (
+    (WITH RECURSIVE t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap, depthOrder, parent_comb) AS (
         SELECT 
            pnc_stdy_smry_id, tx_path_parent_key,
            1 AS lvl,
            tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap
-           ,pnc_stdy_smry_id||''
+           ,pnc_stdy_smry_id||'', null as parent_comb
           FROM #_pnc_smrypth_fltr
         WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from #_pnc_smrypth_fltr
               where 
@@ -210,17 +217,19 @@ from
               t2.pnc_stdy_smry_id, t2.tx_path_parent_key,
               lvl+1,
               t2.tx_stg_cmb, t2.tx_stg_cmb_pth, t2.tx_seq, t2.tx_stg_avg_dr, t2.tx_stg_cnt, t2.tx_stg_percentage, t2.tx_stg_avg_gap
-              ,depthOrder||'.'||t2.pnc_stdy_smry_id
+              ,depthOrder||'.'||t2.pnc_stdy_smry_id, t1.tx_stg_cmb
         FROM   #_pnc_smrypth_fltr t2, t1
         WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
       )
 --      SEARCH DEPTH FIRST BY pnc_stdy_smry_id SET order1
-      SELECT row_number() over(order by depthOrder) as rnum, pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap, depthOrder
+      SELECT row_number() over(order by depthOrder) as rnum, pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap, depthOrder, parent_comb
       FROM   t1
       order by depthOrder) smry
 --    order by order1) smry
   join #_pnc_smry_msql_cmb concepts 
-  on concepts.comb_id = smry.tx_stg_cmb
+  on concepts.pnc_tx_stg_cmb_id = smry.tx_stg_cmb
+  left join #_pnc_smry_msql_cmb parentConcepts 
+  on parentConcepts.pnc_tx_stg_cmb_id = smry.parent_comb  
 ) connect_by_query
 order by rnum) allRoots
 union all
