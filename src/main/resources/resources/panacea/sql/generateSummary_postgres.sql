@@ -105,7 +105,7 @@ using
 delete from @results_schema.pnc_study_summary where study_id = @studyId and source_id = @sourceId;
 
 
----------------ms sql collapse/merge multiple rows to concatenate strings (JSON string for conceptsArrary and conceptsName) ------
+---------------collapse/merge multiple rows to concatenate strings (JSON string for conceptsArrary and conceptsName) ------
 IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
   DROP TABLE #_pnc_smry_msql_cmb;
  
@@ -120,7 +120,7 @@ CREATE TABLE #_pnc_smry_msql_cmb
 );
 
 insert into #_pnc_smry_msql_cmb (pnc_tx_stg_cmb_id, conceptsArray, conceptsName)
-select pnc_tx_stg_cmb_id,  conceptsArray, conceptsName 
+select comb_id,  conceptsArray, conceptsName 
 from
 (
 	select comb.pnc_tx_stg_cmb_id comb_id,
