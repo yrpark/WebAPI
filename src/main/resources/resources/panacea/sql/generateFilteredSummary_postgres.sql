@@ -29,14 +29,14 @@ from
 ) studyCombo;
 
 -----------------generate rows of JSON (based on hierarchical data, without using oracle connect/level, each path is a row) insert into temp table----------------------
-IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
+IF OBJECT_ID('tempdb..#_pnc_smry_msql_indvdl_json', 'U') IS NOT NULL
   DROP TABLE #_pnc_smry_msql_indvdl_json;
  
 CREATE TABLE #_pnc_smry_msql_indvdl_json
 (
     rnum float,
     table_row_id int,
-	rslt_vesion int,
+	rslt_version int,
 	JSON text
 );
 
