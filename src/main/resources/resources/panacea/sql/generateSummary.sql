@@ -133,20 +133,24 @@ from
     group by comb.pnc_tx_stg_cmb_id
 ) studyCombo;
 
--------------------------------------version 1 -------------------------------------
-insert into @results_schema.pnc_study_summary (study_id, source_id, study_results)
-select @studyId, @sourceId, JSON from (
-select JSON from (
-SELECT
-   table_row_id,
-   DBMS_XMLGEN.CONVERT (
-     EXTRACT(
-       xmltype('<?xml version="1.0"?><document>' ||
-               XMLAGG(
-                 XMLTYPE('<V>' || DBMS_XMLGEN.CONVERT(JSON)|| '</V>')
-                 order by rnum).getclobval() || '</document>'),
-               '/document/V/text()').getclobval(),1) AS JSON
-FROM (select allRoots.rnum rnum, 1 table_row_id,
+-----------------generate rows of JSON (based on hierarchical data, each path is a row) insert into temp table----------------------
+IF OBJECT_ID('tempdb..#_pnc_indv_jsn', 'U') IS NOT NULL
+  DROP TABLE #_pnc_indv_jsn;
+ 
+CREATE TABLE #_pnc_indv_jsn
+(
+    rnum float,
+    table_row_id int,
+	rslt_version int,
+	JSON varchar(4000)
+);
+
+-------------------------------version 1 insert into temp table----------------------------------------------
+insert into #_pnc_indv_jsn(rnum, table_row_id, rslt_version, JSON)
+select rnum, table_row_id, rslt_version, JSON 
+from
+(
+select allRoots.rnum rnum, 1 table_row_id, 1 rslt_version,
 CASE 
     WHEN rnum = 1 THEN '{"comboId": "root","children": [' || substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
     ELSE JSON_SNIPPET
@@ -224,27 +228,38 @@ select
 from connect_by_query
 order by rnum) allRoots
 union all
-select rnum as rnum, table_row_id as table_row_id, ']}' as JSON from (
-	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
+select rnum as rnum, table_row_id as table_row_id, 1 rslt_version, ']}' as JSON from (
+	select distinct 1000000000 as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
+--	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
 --  select distinct 1000000 as rnum, 1 as table_row_id from pnc_study_summary_path)
 --sql render remove "dual", so I have to trick by using a real table(pnc_study_summary_path) select 1000000  as rnum, 1 as table_row_id, to_clob(']}') as JSON from dual
-)
-GROUP BY
-   table_row_id));
+) individualJsonRows;
 
-----------------------------------version 2
-update @results_schema.pnc_study_summary set study_results_2 = (select JSON from (
-select JSON from (
-SELECT
-   table_row_id,
-   DBMS_XMLGEN.CONVERT (
-     EXTRACT(
-       xmltype('<?xml version="1.0"?><document>' ||
+-------------------------------------version 1 into summary table-------------------------------------
+insert into @results_schema.pnc_study_summary (study_id, source_id, study_results)
+select @studyId, @sourceId, JSON from (
+	select individualResult.table_row_id,
+		DBMS_XMLGEN.CONVERT (
+     	EXTRACT(
+       		xmltype('<?xml version="1.0"?><document>' ||
                XMLAGG(
                  XMLTYPE('<V>' || DBMS_XMLGEN.CONVERT(JSON)|| '</V>')
                  order by rnum).getclobval() || '</document>'),
                '/document/V/text()').getclobval(),1) AS JSON
-FROM (select allRoots.rnum rnum, 1 table_row_id,
+	from (select rnum, table_row_id, rslt_version, JSON
+		from #_pnc_indv_jsn t1
+		where t1.rslt_version = 1
+	) individualResult
+	group by individualResult.table_row_id
+) mergeJsonRowsTable;
+
+
+-------------------------------version 2 insert into temp table----------------------------------------------
+insert into #_pnc_indv_jsn(rnum, table_row_id, rslt_version, JSON)
+select rnum, table_row_id, rslt_version, JSON 
+from
+(
+select allRoots.rnum rnum, 1 table_row_id, 2 rslt_version,
 CASE 
     WHEN rnum = 1 THEN '{"comboId": "root","children": [' || substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
     ELSE JSON_SNIPPET
@@ -328,10 +343,27 @@ select
 from connect_by_query
 order by rnum) allRoots
 union all
-select rnum as rnum, table_row_id as table_row_id, ']}' as JSON from (
-	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
-)
-GROUP BY
-   table_row_id))), 
+select rnum as rnum, table_row_id as table_row_id, 2 rslt_version, ']}' as JSON from (
+	select distinct 1000000000 as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
+--	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
+) individualJsonRows;
+
+----------------------------------version 2 into summary table
+update @results_schema.pnc_study_summary set study_results_2 =
+(select JSON from (
+	select individualResult.table_row_id,
+		DBMS_XMLGEN.CONVERT (
+     	EXTRACT(
+       		xmltype('<?xml version="1.0"?><document>' ||
+               XMLAGG(
+                 XMLTYPE('<V>' || DBMS_XMLGEN.CONVERT(JSON)|| '</V>')
+                 order by rnum).getclobval() || '</document>'),
+               '/document/V/text()').getclobval(),1) AS JSON
+	from (select rnum, table_row_id, rslt_version, JSON
+		from #_pnc_indv_jsn t1
+		where t1.rslt_version = 2
+	) individualResult
+	group by individualResult.table_row_id
+) mergeJsonRowsTable), 
 last_update_time = CURRENT_TIMESTAMP 
 where study_id = @studyId and source_id = @sourceId;

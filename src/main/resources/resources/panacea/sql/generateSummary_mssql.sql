@@ -158,24 +158,24 @@ from (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb
 
 
 -----------------generate rows of JSON (based on hierarchical data, without using oracle connect/level, each path is a row) insert into temp table----------------------
-IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
+IF OBJECT_ID('tempdb..#_pnc_smry_msql_indvdl_json', 'U') IS NOT NULL
   DROP TABLE #_pnc_smry_msql_indvdl_json;
  
 CREATE TABLE #_pnc_smry_msql_indvdl_json
 (
     rnum float,
     table_row_id int,
-	rslt_vesion int,
+	rslt_version int,
 	JSON text
 );
 
 
 -------------------------------version 1 insert into temp table----------------------------------------------
-insert into #_pnc_smry_msql_indvdl_json(rnum, table_row_id, rslt_vesion, JSON)
-select rnum, table_row_id, rslt_vesion, JSON 
+insert into #_pnc_smry_msql_indvdl_json(rnum, table_row_id, rslt_version, JSON)
+select rnum, table_row_id, rslt_version, JSON 
 from
 (
-select allRoots.rnum rnum, 1 table_row_id, 1 rslt_vesion, 
+select allRoots.rnum rnum, 1 table_row_id, 1 rslt_version, 
 CASE 
     WHEN rnum = 1 THEN '{"comboId": "root","children": [' + substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
     ELSE JSON_SNIPPET
@@ -255,7 +255,7 @@ from
 ) connect_by_query
 order by rnum) allRoots
 union all
-select rnum as rnum, table_row_id as table_row_id, 1 rslt_vesion, ']}' as JSON from (
+select rnum as rnum, table_row_id as table_row_id, 1 rslt_version, ']}' as JSON from (
 	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
 ) individualJsonRows;
 
@@ -275,11 +275,11 @@ select @studyId, @sourceId, JSON from (
 ) mergeJsonRowsTable;
 
 ----------------------------------version 2 into temp table ------------------------------------------
-insert into #_pnc_smry_msql_indvdl_json(rnum, table_row_id, rslt_vesion, JSON)
-select rnum, table_row_id, rslt_vesion, JSON 
+insert into #_pnc_smry_msql_indvdl_json(rnum, table_row_id, rslt_version, JSON)
+select rnum, table_row_id, rslt_version, JSON 
 from
 (
-select allRoots.rnum rnum, 1 table_row_id, 2 rslt_vesion, 
+select allRoots.rnum rnum, 1 table_row_id, 2 rslt_version, 
 CASE 
     WHEN rnum = 1 THEN '{"comboId": "root","children": [' + substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
     ELSE JSON_SNIPPET
@@ -363,7 +363,7 @@ from
 ) connect_by_query
 order by rnum) allRoots
 union all
-select rnum as rnum, table_row_id as table_row_id, 2 rslt_vesion, ']}' as JSON from (
+select rnum as rnum, table_row_id as table_row_id, 2 rslt_version, ']}' as JSON from (
 	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
 ) individualJsonRows;
 

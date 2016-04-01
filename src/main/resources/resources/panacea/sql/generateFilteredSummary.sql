@@ -1,4 +1,4 @@
---recreate #_pnc_smry_msql_cmb for making the filtered version tasklet run (not created from generateSummary script)
+--recreate #_pnc_smry_msql_cmb and #_pnc_indv_jsn for making the filtered version tasklet run (they are not created from generateSummary script)
 ---------------collapse/merge multiple rows to concatenate strings (JSON string for conceptsArrary and conceptsName) ------
 IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
   DROP TABLE #_pnc_smry_msql_cmb;
@@ -27,6 +27,18 @@ from
     where comb.study_id = @studyId
     group by comb.pnc_tx_stg_cmb_id
 ) studyCombo;
+
+-----------------generate rows of JSON (based on hierarchical data, each path is a row) insert into temp table----------------------
+IF OBJECT_ID('tempdb..#_pnc_indv_jsn', 'U') IS NOT NULL
+  DROP TABLE #_pnc_indv_jsn;
+ 
+CREATE TABLE #_pnc_indv_jsn
+(
+    rnum float,
+    table_row_id int,
+	rslt_version int,
+	JSON varchar(4000)
+);
 
 -------------------------filtering based on filter out conditions -----------------------
 IF OBJECT_ID('tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL
@@ -133,19 +145,13 @@ using
   )
   WHEN MATCHED then update set m.tx_path_parent_key = m1.pnc_ancestor_id;
 
-------------------------version 2 of filtered JSON into summary table-----------------
-update @results_schema.pnc_study_summary set study_results_filtered = (select JSON from (
-select JSON from (
-SELECT
-   table_row_id,
-   DBMS_XMLGEN.CONVERT (
-     EXTRACT(
-       xmltype('<?xml version="1.0"?><document>' ||
-               XMLAGG(
-                 XMLTYPE('<V>' || DBMS_XMLGEN.CONVERT(JSON)|| '</V>')
-                 order by rnum).getclobval() || '</document>'),
-               '/document/V/text()').getclobval(),1) AS JSON
-FROM (select allRoots.rnum rnum, 1 table_row_id,
+
+------------------------version 2 of filtered JSON into temp table-----------------
+insert into #_pnc_indv_jsn(rnum, table_row_id, JSON)
+select rnum, table_row_id, JSON 
+from
+(
+select allRoots.rnum rnum, 1 table_row_id,
 CASE 
     WHEN rnum = 1 THEN '{"comboId": "root","children": [' || substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
     ELSE JSON_SNIPPET
@@ -229,10 +235,26 @@ from connect_by_query
 order by rnum) allRoots
 union all
 select rnum as rnum, table_row_id as table_row_id, ']}' as JSON from (
-	select distinct 1/0F as rnum, 1 as table_row_id from #_pnc_smrypth_fltr)
-)
-GROUP BY
-   table_row_id))), 
+--	select distinct 1/0F as rnum, 1 as table_row_id from #_pnc_smrypth_fltr)
+	select distinct 1000000000 as rnum, 1 as table_row_id from #_pnc_smrypth_fltr)
+) individualJsonRows;
+
+------------------------version 2 of filtered JSON into summary table-----------------
+update @results_schema.pnc_study_summary set study_results_filtered = 
+(select JSON from (
+	select individualResult.table_row_id,
+		DBMS_XMLGEN.CONVERT (
+     	EXTRACT(
+       		xmltype('<?xml version="1.0"?><document>' ||
+               XMLAGG(
+                 XMLTYPE('<V>' || DBMS_XMLGEN.CONVERT(JSON)|| '</V>')
+                 order by rnum).getclobval() || '</document>'),
+               '/document/V/text()').getclobval(),1) AS JSON
+	from (select rnum, table_row_id, json
+		from #_pnc_indv_jsn t1
+	) individualResult
+	group by individualResult.table_row_id
+) mergeJsonRowsTable ),
 last_update_time = CURRENT_TIMESTAMP 
 where study_id = @studyId and source_id = @sourceId;
 

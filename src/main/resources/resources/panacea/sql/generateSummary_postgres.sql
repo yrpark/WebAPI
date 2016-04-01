@@ -136,24 +136,24 @@ from
 
 
 -----------------generate rows of JSON (based on hierarchical data, without using oracle connect/level, each path is a row) insert into temp table----------------------
-IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
+IF OBJECT_ID('tempdb..#_pnc_smry_msql_indvdl_json', 'U') IS NOT NULL
   DROP TABLE #_pnc_smry_msql_indvdl_json;
  
 CREATE TABLE #_pnc_smry_msql_indvdl_json
 (
     rnum float,
     table_row_id int,
-	rslt_vesion int,
+	rslt_version int,
 	JSON text
 );
 
 
 -------------------------------version 1 insert into temp table----------------------------------------------
-insert into #_pnc_smry_msql_indvdl_json(rnum, table_row_id, rslt_vesion, JSON)
-select rnum, table_row_id, rslt_vesion, JSON 
+insert into #_pnc_smry_msql_indvdl_json(rnum, table_row_id, rslt_version, JSON)
+select rnum, table_row_id, rslt_version, JSON 
 from
 (
-select allRoots.rnum rnum, 1 table_row_id, 1 rslt_vesion, 
+select allRoots.rnum rnum, 1 table_row_id, 1 rslt_version, 
 CASE 
     WHEN rnum = 1 THEN '{"comboId": "root","children": [' + substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
     ELSE JSON_SNIPPET
@@ -233,7 +233,7 @@ from
 ) connect_by_query
 order by rnum) allRoots
 union all
-select 'Infinity'::float as rnum, 1 as table_row_id, 1 rslt_vesion, ']}' as JSON
+select 'Infinity'::float as rnum, 1 as table_row_id, 1 rslt_version, ']}' as JSON
 ) individualJsonRows;
 
 -------------------------------------version 1 into summary table-------------------------------------
@@ -241,7 +241,7 @@ insert into @results_schema.pnc_study_summary (study_id, source_id, study_result
 select @studyId, @sourceId, JSON from (
 	select individualResult.table_row_id,
 		array_to_string(array_agg(individualResult.JSON), '')  JSON
-	from (select rnum, table_row_id, rslt_vesion, JSON
+	from (select rnum, table_row_id, rslt_version, JSON
 		from #_pnc_smry_msql_indvdl_json t1
 		where t1.rslt_version = 1
 	) individualResult
@@ -251,11 +251,11 @@ select @studyId, @sourceId, JSON from (
 
 
 ----------------------------------version 2 into temp table ------------------------------------------
-insert into #_pnc_smry_msql_indvdl_json(rnum, table_row_id, rslt_vesion, JSON)
-select rnum, table_row_id, rslt_vesion, JSON 
+insert into #_pnc_smry_msql_indvdl_json(rnum, table_row_id, rslt_version, JSON)
+select rnum, table_row_id, rslt_version, JSON 
 from
 (
-select allRoots.rnum rnum, 1 table_row_id, 2 rslt_vesion, 
+select allRoots.rnum rnum, 1 table_row_id, 2 rslt_version, 
 CASE 
     WHEN rnum = 1 THEN '{"comboId": "root","children": [' + substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
     ELSE JSON_SNIPPET
@@ -339,7 +339,7 @@ from
 ) connect_by_query
 order by rnum) allRoots
 union all
-select 'Infinity'::float as rnum, 1 as table_row_id, 2 rslt_vesion, ']}' as JSON
+select 'Infinity'::float as rnum, 1 as table_row_id, 2 rslt_version, ']}' as JSON
 ) individualJsonRows;
 
 
@@ -348,7 +348,7 @@ update @results_schema.pnc_study_summary set study_results_2 = ( select JSON fro
 select @studyId, @sourceId, JSON from (
 	select individualResult.table_row_id,
 		array_to_string(array_agg(individualResult.JSON), '')  JSON
-	from (select rnum, table_row_id, rslt_vesion, JSON
+	from (select rnum, table_row_id, rslt_version, JSON
 		from #_pnc_smry_msql_indvdl_json t1
 		where t1.rslt_version = 2
 	) individualResult
@@ -363,4 +363,4 @@ where study_id = @studyId and source_id = @sourceId;
 -- string concatenation: combo id/name, individual stage string into single json
 -- hierarchical cte with "recursive" 
 -- hierarchical: remove "search depth first", use "order by tx_stg_cmb_pth"
--- "select 'Infinity'::float as rnum, 1 as table_row_id 1 rslt_vesion, ']}' as JSON"
+-- "select 'Infinity'::float as rnum, 1 as table_row_id 1 rslt_version, ']}' as JSON"
