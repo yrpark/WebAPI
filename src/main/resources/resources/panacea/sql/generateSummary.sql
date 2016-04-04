@@ -1,11 +1,18 @@
 delete from @results_schema.pnc_study_summary_path where study_id = @studyId and source_id = @sourceId;
 
-insert into @results_schema.pnc_study_summary_path (pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_cnt, tx_stg_avg_dr, tx_stg_avg_gap, tx_rslt_version)
-select seq_pnc_stdy_smry.nextval, @studyId, @sourceId, null, aggregatePath.combo_ids, aggregatePath.combo_seq, aggregatePath.tx_seq, aggregatePath.patientCount, aggregatePath.averageDurationDays, aggregatePath.averageGapDays, aggregatePath.result_version 
+insert into @results_schema.pnc_study_summary_path (pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_cnt, tx_stg_avg_dr, tx_stg_avg_gap, tx_rslt_version, tx_avg_frm_strt)
+select seq_pnc_stdy_smry.nextval, @studyId, @sourceId, null, aggregatePath.combo_ids, aggregatePath.combo_seq, aggregatePath.tx_seq, aggregatePath.patientCount, aggregatePath.averageDurationDays, aggregatePath.averageGapDays, aggregatePath.result_version, aggregatePath.avgFrmCohortStart 
 from
-  (select combo_ids combo_ids, combo_seq combo_seq, tx_seq tx_seq, count(*) patientCount, avg(combo_duration) averageDurationDays, avg(gap_days) averageGapDays, result_version result_version from #_PNC_TMP_CMB_SQ_CT ptTxPath
+--  (select combo_ids combo_ids, combo_seq combo_seq, tx_seq tx_seq, count(*) patientCount, avg(combo_duration) averageDurationDays, avg(gap_days) averageGapDays, result_version result_version from #_PNC_TMP_CMB_SQ_CT ptTxPath
+   (select ptTxPath.combo_ids combo_ids, ptTxPath.combo_seq combo_seq, ptTxPath.tx_seq tx_seq, count(*) patientCount, avg(ptTxPath.combo_duration) averageDurationDays, avg(ptTxPath.gap_days) averageGapDays, ptTxPath.result_version result_version,
 --    where result_version = 1
-    group by combo_ids, combo_seq, tx_seq, result_version) aggregatePath;
+	avg(ptTxPath.start_date - co.cohort_start_date + 1) avgFrmCohortStart
+  		from #_PNC_TMP_CMB_SQ_CT ptTxPath
+  		join @ohdsi_schema.cohort co
+  		on co.subject_id = ptTxPath.person_id
+  		and co.cohort_definition_id = (select cohort_definition_id
+    from @results_schema.panacea_study where study_id = @studyId)
+    group by ptTxPath.combo_ids, ptTxPath.combo_seq, ptTxPath.tx_seq, ptTxPath.result_version) aggregatePath;
 
 -- version = 1
 merge into @results_schema.pnc_study_summary_path  m
@@ -473,6 +480,7 @@ select
      ,parentConcepts.conceptsArray                                        as parent_combo_concepts
      ,individualPathNoParentConcepts.uniqueConceptsName					  as uniqueConceptsName
      ,individualPathNoParentConcepts.uniqueConceptsArray				  as uniqueConceptsArray
+     ,individualPathNoParentConcepts.daysFromStart						  as daysFromStart
     from 
     (
   	SELECT 
@@ -493,6 +501,7 @@ select
     ,prior tx_stg_cmb                     as parent_comb
     ,uniqueConcepts.conceptsName		  as uniqueConceptsName
     ,uniqueConcepts.conceptsArray		  as uniqueConceptsArray
+    ,smry.tx_avg_frm_strt				  as daysFromStart
   FROM @results_schema.pnc_study_summary_path smry
   join #_pnc_smry_msql_cmb concepts
   on concepts.pnc_tx_stg_cmb_id = smry.tx_stg_cmb
@@ -524,7 +533,8 @@ select
   || ' ,"percentage" : "' || pt_percentage || '" '  
   || ' ,"avgDuration" : ' || avg_duration || ' '
   || ' ,"avgGapDay" : ' || avg_gap || ' '
-  || ' ,"gapPercent" : "' || gap_pcnt || '" '  
+  || ' ,"gapPercent" : "' || gap_pcnt || '" '
+  || ' ,"daysFromCohortStart" : ' || daysFromStart || ' '
   || ',"concepts" : ' || combo_concepts 
   || ',"uniqueConceptsName" : "' || uniqueConceptsName || '" '
   || ',"uniqueConceptsArray" : ' || uniqueConceptsArray
