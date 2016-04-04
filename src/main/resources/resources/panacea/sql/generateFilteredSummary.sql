@@ -59,6 +59,7 @@ CREATE TABLE #_pnc_smrypth_fltr
     tx_stg_percentage float,
     tx_stg_avg_dr   int,
     tx_stg_avg_gap   int,
+    tx_avg_frm_strt   NUMBER(*,0),
     tx_rslt_version int
 );
 
@@ -69,6 +70,7 @@ select pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx_stg_cmb, tx
     tx_stg_percentage,
     tx_stg_avg_dr,
     tx_stg_avg_gap,
+    tx_avg_frm_strt,
     tx_rslt_version 
     from @results_schema.pnc_study_summary_path
         where 
@@ -393,6 +395,7 @@ from
      ,parentConcepts.conceptsArray                                        as parent_combo_concepts
      ,individualPathNoParentConcepts.uniqueConceptsName					  as uniqueConceptsName
      ,individualPathNoParentConcepts.uniqueConceptsArray				  as uniqueConceptsArray
+     ,individualPathNoParentConcepts.daysFromStart						  as daysFromStart
     from 
     (SELECT 
      ROWNUM                               as rnum
@@ -412,6 +415,7 @@ from
     ,prior tx_stg_cmb                     as parent_comb
     ,uniqueConcepts.conceptsName		  as uniqueConceptsName
     ,uniqueConcepts.conceptsArray		  as uniqueConceptsArray
+    ,smry.tx_avg_frm_strt				  as daysFromStart
   FROM #_pnc_smrypth_fltr smry
   join #_pnc_smry_msql_cmb concepts
   on concepts.pnc_tx_stg_cmb_id = smry.tx_stg_cmb
@@ -444,6 +448,7 @@ select
   || ' ,"avgDuration" : ' || avg_duration || ' '
   || ' ,"avgGapDay" : ' || avg_gap || ' '
   || ' ,"gapPercent" : "' || gap_pcnt || '" '
+  || ' ,"daysFromCohortStart" : ' || daysFromStart || ' '
   || ',"concepts" : ' || combo_concepts
   || ',"uniqueConceptsName" : "' || uniqueConceptsName || '" '
   || ',"uniqueConceptsArray" : ' || uniqueConceptsArray
