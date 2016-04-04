@@ -124,7 +124,7 @@ from (
   select validancestor.nullParentKey, validancestor.ancestorlevel, 
   case 
       when path.pnc_stdy_smry_id is not null then validancestor.ancestorlevel
-      when path.pnc_stdy_smry_id is null then 1000000
+      when path.pnc_stdy_smry_id is null then 1000000000
     end as realLevel,
   validancestor.parentid, path.pnc_stdy_smry_id
   from #_pnc_smrypth_fltr path
