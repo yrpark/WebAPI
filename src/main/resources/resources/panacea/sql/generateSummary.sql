@@ -272,7 +272,7 @@ CREATE TABLE #_pnc_unq_trtmt
     pnc_stdy_smry_id int,
   	rslt_version int,
     path_cmb_ids varchar(800),
-    path_unique_treatment varchar(1000)
+    path_unique_treatment varchar(4000)
 );
 
 
@@ -342,7 +342,14 @@ WITH t1(combo_id, current_path, pnc_stdy_smry_id, parent_key, modified_path, mod
           ,t2.pnc_stdy_smry_id                     as pnc_stdy_smry_id
           ,t2.tx_path_parent_key                   as parent_key
           ,modified_path||'>'||t2.tx_stg_cmb       as modified_path
-          ,modified_concepts||','||comb.concept_ids      as modified_concepts
+--this case clause simplify caltulation of duplicate concept_ids by just assert if concept_ids string already in parents ids ',id1,id2,id3,'
+--may help minimize by ordering the ids in #_pnc_smry_msql_cmb.concept_ids
+          ,
+          CASE 
+		     WHEN instr(modified_concepts, ',' || comb.concept_ids || ',') > 0 THEN modified_concepts
+    		 ELSE modified_concepts||','||comb.concept_ids
+		  END
+												as modified_concepts
           ,lvl+1                                as Lvl
           ,depthOrder||'.'||t2.pnc_stdy_smry_id as depthOrder
         FROM (@results_schema.pnc_study_summary_path t2
