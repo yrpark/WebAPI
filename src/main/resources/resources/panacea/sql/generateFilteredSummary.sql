@@ -379,7 +379,28 @@ from
 (
 select allRoots.rnum rnum, 1 table_row_id,
 CASE 
-    WHEN rnum = 1 THEN '{"comboId": "root","children": [' || substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
+--    WHEN rnum = 1 THEN '{"comboId": "root","children": [' || substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
+    WHEN rnum = 1 THEN '{"comboId": "root"' 
+    || ',"totalCountFirstTherapy":'
+    || (select sum(tx_stg_cnt) from #_pnc_smrypth_fltr 
+        where tx_path_parent_key is null
+        and tx_seq = 1)
+    || ',"totalCohortCount":'
+    || (select count( distinct subject_id) from @ohdsi_schema.cohort
+        where cohort_definition_id = (select cohort_definition_id from 
+        @results_schema.panacea_study 
+        where study_id = @studyId))
+    || ',"firstTherapyPercentage":'
+    || (select NVL(ROUND(firstCount.firstCount/cohortTotal.cohortTotal * 100,2),0) firstTherrapyPercentage from 
+        (select sum(tx_stg_cnt) as firstCount from #_pnc_smrypth_fltr 
+        where tx_path_parent_key is null
+        and tx_seq = 1) firstCount,  
+        (select count( distinct subject_id) as cohortTotal from @ohdsi_schema.cohort
+        where cohort_definition_id = (select cohort_definition_id from 
+        @results_schema.panacea_study 
+        where study_id = @studyId)) cohortTotal)
+    ||',"children": [' 
+    || substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
     ELSE JSON_SNIPPET
 END
 as JSON
