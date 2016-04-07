@@ -343,7 +343,7 @@ WITH t1(combo_id, current_path, pnc_stdy_smry_id, parent_key, modified_path, mod
           ,t2.tx_path_parent_key                   as parent_key
           ,modified_path||'>'||t2.tx_stg_cmb       as modified_path
 --this case clause simplify caltulation of duplicate concept_ids by just assert if concept_ids string already in parents ids ',id1,id2,id3,'
---may help minimize by ordering the ids in #_pnc_smry_msql_cmb.concept_ids
+--concepts_ids in #_pnc_smry_msql_cmb.concept_ids should help
           ,
           CASE 
 		     WHEN instr(modified_concepts, ',' || comb.concept_ids || ',') > 0 THEN modified_concepts
