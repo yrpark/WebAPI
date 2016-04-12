@@ -258,10 +258,13 @@ WITH t1(combo_id, current_path, pnc_stdy_smry_id, parent_key, modified_path, mod
           ,t2.tx_path_parent_key                   as parent_key
           ,modified_path||'>'||t2.tx_stg_cmb       as modified_path
 --this case clause simplify caltulation of duplicate concept_ids by just assert if concept_ids string already in parents ids ',id1,id2,id3,'
+--compare path too: if previous path contains current path combo '>combo_id>', no need to append again
 --concepts_ids in #_pnc_smry_msql_cmb.concept_ids should help
           ,
           CASE 
-		    WHEN instr(modified_concepts, ',' || comb.concept_ids || ',') > 0 THEN modified_concepts
+		    WHEN instr(modified_concepts, ',' || comb.concept_ids || ',') > 0
+		    or instr(modified_path, '>' || t2.tx_stg_cmb || '>') > 0
+		    THEN modified_concepts
     		ELSE modified_concepts||','||comb.concept_ids
 		  END
 												as modified_concepts
@@ -291,6 +294,7 @@ CREATE TABLE #_pnc_unq_pth_id
     pnc_tx_smry_id int,
     concept_id int,
     concept_order int,
+    concept_count int,
     conceptsName varchar(1000),
     conceptsArray varchar(1500)
 );
@@ -348,6 +352,7 @@ using
     '[' || wm_concat('{"innerConceptName":' || '"' || concepts.concept_name  || '"' || 
     ',"innerConceptId":' || concepts.concept_id || '}') || ']' conceptsArray,
     wm_concat(concepts.concept_name) conceptsName
+    , count(distinct concepts.concept_id) conceptCount
     from #_pnc_unq_pth_id path
     join @cdm_schema.concept concepts
     on path.concept_id = concepts.concept_id
@@ -358,7 +363,8 @@ on
   m.pnc_tx_smry_id = m1.pnc_tx_smry_id
 )
 WHEN MATCHED then update set m.conceptsArray = m1.conceptsArray,
- m.conceptsName = m1.conceptsName;
+ m.conceptsName = m1.conceptsName
+ ,m.concept_count = m1.conceptCount;
 
 --delete duplicat smry_id rows (now we have smry_id with it's unique concepts conceptsArray and conceptsName)
 delete from #_pnc_unq_pth_id 
@@ -423,6 +429,7 @@ from
      ,parentConcepts.conceptsArray                                        as parent_combo_concepts
      ,individualPathNoParentConcepts.uniqueConceptsName					  as uniqueConceptsName
      ,individualPathNoParentConcepts.uniqueConceptsArray				  as uniqueConceptsArray
+     ,individualPathNoParentConcepts.uniqueConceptCount					  as uniqueConceptCount
      ,individualPathNoParentConcepts.daysFromStart						  as daysFromStart
     from 
     (SELECT 
@@ -443,11 +450,12 @@ from
     ,prior tx_stg_cmb                     as parent_comb
     ,uniqueConcepts.conceptsName		  as uniqueConceptsName
     ,uniqueConcepts.conceptsArray		  as uniqueConceptsArray
+    ,uniqueConcepts.concept_count		  as uniqueConceptCount
     ,smry.tx_avg_frm_strt				  as daysFromStart
   FROM #_pnc_smrypth_fltr smry
   join #_pnc_smry_msql_cmb concepts
   on concepts.pnc_tx_stg_cmb_id = smry.tx_stg_cmb
-  join (select pnc_tx_smry_id, conceptsName, conceptsArray from #_pnc_unq_pth_id) uniqueConcepts
+  join (select pnc_tx_smry_id, conceptsName, conceptsArray， concept_count from #_pnc_unq_pth_id) uniqueConcepts
   on uniqueConcepts.pnc_tx_smry_id = smry.pnc_stdy_smry_id
   START WITH pnc_stdy_smry_id in (select pnc_stdy_smry_id from #_pnc_smrypth_fltr
         where 
@@ -480,6 +488,7 @@ select
   || ',"concepts" : ' || combo_concepts
   || ',"uniqueConceptsName" : "' || uniqueConceptsName || '" '
   || ',"uniqueConceptsArray" : ' || uniqueConceptsArray
+  || ' ,"uniqueConceptCount" : ' || uniqueConceptCount || ' '
   || CASE WHEN Lvl > 1 THEN    
         ',"parentConcept": { "parentConceptName": "' || parent_concept_names || '", '  
         || '"parentConcepts":' || parent_combo_concepts   || '}'
@@ -531,7 +540,7 @@ IF OBJECT_ID('tempdb..#_pnc_indv_jsn', 'U') IS NOT NULL
   DROP TABLE #_pnc_indv_jsn;
 IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
   DROP TABLE #_pnc_smry_msql_cmb;
-IF OBJECT_ID('tempdb..#_pnc_unq_trtmt', 'U') IS NOT NULL
-  DROP TABLE #_pnc_unq_trtmt;
-IF OBJECT_ID('tempdb..#_pnc_unq_pth_id', 'U') IS NOT NULL
-  DROP TABLE #_pnc_unq_pth_id;
+--IF OBJECT_ID('tempdb..#_pnc_unq_trtmt', 'U') IS NOT NULL
+--  DROP TABLE #_pnc_unq_trtmt;
+--IF OBJECT_ID('tempdb..#_pnc_unq_pth_id', 'U') IS NOT NULL
+--  DROP TABLE #_pnc_unq_pth_id;
