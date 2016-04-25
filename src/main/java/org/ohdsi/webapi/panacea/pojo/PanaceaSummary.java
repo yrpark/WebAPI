@@ -20,6 +20,7 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.IdClass;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -58,6 +59,9 @@ public class PanaceaSummary implements Serializable {
     
     @Column(name = "STUDY_RESULTS_FILTERED")
     private String studyResultFiltered;
+    
+    @Transient
+    private String studyResultUniquePath;
     
     /**
      * @return the studyId
@@ -144,12 +148,28 @@ public class PanaceaSummary implements Serializable {
     }
     
     /**
+     * @return the studyResultUniquePath
+     */
+    public String getStudyResultUniquePath() {
+        return this.studyResultUniquePath;
+    }
+    
+    /**
+     * @param studyResultUniquePath the studyResultUniquePath to set
+     */
+    public void setStudyResultUniquePath(final String studyResultUniquePath) {
+        this.studyResultUniquePath = studyResultUniquePath;
+    }
+    
+    /**
      * @see java.lang.Object#toString()
      */
+    
     @Override
     public String toString() {
         return "PanaceaSummary [studyId=" + this.studyId + ", sourceId=" + this.sourceId + ", lastUpdateTime="
                 + this.lastUpdateTime + ", studyResults=" + this.studyResults + ", studyResultCollapsed="
-                + this.studyResultCollapsed + ", studyResultFiltered=" + this.studyResultFiltered + "]";
+                + this.studyResultCollapsed + ", studyResultFiltered=" + this.studyResultFiltered
+                + ", studyResultUniquePath=" + this.studyResultUniquePath + "]";
     }
 }

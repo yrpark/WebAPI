@@ -20,8 +20,6 @@ import junit.framework.TestCase;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONObject;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,7 +31,6 @@ import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
 import org.ohdsi.webapi.panacea.pojo.PanaceaSummary;
 import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryLight;
 import org.ohdsi.webapi.panacea.repository.impl.PanaceaService;
-import org.ohdsi.webapi.panacea.repository.impl.PanaceaUtil;
 import org.ohdsi.webapi.service.VocabularyService;
 import org.ohdsi.webapi.vocabulary.Concept;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -233,31 +230,32 @@ public class PanaceaTest extends TestCase {
         try {
             final PanaceaSummary summary = this.pncService.getStudySummary(new Long(31), new Integer(1));
             
-            final JSONObject rootNode = new JSONObject(summary.getStudyResultFiltered());
+            //            final JSONObject rootNode = new JSONObject(summary.getStudyResultFiltered());
+            //            
+            //            if (rootNode.has("children")) {
+            //                final JSONArray childJsonArray = rootNode.getJSONArray("children");
+            //                
+            //                final JSONArray newChildArray = new JSONArray();
+            //                
+            //                for (int i = 0; i < childJsonArray.length(); i++) {
+            //                    //final JSONObject merged = mergeObj((JSONObject) childJsonArray.get(i));
+            //                    //                    JSONObject merged = mergeNode((JSONObject) childJsonArray.get(i));
+            //                    //                    merged = mergeSameUniqueDesedentNode(merged);
+            //                    
+            //                    //                    JSONObject merged = mergeSameDesedentNode((JSONObject) childJsonArray.get(i));
+            //                    final JSONObject merged = PanaceaUtil.mergeNode((JSONObject) childJsonArray.get(i));
+            //                    
+            //                    newChildArray.put(merged);
+            //                }
+            //                
+            //                rootNode.remove("children");
+            //                if (newChildArray.length() > 0) {
+            //                    rootNode.putOpt("children", newChildArray);
+            //                }
+            //            }
+            //PanaceaUtil.mergeFromRootNode(rootNode);
             
-            if (rootNode.has("children")) {
-                final JSONArray childJsonArray = rootNode.getJSONArray("children");
-                
-                final JSONArray newChildArray = new JSONArray();
-                
-                for (int i = 0; i < childJsonArray.length(); i++) {
-                    //final JSONObject merged = mergeObj((JSONObject) childJsonArray.get(i));
-                    //                    JSONObject merged = mergeNode((JSONObject) childJsonArray.get(i));
-                    //                    merged = mergeSameUniqueDesedentNode(merged);
-                    
-                    //                    JSONObject merged = mergeSameDesedentNode((JSONObject) childJsonArray.get(i));
-                    final JSONObject merged = PanaceaUtil.mergeNode((JSONObject) childJsonArray.get(i));
-                    
-                    newChildArray.put(merged);
-                }
-                
-                rootNode.remove("children");
-                if (newChildArray.length() > 0) {
-                    rootNode.putOpt("children", newChildArray);
-                }
-            }
-            
-            log.info("testGetStudySummaryAndJSON: " + rootNode);
+            log.info("testGetStudySummaryAndJSON: " + summary.getStudyResultUniquePath());
             
         } catch (final Exception e) {
             e.printStackTrace();
