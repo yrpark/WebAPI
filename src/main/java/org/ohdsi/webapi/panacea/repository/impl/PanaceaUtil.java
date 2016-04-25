@@ -28,6 +28,43 @@ public class PanaceaUtil {
     
     private static final Log log = LogFactory.getLog(PanaceaUtil.class);
     
+    /**
+     * Call mergeNode() for merging for unique pathway
+     */
+    public static JSONObject mergeFromRootNode(final String summaryJson) {
+        try {
+            final JSONObject rootNode = new JSONObject(summaryJson);
+            
+            if (rootNode.has("children")) {
+                final JSONArray childJsonArray = rootNode.getJSONArray("children");
+                
+                final JSONArray newChildArray = new JSONArray();
+                
+                for (int i = 0; i < childJsonArray.length(); i++) {
+                    //final JSONObject merged = mergeObj((JSONObject) childJsonArray.get(i));
+                    //                    JSONObject merged = mergeNode((JSONObject) childJsonArray.get(i));
+                    //                    merged = mergeSameUniqueDesedentNode(merged);
+                    
+                    //                    JSONObject merged = mergeSameDesedentNode((JSONObject) childJsonArray.get(i));
+                    final JSONObject merged = PanaceaUtil.mergeNode((JSONObject) childJsonArray.get(i));
+                    
+                    newChildArray.put(merged);
+                }
+                
+                rootNode.remove("children");
+                if (newChildArray.length() > 0) {
+                    rootNode.putOpt("children", newChildArray);
+                }
+            }
+            
+            return rootNode;
+        } catch (final Exception e) {
+            e.printStackTrace();
+        }
+        
+        return null;
+    }
+    
     public static Set<Integer> getUniqueConceptIds(final JSONObject jsonObj) {
         if (jsonObj != null) {
             final Set<Integer> conceptIds = new HashSet<Integer>();

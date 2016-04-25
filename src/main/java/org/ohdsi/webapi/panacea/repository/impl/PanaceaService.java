@@ -205,8 +205,19 @@ public class PanaceaService extends AbstractDaoService {
     @GET
     @Path("/getStudySummary/{studyId}/{sourceId}")
     @Produces(MediaType.APPLICATION_JSON)
-    public PanaceaSummary getStudySummary(@PathParam("studyId")final Long studyId, @PathParam("sourceId")final Integer sourceId) {
-        return this.panaceaStudyRepository.getPanaceaSummaryByStudyIdSourceId(studyId, sourceId);
+    public PanaceaSummary getStudySummary(@PathParam("studyId") final Long studyId,
+                                          @PathParam("sourceId") final Integer sourceId) {
+        final PanaceaSummary ps = this.panaceaStudyRepository.getPanaceaSummaryByStudyIdSourceId(studyId, sourceId);
+        
+        if (StringUtils.isEmpty(ps.getStudyResultFiltered())) {
+            if (!StringUtils.isEmpty(ps.getStudyResults())) {
+                ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResults()).toString());
+            }
+        } else {
+            ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResultFiltered()).toString());
+        }
+        
+        return ps;
     }
     
     //TODO -- note: heavy load Clob. Be carefule to use: add WS annotation
