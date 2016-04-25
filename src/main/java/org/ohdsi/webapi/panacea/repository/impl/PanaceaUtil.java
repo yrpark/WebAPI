@@ -46,9 +46,11 @@ public class PanaceaUtil {
                     //                    merged = mergeSameUniqueDesedentNode(merged);
                     
                     //                    JSONObject merged = mergeSameDesedentNode((JSONObject) childJsonArray.get(i));
-                    final JSONObject merged = PanaceaUtil.mergeNode((JSONObject) childJsonArray.get(i));
-                    
-                    newChildArray.put(merged);
+                    if (((JSONObject) childJsonArray.get(i)).has("uniqueConceptsArray")) {
+                        final JSONObject merged = PanaceaUtil.mergeNode((JSONObject) childJsonArray.get(i));
+                        
+                        newChildArray.put(merged);
+                    }
                 }
                 
                 rootNode.remove("children");
