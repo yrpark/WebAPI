@@ -210,7 +210,9 @@ public class PanaceaService extends AbstractDaoService {
         final PanaceaSummary ps = this.panaceaStudyRepository.getPanaceaSummaryByStudyIdSourceId(studyId, sourceId);
         
         if (StringUtils.isEmpty(ps.getStudyResultFiltered())) {
-            if (!StringUtils.isEmpty(ps.getStudyResults())) {
+            if (!StringUtils.isEmpty(ps.getStudyResultCollapsed())) {
+                ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResultCollapsed()).toString());
+            } else if (!StringUtils.isEmpty(ps.getStudyResults())) {
                 ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResults()).toString());
             }
         } else {
