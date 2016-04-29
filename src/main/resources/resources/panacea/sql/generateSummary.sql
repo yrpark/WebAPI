@@ -413,7 +413,9 @@ select smry_id, ids, lastPos from
       pos,
       lastPos
     FROM splitter_cte
-    order by smry_id, lastPos) coneptIds;
+--try this (need more test): for order by conceptId for keep uniquenes of concept namesl like "Warfrin,Asparin" or "Asprin,Warfrin"
+--    order by smry_id, lastPos) coneptIds;
+    order by smry_id, ids) coneptIds;
 
 
 --delete duplicate concept_id per smry_id in the path if it's not the first on in the path by min(concept_order)
