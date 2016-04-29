@@ -543,14 +543,15 @@ public class PanaceaService extends AbstractDaoService {
     @GET
     @Path("/runPncTasklet/{sourceKey}/{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public void runPncTasklet(@PathParam("sourceKey") final String sourceKey, @PathParam("id") final Long studyId) {
+    public JobExecutionResource runPncTasklet(@PathParam("sourceKey") final String sourceKey,
+                                              @PathParam("id") final Long studyId) {
         /**
          * test: localhost:8080/WebAPI/panacea/runPncTasklet/CCAE/18
          */
-        runPanaceaTasklet(sourceKey, studyId);
+        return runPanaceaTasklet(sourceKey, studyId);
     }
     
-    public void runPanaceaTasklet(final String sourceKey, final Long studyId) {
+    public JobExecutionResource runPanaceaTasklet(final String sourceKey, final Long studyId) {
         if ((studyId != null) && (sourceKey != null)) {
             final PanaceaStudy pncStudy = this.getPanaceaStudyWithId(studyId);
             if (pncStudy != null) {
@@ -663,29 +664,33 @@ public class PanaceaService extends AbstractDaoService {
                             .next(pncFilteredSummaryStep).build();
                     
                     final JobExecutionResource jobExec = this.jobTemplate.launch(pncStudyJob, jobParameters);
+                    
+                    return jobExec;
                 } else {
                     //TODO
                     log.error("");
                 }
             }
+            return null;
         } else {
             //TODO
             log.error("");
+            return null;
         }
     }
     
     @GET
     @Path("/runPncFilterSummaryTasklet/{sourceKey}/{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public void runPncFilterSummaryTasklet(@PathParam("sourceKey") final String sourceKey,
-                                           @PathParam("id") final Long studyId) {
+    public JobExecutionResource runPncFilterSummaryTasklet(@PathParam("sourceKey") final String sourceKey,
+                                                           @PathParam("id") final Long studyId) {
         /**
          * test: localhost:8080/WebAPI/panacea/runPncFilterSummaryTasklet/RIV5/19
          */
-        runPanaceaFilterSummaryTasklet(sourceKey, studyId);
+        return runPanaceaFilterSummaryTasklet(sourceKey, studyId);
     }
     
-    public void runPanaceaFilterSummaryTasklet(final String sourceKey, final Long studyId) {
+    public JobExecutionResource runPanaceaFilterSummaryTasklet(final String sourceKey, final Long studyId) {
         if ((studyId != null) && (sourceKey != null)) {
             final PanaceaStudy pncStudy = this.getPanaceaStudyWithId(studyId);
             if (pncStudy != null) {
@@ -719,14 +724,19 @@ public class PanaceaService extends AbstractDaoService {
                             .build();
                     
                     final JobExecutionResource jobExec = this.jobTemplate.launch(pncStudyJob, jobParameters);
+                    
+                    return jobExec;
                 } else {
                     //TODO
                     log.error("");
+                    return null;
                 }
             }
+            return null;
         } else {
             //TODO
             log.error("");
+            return null;
         }
     }
     
