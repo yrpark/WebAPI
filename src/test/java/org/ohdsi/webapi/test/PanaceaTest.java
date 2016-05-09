@@ -225,7 +225,7 @@ public class PanaceaTest extends TestCase {
         }
     }
     
-    @Ignore
+    @Test
     public void testGetStudySummaryAndJSON() {
         try {
             final PanaceaSummary summary = this.pncService.getStudySummary(new Long(31), new Integer(1));

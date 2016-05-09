@@ -12,7 +12,12 @@
  */
 package org.ohdsi.webapi.panacea.repository.impl;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -48,6 +53,22 @@ public class PanaceaUtil {
                     //                    JSONObject merged = mergeSameDesedentNode((JSONObject) childJsonArray.get(i));
                     if (((JSONObject) childJsonArray.get(i)).has("uniqueConceptsArray")) {
                         final JSONObject merged = PanaceaUtil.mergeNode((JSONObject) childJsonArray.get(i));
+                        
+                        try {
+                            final Map<Integer, String> oneConcept = getAddedOneConceptId(merged);
+                            
+                            final Map.Entry<Integer, String> entry = oneConcept.entrySet().iterator().next();
+                            
+                            merged.put("simpleUniqueConceptId", entry.getKey().intValue());
+                            merged.put("simpleUniqueConceptName", entry.getValue());
+                            merged.put("simpleUniqueConceptPercentage",  merged.get("percentage"));
+
+                            
+                        } catch (final JSONException e) {
+                            // TODO Auto-generated catch block
+                            log.error("Error generated", e);
+                            e.printStackTrace();
+                        }
                         
                         newChildArray.put(merged);
                     }
@@ -90,6 +111,81 @@ public class PanaceaUtil {
             } catch (final JSONException e) {
                 // TODO Auto-generated catch block
                 log.error("Error generated", e);
+                e.printStackTrace();
+            }
+        }
+        
+        return null;
+    }
+    
+    public static Map<Integer, String> getUniqueConceptIdsMap(final JSONObject jsonObj) {
+        if (jsonObj != null) {
+            final Map<Integer, String> conceptIds = new HashMap<Integer, String>();
+            
+            JSONArray uniqueConceptArray;
+            try {
+                uniqueConceptArray = jsonObj.getJSONArray("uniqueConceptsArray");
+                
+                if (uniqueConceptArray != null) {
+                    for (int i = 0; i < uniqueConceptArray.length(); i++) {
+                        if (uniqueConceptArray.get(i) != null) {
+                            final Integer conceptId = new Integer(
+                                    ((JSONObject) uniqueConceptArray.get(i)).getInt("innerConceptId"));
+                            final String conceptName = ((JSONObject) uniqueConceptArray.get(i))
+                                    .getString("innerConceptName");
+                            
+                            conceptIds.put(conceptId, conceptName);
+                        }
+                    }
+                }
+                
+                return conceptIds;
+            } catch (final JSONException e) {
+                // TODO Auto-generated catch block
+                log.error("Error generated", e);
+                e.printStackTrace();
+            }
+        }
+        
+        return null;
+    }
+    
+    public static Map<Integer, String> getAddedOneConceptId(final JSONObject parent, final JSONObject child) {
+        if ((parent != null) && (child != null)) {
+            final Map<Integer, String> parentUniqueIds = getUniqueConceptIdsMap(parent);
+            final Map<Integer, String> childUniqueIds = getUniqueConceptIdsMap(child);
+            
+            if ((parentUniqueIds != null) && (childUniqueIds != null)) {
+                
+                for (final Map.Entry<Integer, String> entry : parentUniqueIds.entrySet()) {
+                    childUniqueIds.remove(entry.getKey());
+                }
+                
+                final List<Integer> sortChildIdsList = new ArrayList<Integer>(childUniqueIds.keySet());
+                Collections.sort(sortChildIdsList);
+                
+                if ((sortChildIdsList != null) && (sortChildIdsList.size() > 0)) {
+                    final Map<Integer, String> returnIdMap = new HashMap<Integer, String>();
+                    returnIdMap.put(sortChildIdsList.get(0), childUniqueIds.get(sortChildIdsList.get(0)));
+                    
+                    return returnIdMap;
+                }
+            }
+        }
+        return null;
+    }
+    
+    public static Map<Integer, String> getAddedOneConceptId(final JSONObject parent) {
+        if (parent != null) {
+            final Map<Integer, String> parentUniqueIds = getUniqueConceptIdsMap(parent);
+            final List<Integer> sortChildIdsList = new ArrayList<Integer>(parentUniqueIds.keySet());
+            Collections.sort(sortChildIdsList);
+            
+            if ((sortChildIdsList != null) && (sortChildIdsList.size() > 0)) {
+                final Map<Integer, String> returnIdMap = new HashMap<Integer, String>();
+                returnIdMap.put(sortChildIdsList.get(0), parentUniqueIds.get(sortChildIdsList.get(0)));
+                
+                return returnIdMap;
             }
         }
         
@@ -100,6 +196,26 @@ public class PanaceaUtil {
         if (getUniqueConceptIds(parent).equals(getUniqueConceptIds(child))) {
             return null;
         } else {
+            //This is for adding Jon's one "simple unique array" - one drug only path
+            final Map<Integer, String> addedOneSimpleId = getAddedOneConceptId(parent, child);
+            try {
+                final Map.Entry<Integer, String> entry = addedOneSimpleId.entrySet().iterator().next();
+                
+                child.put("simpleUniqueConceptId", entry.getKey().intValue());
+                child.put("simpleUniqueConceptName", entry.getValue());
+                
+                double percentage = ((double)child.getInt("patientCount")) / ((double)parent.getInt("patientCount")) * ((double)100);
+                
+                double rounded = (double) Math.round(percentage * 100) / 100;
+                
+                child.put("simpleUniqueConceptPercentage",  rounded);
+                
+            } catch (final JSONException e) {
+                // TODO Auto-generated catch block
+                log.error("Error generated", e);
+                e.printStackTrace();
+            }
+            
             return child;
         }
     }
@@ -150,6 +266,7 @@ public class PanaceaUtil {
         } catch (final JSONException e) {
             // TODO Auto-generated catch block
             log.error("Error generated", e);
+            e.printStackTrace();
         }
         
         return node;
@@ -163,6 +280,7 @@ public class PanaceaUtil {
             } catch (final JSONException e) {
                 // TODO Auto-generated catch block
                 log.error("Error generated", e);
+                e.printStackTrace();
             }
         }
         
@@ -177,6 +295,7 @@ public class PanaceaUtil {
             } catch (final JSONException e) {
                 // TODO Auto-generated catch block
                 log.error("Error generated", e);
+                e.printStackTrace();
             }
         }
         return -1;
@@ -229,6 +348,7 @@ public class PanaceaUtil {
         } catch (final JSONException e) {
             // TODO Auto-generated catch block
             log.error("Error generated", e);
+            e.printStackTrace();
         }
         
         return node;
