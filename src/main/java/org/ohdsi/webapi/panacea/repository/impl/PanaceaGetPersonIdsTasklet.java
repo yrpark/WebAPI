@@ -140,8 +140,8 @@ public class PanaceaGetPersonIdsTasklet implements Tasklet {
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
         
-        final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "cohortDefId", "drugConceptId", "sourceId" };
-        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId, drugConceptId,
+        final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "drugConceptId", "sourceId" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId, drugConceptId,
                 sourceId };
         
         sql = SqlRender.renderSql(sql, params, values);

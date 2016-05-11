@@ -172,16 +172,20 @@ public class PanaceaTasklet implements Tasklet {
         final String sourceId = (String) jobParams.get("sourceId");
         final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
         final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
+        final String rowIdString = (String) jobParams.get("rowIdString");
         
-        String insertFromDrugEra = this.getDrugEraInsertString(jobParams);
-        String insertFromProcedure = this.getProcedureInsertString(jobParams);
+        final String insertFromDrugEra = this.getDrugEraInsertString(jobParams);
+        final String insertFromProcedure = this.getProcedureInsertString(jobParams);
+        final String insertIntoComboMapString = this.getInsertIntoComboMapString(jobParams);
         
-        final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId",
-                "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
-                "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "insertFromDrugEra", "insertFromProcedure" };
-        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId,
+        final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
+                "drugConceptId", "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
+                "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "insertFromDrugEra", "insertFromProcedure",
+                "rowIdString", "insertIntoComboMapString" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
                 this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
-                drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr, insertFromDrugEra, insertFromProcedure };
+                drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr,
+                insertFromDrugEra, insertFromProcedure, rowIdString, insertIntoComboMapString };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
@@ -204,11 +208,11 @@ public class PanaceaTasklet implements Tasklet {
         final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
         
         if (!StringUtils.isEmpty(drugConceptId)) {
-            final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId",
-                    "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
+            final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
+                    "drugConceptId", "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
                     "procedureStudyOptionalDateConstraint", "allConceptIdsStr" };
-            final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId,
-                    this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
+            final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
+                    cohortDefId, this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
                     drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr };
             
             drugEraInsertString = SqlRender.renderSql(drugEraInsertString, params, values);
@@ -236,11 +240,11 @@ public class PanaceaTasklet implements Tasklet {
         final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
         
         if (!StringUtils.isEmpty(procedureConceptId)) {
-            final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "cohortDefId", "studyId", "drugConceptId",
-                    "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
+            final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
+                    "drugConceptId", "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
                     "procedureStudyOptionalDateConstraint", "allConceptIdsStr" };
-            final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, cohortDefId,
-                    this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
+            final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
+                    cohortDefId, this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
                     drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr };
             
             procedureInsertString = SqlRender.renderSql(procedureInsertString, params, values);
@@ -251,5 +255,42 @@ public class PanaceaTasklet implements Tasklet {
         }
         
         return procedureInsertString;
-    }    
+    }
+    
+    private String getInsertIntoComboMapString(final Map<String, Object> jobParams) {
+        
+        final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
+        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+        final String cohortDefId = (String) jobParams.get("cohortDefId");
+        final String drugConceptId = (String) jobParams.get("drugConceptId");
+        final String allConceptIdsStr = (String) jobParams.get("allConceptIdsStr");
+        final String procedureConceptId = (String) jobParams.get("procedureConceptId");
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        final String sourceId = (String) jobParams.get("sourceId");
+        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
+        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
+        
+        /**
+         * default as "oracle"
+         */
+        String insertIntoComboMapString = ResourceHelper
+                .GetResourceAsString("/resources/panacea/sql/comboMapInsert_oracle.sql");
+        
+        if ("sql server".equalsIgnoreCase(sourceDialect)) {
+            insertIntoComboMapString = ResourceHelper.GetResourceAsString("/resources/panacea/sql/comboMapInsert_mssql.sql");
+        }
+        
+        final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
+                "drugConceptId", "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
+                "procedureStudyOptionalDateConstraint", "allConceptIdsStr" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
+                this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
+                drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr };
+        
+        insertIntoComboMapString = SqlRender.renderSql(insertIntoComboMapString, params, values);
+        insertIntoComboMapString = SqlTranslate.translateSql(insertIntoComboMapString, "sql server", sourceDialect, null,
+            resultsTableQualifier);
+        
+        return insertIntoComboMapString;
+    }
 }
