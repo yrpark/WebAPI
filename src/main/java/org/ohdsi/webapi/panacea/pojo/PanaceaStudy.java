@@ -45,7 +45,8 @@ public class PanaceaStudy implements Serializable {
     
     @SequenceGenerator(name = "PANACEA_STUDY_SEQUENCE_GENERATOR", sequenceName = "seq_pnc_stdy", allocationSize = 1)
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "PANACEA_STUDY_SEQUENCE_GENERATOR")
+    //@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "PANACEA_STUDY_SEQUENCE_GENERATOR")
+    @GeneratedValue(strategy = GenerationType.AUTO, generator = "PANACEA_STUDY_SEQUENCE_GENERATOR")
     @Column(name = "study_id")
     private Long studyId;
     

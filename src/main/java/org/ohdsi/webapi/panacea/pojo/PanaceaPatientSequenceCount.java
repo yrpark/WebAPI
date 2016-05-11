@@ -42,7 +42,8 @@ public class PanaceaPatientSequenceCount implements Serializable {
     
     @SequenceGenerator(name = "PANACEA_PT_SQ_CT_SEQUENCE_GENERATOR", sequenceName = "seq_pnc_tmp_pt_sq_ct", allocationSize = 1)
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "PANACEA_PT_SQ_CT_SEQUENCE_GENERATOR")
+    //@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "PANACEA_PT_SQ_CT_SEQUENCE_GENERATOR")
+    @GeneratedValue(strategy = GenerationType.AUTO, generator = "PANACEA_PT_SQ_CT_SEQUENCE_GENERATOR")
     @Column(name = "pnc_pt_sq_ct_id")
     private Long patientSequenceCountId;
     

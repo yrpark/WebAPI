@@ -49,7 +49,8 @@ public class PanaceaStageCombination implements Serializable {
     
     @SequenceGenerator(name = "PNC_TX_STG_CMB_SEQUENCE_GENERATOR", sequenceName = "seq_pnc_tx_stg_cmb", allocationSize = 1)
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "PNC_TX_STG_CMB_SEQUENCE_GENERATOR")
+    //@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "PNC_TX_STG_CMB_SEQUENCE_GENERATOR")
+    @GeneratedValue(strategy = GenerationType.AUTO, generator = "PNC_TX_STG_CMB_SEQUENCE_GENERATOR")
     @Column(name = "pnc_tx_stg_cmb_id")
     private Long pncTxStgCmbId;
     
