@@ -25,16 +25,30 @@ CREATE TABLE #_pnc_ptsq_ct
 @insertFromDrugEra
 @insertFromProcedure
 
+-- sql server compatibility changes: no use of rownum, %%physloc%% for rowid (feed in with code for different dialect)
+--MERGE INTO #_pnc_ptsq_ct ptsq
+--USING
+--(SELECT rank() OVER (PARTITION BY person_id
+--  ORDER BY person_id, idx_start_date, idx_end_date, ROWNUM) real_tx_seq,
+--  rowid AS the_rowid
+--  FROM #_pnc_ptsq_ct 
+--) ptsq1
+--ON
+--(
+--     ptsq.rowid = ptsq1.the_rowid
+--)
+--WHEN MATCHED THEN UPDATE SET ptsq.tx_seq = ptsq1.real_tx_seq;
+
 MERGE INTO #_pnc_ptsq_ct ptsq
 USING
 (SELECT rank() OVER (PARTITION BY person_id
-  ORDER BY person_id, idx_start_date, idx_end_date, ROWNUM) real_tx_seq,
-  rowid AS the_rowid
-  FROM #_pnc_ptsq_ct 
+  ORDER BY person_id, idx_start_date, idx_end_date, concept_id) real_tx_seq,
+  @rowIdString AS the_rowid
+  FROM #_pnc_ptsq_ct
 ) ptsq1
 ON
 (
-     ptsq.rowid = ptsq1.the_rowid
+     ptsq.@rowIdString = ptsq1.the_rowid
 )
 WHEN MATCHED THEN UPDATE SET ptsq.tx_seq = ptsq1.real_tx_seq;
 
@@ -97,38 +111,7 @@ CREATE TABLE #_pnc_ptstg_ct
 --WHEN NOT MATCHED THEN INSERT (PNC_TX_STG_CMB_MP_ID, PNC_TX_STG_CMB_ID, CONCEPT_ID, CONCEPT_NAME)
 --VALUES (@results_schema.seq_pnc_tx_stg_cmb_mp.NEXTVAL, @results_schema.seq_pnc_tx_stg_cmb.NEXTVAL, adding_concept.concept_id, adding_concept.concept_name);
 
-MERGE INTO @results_schema.pnc_tx_stage_combination_map combo
-USING
-  (SELECT DISTINCT myConcept.concept_id concept_id, myConcept.concept_name concept_name FROM @cdm_schema.concept myConcept
-    where myconcept.concept_id in (@allConceptIdsStr)
-    and myConcept.concept_id NOT IN
---change to add all concepts into pnc_tx_stage_combination_map and pnc_tx_stage_combination instead of dynamically add not exising concepts in #_pnc_ptsq_ct, per Jon  
---  (SELECT DISTINCT ptsq.concept_id concept_id, ptsq.concept_name concept_name FROM #_pnc_ptsq_ct ptsq
---    WHERE ptsq.concept_id NOT IN 
---      (select distinct concept_id from #_pnc_sngl_cmb 
---      )
-      (select distinct concept_id from 
-        (select comb.pnc_tx_stg_cmb_id as comb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name from @results_schema.pnc_tx_stage_combination comb
-          join @results_schema.pnc_tx_stage_combination_map combMap 
-          on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
-          join 
-          (select comb.pnc_tx_stg_cmb_id, count(*) from @results_schema.pnc_tx_stage_combination comb
-          join @results_schema.pnc_tx_stage_combination_map combMap 
-          on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
-          where comb.study_id = @studyId
-          group by comb.pnc_tx_stg_cmb_id
-          having count(*) = 1) multiple_ids_combo
-          on multiple_ids_combo.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
-        )
-      )
-  ) adding_concept
-  ON
-  (
-    1 = 0
-  )
-WHEN NOT MATCHED THEN INSERT (PNC_TX_STG_CMB_MP_ID, PNC_TX_STG_CMB_ID, CONCEPT_ID, CONCEPT_NAME)
-VALUES (@results_schema.seq_pnc_tx_stg_cmb_mp.NEXTVAL, @results_schema.seq_pnc_tx_stg_cmb.NEXTVAL, adding_concept.concept_id, adding_concept.concept_name);
-
+@insertIntoComboMapString
 
 MERGE INTO @results_schema.pnc_tx_stage_combination comb
 USING
@@ -152,7 +135,7 @@ from (select ptsq.study_id, ptsq.source_id, ptsq.person_id, ptsq.idx_start_date,
   	join @results_schema.pnc_tx_stage_combination_map combMap 
 	on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
 	join 
-	(select comb.pnc_tx_stg_cmb_id, count(*) from @results_schema.pnc_tx_stage_combination comb
+	(select comb.pnc_tx_stg_cmb_id, count(*) cnt from @results_schema.pnc_tx_stage_combination comb
 	join @results_schema.pnc_tx_stage_combination_map combMap 
 	on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
 	where comb.study_id = @studyId
@@ -161,8 +144,10 @@ from (select ptsq.study_id, ptsq.source_id, ptsq.person_id, ptsq.idx_start_date,
 	on multiple_ids_combo.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
 	group by combmap.concept_id, combmap.concept_name
   ) combo
-where ptsq.rowid not in
-  (select ptsq2.rowid from #_pnc_ptsq_ct ptsq1
+--where ptsq.rowid not in
+where ptsq.@rowIdString not in
+--  (select ptsq2.rowid from #_pnc_ptsq_ct ptsq1
+  (select ptsq2.@rowIdString from #_pnc_ptsq_ct ptsq1
     join #_pnc_ptsq_ct ptsq2
     on ptsq1.person_id = ptsq2.person_id
     and ptsq1.concept_id = ptsq2.concept_id
@@ -175,8 +160,9 @@ where ptsq.rowid not in
   )
 and ptsq.study_id = @studyId
 AND combo.concept_id = ptsq.concept_id
-order by ptsq.person_id, ptsq.idx_start_date, ptsq.idx_end_date
-) insertingPTSQ;
+--order by ptsq.person_id, ptsq.idx_start_date, ptsq.idx_end_date
+) insertingPTSQ
+order by person_id, idx_start_date, idx_end_date;
 
 
 -- take care of expanded time window for same patient/same drug. 
@@ -186,7 +172,8 @@ using
   (
     select updateRowID updateRowID, max(realEndDate) as realEndDate from 
     (
-      select ptstg2.rowid deleteRowId, ptstg1.rowid updateRowID,
+--      select ptstg2.rowid deleteRowId, ptstg1.rowid updateRowID,
+      select ptstg2.@rowIdString deleteRowId, ptstg1.@rowIdString updateRowID,
         case 
           when ptstg1.stg_end_date > ptstg2.stg_end_date then ptstg1.stg_end_date
           when ptstg2.stg_end_date > ptstg1.stg_end_date then ptstg2.stg_end_date
@@ -198,20 +185,24 @@ using
       and ptstg1.tx_stg_cmb_id = ptstg2.tx_stg_cmb_id
       where ptstg2.stg_start_date < ptstg1.stg_end_date
         and ptstg2.stg_start_date > ptstg1.stg_start_date
-    ) group by updateRowID
+    ) innerT group by updateRowID
   ) ptstgExpandDate
   on
   (
-     ptstg.rowid = ptstgExpandDate.updateRowID
+--     ptstg.rowid = ptstgExpandDate.updateRowID
+     ptstg.@rowIdString = ptstgExpandDate.updateRowID
   )
   WHEN MATCHED then update set ptstg.stg_end_date = ptstgExpandDate.realEndDate,
-    ptstg.stg_duration_days = (ptstgExpandDate.realEndDate - ptstg.stg_start_date + 1);
+-- sqlserver:   ptstg.stg_duration_days = (ptstgExpandDate.realEndDate - ptstg.stg_start_date + 1);
+	ptstg.stg_duration_days = DATEDIFF(DAY, ptstg.stg_start_date, ptstgExpandDate.realEndDate) + 1;
 
     
-delete from #_pnc_ptstg_ct ptstg
-where ptstg.rowid in 
+delete from #_pnc_ptstg_ct 
+--where ptstg.rowid in
+where @rowIdString in 
   (
-    select ptstg2.rowid deleteRowId
+--    select ptstg2.rowid deleteRowId
+    select ptstg2.@rowIdString deleteRowId
     from #_pnc_ptstg_ct ptstg1
     join #_pnc_ptstg_ct ptstg2
     on ptstg1.person_id = ptstg2.person_id

@@ -542,7 +542,7 @@ IF OBJECT_ID('tempdb..#_pnc_indv_jsn', 'U') IS NOT NULL
   DROP TABLE #_pnc_indv_jsn;
 IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
   DROP TABLE #_pnc_smry_msql_cmb;
---IF OBJECT_ID('tempdb..#_pnc_unq_trtmt', 'U') IS NOT NULL
---  DROP TABLE #_pnc_unq_trtmt;
---IF OBJECT_ID('tempdb..#_pnc_unq_pth_id', 'U') IS NOT NULL
---  DROP TABLE #_pnc_unq_pth_id;
+IF OBJECT_ID('tempdb..#_pnc_unq_trtmt', 'U') IS NOT NULL
+  DROP TABLE #_pnc_unq_trtmt;
+IF OBJECT_ID('tempdb..#_pnc_unq_pth_id', 'U') IS NOT NULL
+  DROP TABLE #_pnc_unq_pth_id;

@@ -244,7 +244,9 @@ public class PanaceaService extends AbstractDaoService {
     @Consumes(MediaType.APPLICATION_JSON)
     public PanaceaStudy saveStudy(final PanaceaStudy panaceaStudy) {
         final PanaceaStudy ps = new PanaceaStudy();
-        ps.setStudyId(panaceaStudy.getStudyId());
+        if (panaceaStudy.getStudyId() != null) {
+            ps.setStudyId(panaceaStudy.getStudyId());
+        }
         ps.setCohortDefId(panaceaStudy.getCohortDefId());
         ps.setConceptSetId(panaceaStudy.getConceptSetId());
         ps.setConcepSetDef(panaceaStudy.getConcepSetDef());
@@ -590,6 +592,14 @@ public class PanaceaService extends AbstractDaoService {
                     builder.addString("sourceDialect", source.getSourceDialect());
                     builder.addString("sourceId", new Integer(source.getSourceId()).toString());
                     
+                    if("sql server".equalsIgnoreCase(source.getSourceDialect()))
+                    {
+                        builder.addString("rowIdString", "%%physloc%%");
+                    }else{
+                        //Oracle as default (not considering postgres now...)
+                        builder.addString("rowIdString", "rowid");
+                    }
+                    
                     String drugEraStudyOptionalDateConstraint = "";
                     if (pncStudy.getStartDate() != null) {
                         drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
@@ -710,7 +720,15 @@ public class PanaceaService extends AbstractDaoService {
                     builder.addString("studyId", studyId.toString());
                     builder.addString("sourceDialect", source.getSourceDialect());
                     builder.addString("sourceId", new Integer(source.getSourceId()).toString());
-                    
+
+                    if("sql server".equalsIgnoreCase(source.getSourceDialect()))
+                    {
+                        builder.addString("rowIdString", "%%physloc%%");
+                    }else{
+                        //Oracle as default (not considering postgres now...)
+                        builder.addString("rowIdString", "rowid");
+                    }
+
                     final JobParameters jobParameters = builder.toJobParameters();
                     
                     final PanaceaFiilteredSummaryGenerateTasklet pncFilteredSummaryTasklet = new PanaceaFiilteredSummaryGenerateTasklet(
