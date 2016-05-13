@@ -1,6 +1,6 @@
 --from drug_era
-INSERT INTO #_pnc_ptsq_ct (study_id, person_id, source_id, concept_id, concept_name, idx_start_date, idx_end_date, duration_days)
-SELECT distinct study.study_id AS study_id, myCohort.person_id AS person_id, @sourceId AS source_id, era.drug_concept_id,
+INSERT INTO @pnc_ptsq_ct (job_execution_id, study_id, person_id, source_id, concept_id, concept_name, idx_start_date, idx_end_date, duration_days)
+SELECT distinct @jobExecId as job_execution_id, study.study_id AS study_id, myCohort.person_id AS person_id, @sourceId AS source_id, era.drug_concept_id,
 --  myConcept.concept_name, era.drug_era_start_date, era.drug_era_end_date, era.drug_era_end_date - era.drug_era_start_date + 1
   myConcept.concept_name, era.drug_era_start_date, era.drug_era_end_date, DATEDIFF(DAY, era.drug_era_start_date, era.drug_era_end_date) + 1
 FROM @results_schema.panacea_study study

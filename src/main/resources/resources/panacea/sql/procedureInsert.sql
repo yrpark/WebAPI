@@ -1,6 +1,6 @@
 --from procedure_occurrence
-INSERT INTO #_pnc_ptsq_ct (study_id, person_id, source_id, concept_id, concept_name, idx_start_date, idx_end_date, duration_days)
-SELECT distinct study.study_id AS study_id, myCohort.person_id AS person_id, @sourceId AS source_id, proc.procedure_concept_id,
+INSERT INTO @pnc_ptsq_ct (job_execution_id, study_id, person_id, source_id, concept_id, concept_name, idx_start_date, idx_end_date, duration_days)
+SELECT distinct @jobExecId as job_execution_id, study.study_id AS study_id, myCohort.person_id AS person_id, @sourceId AS source_id, proc.procedure_concept_id,
 --  myConcept.concept_name, proc.procedure_date, myObservation.end_date, myObservation.end_date - proc.procedure_date + 1
   myConcept.concept_name, proc.procedure_date, myObservation.end_date, DATEDIFF(DAY, proc.procedure_date, myObservation.end_date) + 1
 FROM @results_schema.panacea_study study

@@ -162,7 +162,8 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                             patientStageCountList, switchWindow, jobParams);
                         
                         int[] batchCount = persistentPatientStageCombinationCount(
-                            calculatedOverlappingPSCCMap.get(new Integer(1)), jobParams);
+                            calculatedOverlappingPSCCMap.get(new Integer(1)), jobParams, chunkContext.getStepContext()
+                                    .getStepExecution().getJobExecution().getId());
                         if (batchCount != null) {
                             int count = 0;
                             for (final int cn : batchCount) {
@@ -172,7 +173,8 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         }
                         
                         batchCount = persistentPatientStageCombinationCount(
-                            calculatedOverlappingPSCCMap.get(new Integer(2)), jobParams);
+                            calculatedOverlappingPSCCMap.get(new Integer(2)), jobParams, chunkContext.getStepContext()
+                                    .getStepExecution().getJobExecution().getId());
                         if (batchCount != null) {
                             int count = 0;
                             for (final int cn : batchCount) {
@@ -241,10 +243,12 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     private String getSql(final Map<String, Object> jobParams, final ChunkContext chunkContext,
                           final String allDistinctPersonIdStr) {
         //String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/getPersonIds.sql");
+        //sql server temp table workaround...
         String sql = "select ptstg.person_id as person_id, ptstg.tx_stg_cmb_id cmb_id, ptstg.stg_start_date start_date, ptstg.stg_end_date end_date "
-                + "from #_pnc_ptstg_ct  ptstg "
+                + "from @pnc_ptstg_ct  ptstg "
+                //                + "from #_pnc_ptstg_ct  ptstg "
                 + "where "
-                + "person_id in (@allDistinctPersonId) "
+                + "person_id in (@allDistinctPersonId) and job_execution_id = @jobExecId "
                 + "order by person_id, stg_start_date, stg_end_date";
         
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
@@ -253,11 +257,13 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
         final String drugConceptId = (String) jobParams.get("drugConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
+        final String pnc_ptstg_ct = (String) jobParams.get("pnc_ptstg_ct");
         
-        final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "drugConceptId", "sourceId",
-                "allDistinctPersonId" };
-        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId, drugConceptId,
-                sourceId, allDistinctPersonIdStr };
+        final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId",
+                "drugConceptId", "sourceId", "allDistinctPersonId", "pnc_ptstg_ct", "jobExecId" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
+                drugConceptId, sourceId, allDistinctPersonIdStr, pnc_ptstg_ct,
+                chunkContext.getStepContext().getStepExecution().getJobExecution().getId().toString() };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
@@ -784,7 +790,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     }
     
     private int[] persistentPatientStageCombinationCount(final List<PatientStageCombinationCount> psccList,
-                                                         final Map<String, Object> jobParams) {
+                                                         final Map<String, Object> jobParams, final Long jobExecId) {
         String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/insertPatientStageComboSequence.sql");
         
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
@@ -793,10 +799,12 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
         final String drugConceptId = (String) jobParams.get("drugConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
+        final String pnc_tmp_cmb_sq_ct = (String) jobParams.get("pnc_tmp_cmb_sq_ct");
         
-        final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "drugConceptId", "sourceId" };
-        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId, drugConceptId,
-                sourceId };
+        final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId",
+                "drugConceptId", "sourceId", "pnc_tmp_cmb_sq_ct", "jobExecId" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
+                drugConceptId, sourceId, pnc_tmp_cmb_sq_ct, jobExecId.toString() };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);

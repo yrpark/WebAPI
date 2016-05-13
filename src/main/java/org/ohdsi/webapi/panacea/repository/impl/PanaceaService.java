@@ -623,6 +623,8 @@ public class PanaceaService extends AbstractDaoService {
                     builder.addString("drugEraStudyOptionalDateConstraint", drugEraStudyOptionalDateConstraint);
                     builder.addString("procedureStudyOptionalDateConstraint", procedureStudyOptionalDateConstraint);
                     
+                    addTempTableNames(builder, source);
+                    
                     final JobParameters jobParameters = builder.toJobParameters();
                     
                     final PanaceaTasklet pncTasklet = new PanaceaTasklet(this.getSourceJdbcTemplate(source),
@@ -721,6 +723,8 @@ public class PanaceaService extends AbstractDaoService {
                     builder.addString("sourceDialect", source.getSourceDialect());
                     builder.addString("sourceId", new Integer(source.getSourceId()).toString());
 
+                    addTempTableNames(builder, source);
+                    
                     if("sql server".equalsIgnoreCase(source.getSourceDialect()))
                     {
                         builder.addString("rowIdString", "%%physloc%%");
@@ -755,6 +759,37 @@ public class PanaceaService extends AbstractDaoService {
             //TODO
             log.error("");
             return null;
+        }
+    }
+
+    //TODO - find a common/util place for this later...
+    private void addTempTableNames(JobParametersBuilder builder, Source source){
+        if("sql server".equalsIgnoreCase(source.getSourceDialect()))
+        {
+            builder.addString("pnc_ptsq_ct", "pnc_tmp_ptsq_ct");
+            builder.addString("pnc_ptstg_ct", "pnc_tmp_ptstg_ct");
+            builder.addString("pnc_tmp_cmb_sq_ct", "pnc_tmp_cmb_sq_ct");
+            
+            builder.addString("pnc_smry_msql_cmb", "pnc_tmp_smry_msql_cmb");
+            builder.addString("pnc_indv_jsn", "pnc_tmp_indv_jsn");
+            builder.addString("pnc_unq_trtmt", "pnc_tmp_unq_trtmt");
+            builder.addString("pnc_unq_pth_id", "pnc_tmp_unq_pth_id");
+            
+            builder.addString("pnc_smrypth_fltr", "pnc_tmp_smrypth_fltr");
+            builder.addString("pnc_smry_ancstr", "pnc_tmp_smry_ancstr");
+        }else{
+            //Oracle as default (not considering postgres now...)
+            builder.addString("pnc_ptsq_ct", "#_pnc_ptsq_ct");
+            builder.addString("pnc_ptstg_ct", "#_pnc_ptstg_ct");
+            builder.addString("pnc_tmp_cmb_sq_ct", "#_pnc_tmp_cmb_sq_ct");
+            
+            builder.addString("pnc_smry_msql_cmb", "#_pnc_smry_msql_cmb");
+            builder.addString("pnc_indv_jsn", "#_pnc_indv_jsn");
+            builder.addString("pnc_unq_trtmt", "#_pnc_unq_trtmt");
+            builder.addString("pnc_unq_pth_id", "#_pnc_unq_pth_id");
+            
+            builder.addString("pnc_smrypth_fltr", "#_pnc_smrypth_fltr");
+            builder.addString("pnc_smry_ancstr", "#_pnc_smry_ancstr");
         }
     }
     

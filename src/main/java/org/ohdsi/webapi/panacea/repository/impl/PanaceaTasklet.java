@@ -72,7 +72,9 @@ public class PanaceaTasklet implements Tasklet {
         try {
             final Map<String, Object> jobParams = chunkContext.getStepContext().getJobParameters();
             
-            final String sql = this.getSql(jobParams);
+            final Long jobExecId = chunkContext.getStepContext().getStepExecution().getJobExecution().getId();
+            
+            final String sql = this.getSql(jobParams, jobExecId);
             
             final int[] ret = this.transactionTemplate.execute(new TransactionCallback<int[]>() {
                 
@@ -159,7 +161,7 @@ public class PanaceaTasklet implements Tasklet {
         this.pncStudy = pncStudy;
     }
     
-    private String getSql(final Map<String, Object> jobParams) {
+    private String getSql(final Map<String, Object> jobParams, final Long jobExecId) {
         String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/runPanaceaStudy.sql");
         
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
@@ -173,19 +175,24 @@ public class PanaceaTasklet implements Tasklet {
         final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
         final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
         final String rowIdString = (String) jobParams.get("rowIdString");
+        final String pnc_ptsq_ct = (String) jobParams.get("pnc_ptsq_ct");
+        final String pnc_ptstg_ct = (String) jobParams.get("pnc_ptstg_ct");
+        final String pnc_tmp_cmb_sq_ct = (String) jobParams.get("pnc_tmp_cmb_sq_ct");
         
-        final String insertFromDrugEra = this.getDrugEraInsertString(jobParams);
-        final String insertFromProcedure = this.getProcedureInsertString(jobParams);
+        final String insertFromDrugEra = this.getDrugEraInsertString(jobParams, jobExecId);
+        final String insertFromProcedure = this.getProcedureInsertString(jobParams, jobExecId);
         final String insertIntoComboMapString = this.getInsertIntoComboMapString(jobParams);
-        
+        final String tempTableCreationOracle = getTempTableCreationOracle(jobParams);
+
         final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
                 "drugConceptId", "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
                 "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "insertFromDrugEra", "insertFromProcedure",
-                "rowIdString", "insertIntoComboMapString" };
+                "rowIdString", "insertIntoComboMapString", "jobExecId", "tempTableCreationOracle", "pnc_ptsq_ct", "pnc_ptstg_ct", "pnc_tmp_cmb_sq_ct" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
                 this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
                 drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr,
-                insertFromDrugEra, insertFromProcedure, rowIdString, insertIntoComboMapString };
+                insertFromDrugEra, insertFromProcedure, rowIdString, insertIntoComboMapString, jobExecId.toString(),
+                tempTableCreationOracle, pnc_ptsq_ct, pnc_ptstg_ct, pnc_tmp_cmb_sq_ct};
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
@@ -193,7 +200,7 @@ public class PanaceaTasklet implements Tasklet {
         return sql;
     }
     
-    private String getDrugEraInsertString(final Map<String, Object> jobParams) {
+    private String getDrugEraInsertString(final Map<String, Object> jobParams, final Long jobExecId) {
         String drugEraInsertString = ResourceHelper.GetResourceAsString("/resources/panacea/sql/drugEraInsert.sql");
         
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
@@ -210,10 +217,11 @@ public class PanaceaTasklet implements Tasklet {
         if (!StringUtils.isEmpty(drugConceptId)) {
             final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
                     "drugConceptId", "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
-                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr" };
+                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "jobExecId" };
             final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
                     cohortDefId, this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
-                    drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr };
+                    drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr,
+                    jobExecId.toString() };
             
             drugEraInsertString = SqlRender.renderSql(drugEraInsertString, params, values);
             drugEraInsertString = SqlTranslate.translateSql(drugEraInsertString, "sql server", sourceDialect, null,
@@ -225,7 +233,7 @@ public class PanaceaTasklet implements Tasklet {
         return drugEraInsertString;
     }
     
-    private String getProcedureInsertString(final Map<String, Object> jobParams) {
+    private String getProcedureInsertString(final Map<String, Object> jobParams, final Long jobExecId) {
         String procedureInsertString = ResourceHelper.GetResourceAsString("/resources/panacea/sql/procedureInsert.sql");
         
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
@@ -242,10 +250,11 @@ public class PanaceaTasklet implements Tasklet {
         if (!StringUtils.isEmpty(procedureConceptId)) {
             final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
                     "drugConceptId", "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
-                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr" };
+                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "jobExecId" };
             final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
                     cohortDefId, this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
-                    drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr };
+                    drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr,
+                    jobExecId.toString() };
             
             procedureInsertString = SqlRender.renderSql(procedureInsertString, params, values);
             procedureInsertString = SqlTranslate.translateSql(procedureInsertString, "sql server", sourceDialect, null,
@@ -292,5 +301,30 @@ public class PanaceaTasklet implements Tasklet {
             resultsTableQualifier);
         
         return insertIntoComboMapString;
+    }
+    
+    private String getTempTableCreationOracle(final Map<String, Object> jobParams) {
+        
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+        
+        /**
+         * default as "oracle"
+         */
+        String tempTableCreationOracle = ResourceHelper
+                .GetResourceAsString("/resources/panacea/sql/tempTableCreation_oracle.sql");
+        
+        if ("sql server".equalsIgnoreCase(sourceDialect)) {
+            tempTableCreationOracle = "\n";
+        }
+        
+        final String[] params = new String[] {};
+        final String[] values = new String[] {};
+        
+        tempTableCreationOracle = SqlRender.renderSql(tempTableCreationOracle, params, values);
+        tempTableCreationOracle = SqlTranslate.translateSql(tempTableCreationOracle, "sql server", sourceDialect, null,
+            resultsTableQualifier);
+        
+        return tempTableCreationOracle;
     }
 }

@@ -6,21 +6,7 @@
 {DEFAULT @drugConceptId = '1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315'}
 {DEFAULT @procedureConceptId = '1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315'}
 
-IF OBJECT_ID('tempdb..#_pnc_ptsq_ct', 'U') IS NOT NULL
-  DROP TABLE #_pnc_ptsq_ct;
-
-CREATE TABLE #_pnc_ptsq_ct
-(
-  study_id INT,
-  source_id INT,
-  person_id INT,
-  tx_seq INT,
-  concept_id INT,
-  concept_name VARCHAR(255),
-  idx_start_date DATE,
-  idx_end_date DATE,
-  duration_days INT
-);
+@tempTableCreationOracle
 
 @insertFromDrugEra
 @insertFromProcedure
@@ -39,12 +25,13 @@ CREATE TABLE #_pnc_ptsq_ct
 --)
 --WHEN MATCHED THEN UPDATE SET ptsq.tx_seq = ptsq1.real_tx_seq;
 
-MERGE INTO #_pnc_ptsq_ct ptsq
+MERGE INTO @pnc_ptsq_ct ptsq
 USING
 (SELECT rank() OVER (PARTITION BY person_id
   ORDER BY person_id, idx_start_date, idx_end_date, concept_id) real_tx_seq,
   @rowIdString AS the_rowid
-  FROM #_pnc_ptsq_ct
+  FROM @pnc_ptsq_ct
+  WHERE job_execution_id = @jobExecId
 ) ptsq1
 ON
 (
@@ -52,20 +39,6 @@ ON
 )
 WHEN MATCHED THEN UPDATE SET ptsq.tx_seq = ptsq1.real_tx_seq;
 
-IF OBJECT_ID('tempdb..#_pnc_ptstg_ct', 'U') IS NOT NULL
-  DROP TABLE #_pnc_ptstg_ct;
-
-CREATE TABLE #_pnc_ptstg_ct
-(
-  study_id INT,
-  source_id INT,
-  person_id INT,
-  tx_stg_cmb_id INT,
-  tx_seq INT,
-  stg_start_date DATE,
-  stg_end_date DATE,
-  stg_duration_days INT
-);
 
 --IF OBJECT_ID('tempdb..#_pnc_sngl_cmb', 'U') IS NOT NULL
 --  DROP TABLE #_pnc_sngl_cmb;
@@ -128,9 +101,9 @@ VALUES (adding_combo.pnc_tx_stg_cmb_id, @studyId);
 
 -- insert from #_pnc_ptsq_ct ptsq into #_pnc_ptstg_ct (remove same patient/same drug small time window inside large time window. EX: 1/2/2015 ~ 1/31/2015 inside 1/1/2015 ~ 3/1/2015)
 -- use single concept combo and avoid duplicate combo for the same concept if there's multiple single combo for same concept by min() value 
-insert into #_pnc_ptstg_ct (study_id, source_id, person_id, tx_stg_cmb_id, stg_start_date, stg_end_date, stg_duration_days)
-select insertingPTSQ.study_id, insertingPTSQ.source_id, insertingPTSQ.person_id, insertingPTSQ.pnc_tx_stg_cmb_id, insertingPTSQ.idx_start_date, insertingPTSQ.idx_end_date, insertingPTSQ.duration_days
-from (select ptsq.study_id, ptsq.source_id, ptsq.person_id, ptsq.idx_start_date, ptsq.idx_end_date, ptsq.duration_days, combo.pnc_tx_stg_cmb_id from #_pnc_ptsq_ct ptsq,
+insert into @pnc_ptstg_ct (job_execution_id, study_id, source_id, person_id, tx_stg_cmb_id, stg_start_date, stg_end_date, stg_duration_days)
+select @jobExecId, insertingPTSQ.study_id, insertingPTSQ.source_id, insertingPTSQ.person_id, insertingPTSQ.pnc_tx_stg_cmb_id, insertingPTSQ.idx_start_date, insertingPTSQ.idx_end_date, insertingPTSQ.duration_days
+from (select ptsq.study_id, ptsq.source_id, ptsq.person_id, ptsq.idx_start_date, ptsq.idx_end_date, ptsq.duration_days, combo.pnc_tx_stg_cmb_id from @pnc_ptsq_ct ptsq,
   (select min(comb.pnc_tx_stg_cmb_id) pnc_tx_stg_cmb_id, combmap.concept_id concept_id, combmap.concept_name concept_name from @results_schema.pnc_tx_stage_combination comb
   	join @results_schema.pnc_tx_stage_combination_map combMap 
 	on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
@@ -147,18 +120,23 @@ from (select ptsq.study_id, ptsq.source_id, ptsq.person_id, ptsq.idx_start_date,
 --where ptsq.rowid not in
 where ptsq.@rowIdString not in
 --  (select ptsq2.rowid from #_pnc_ptsq_ct ptsq1
-  (select ptsq2.@rowIdString from #_pnc_ptsq_ct ptsq1
-    join #_pnc_ptsq_ct ptsq2
+  (select ptsq2.@rowIdString from @pnc_ptsq_ct ptsq1
+    join @pnc_ptsq_ct ptsq2
     on ptsq1.person_id = ptsq2.person_id
     and ptsq1.concept_id = ptsq2.concept_id
-    where ((ptsq2.idx_start_date > ptsq1.idx_start_date)
+    and ptsq2.job_execution_id = @jobExecId
+    where (
+      (ptsq1.job_execution_id = @jobExecId)
+      and (ptsq2.idx_start_date > ptsq1.idx_start_date)
       and (ptsq2.idx_end_date < ptsq1.idx_end_date
       or ptsq2.idx_end_date = ptsq1.idx_end_date))
     or ((ptsq2.idx_start_date > ptsq1.idx_start_date
       or ptsq2.idx_start_date = ptsq1.idx_start_date
-      ) and (ptsq2.idx_end_date < ptsq1.idx_end_date))
+      ) and (ptsq2.idx_end_date < ptsq1.idx_end_date)
+      and (ptsq1.job_execution_id = @jobExecId))
   )
 and ptsq.study_id = @studyId
+and ptsq.job_execution_id = @jobExecId
 AND combo.concept_id = ptsq.concept_id
 --order by ptsq.person_id, ptsq.idx_start_date, ptsq.idx_end_date
 ) insertingPTSQ
@@ -167,7 +145,7 @@ order by person_id, idx_start_date, idx_end_date;
 
 -- take care of expanded time window for same patient/same drug. 
 -- EX: 2/1/2015 ~ 4/1/2015 ptstg2, 1/1/2015 ~ 3/1/2015 ptstg1. Update ptstg1 with later end date and delete ptstg2   
-merge into #_pnc_ptstg_ct ptstg
+merge into @pnc_ptstg_ct ptstg
 using
   (
     select updateRowID updateRowID, max(realEndDate) as realEndDate from 
@@ -179,12 +157,14 @@ using
           when ptstg2.stg_end_date > ptstg1.stg_end_date then ptstg2.stg_end_date
           when ptstg2.stg_end_date = ptstg1.stg_end_date then ptstg2.stg_end_date
         end as realEndDate
-      from #_pnc_ptstg_ct ptstg1
-      join #_pnc_ptstg_ct ptstg2
+      from @pnc_ptstg_ct ptstg1
+      join @pnc_ptstg_ct ptstg2
       on ptstg1.person_id = ptstg2.person_id
       and ptstg1.tx_stg_cmb_id = ptstg2.tx_stg_cmb_id
+      and ptstg2.job_execution_id = @jobExecId
       where ptstg2.stg_start_date < ptstg1.stg_end_date
         and ptstg2.stg_start_date > ptstg1.stg_start_date
+        and ptstg1.job_execution_id = @jobExecId
     ) innerT group by updateRowID
   ) ptstgExpandDate
   on
@@ -197,35 +177,22 @@ using
 	ptstg.stg_duration_days = DATEDIFF(DAY, ptstg.stg_start_date, ptstgExpandDate.realEndDate) + 1;
 
     
-delete from #_pnc_ptstg_ct 
+delete from @pnc_ptstg_ct 
 --where ptstg.rowid in
 where @rowIdString in 
   (
 --    select ptstg2.rowid deleteRowId
     select ptstg2.@rowIdString deleteRowId
-    from #_pnc_ptstg_ct ptstg1
-    join #_pnc_ptstg_ct ptstg2
+    from @pnc_ptstg_ct ptstg1
+    join @pnc_ptstg_ct ptstg2
     on ptstg1.person_id = ptstg2.person_id
     and ptstg1.tx_stg_cmb_id = ptstg2.tx_stg_cmb_id
+    and ptstg2.job_execution_id = @jobExecId
     where ptstg2.stg_start_date < ptstg1.stg_end_date
       and ptstg2.stg_start_date > ptstg1.stg_start_date
+      and ptstg1.job_execution_id = @jobExecId
   );
 
-IF OBJECT_ID('tempdb..#_pnc_tmp_cmb_sq_ct', 'U') IS NOT NULL
-  DROP TABLE #_pnc_tmp_cmb_sq_ct;
-
-CREATE TABLE #_pnc_tmp_cmb_sq_ct
-(
-	person_id INT,
-	combo_ids VARCHAR(255),
-	tx_seq INT,	
-	combo_seq VARCHAR(400),
-    start_date date,
-    end_date date,
-    combo_duration INT,
-    result_version INT,
-    gap_days INT
-);
 
 --TRUNCATE TABLE #_pnc_ptsq_ct;
 --DROP TABLE #_pnc_ptsq_ct;
