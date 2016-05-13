@@ -68,7 +68,8 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
         try {
             final Map<String, Object> jobParams = chunkContext.getStepContext().getJobParameters();
             
-            final String sql = this.getSql(jobParams);
+            final String sql = this.getSql(jobParams, chunkContext.getStepContext().getStepExecution().getJobExecution()
+                    .getId());
             
             final int[] ret = this.transactionTemplate.execute(new TransactionCallback<int[]>() {
                 
@@ -128,7 +129,7 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
         this.transactionTemplate = transactionTemplate;
     }
     
-    private String getSql(final Map<String, Object> jobParams) {
+    private String getSql(final Map<String, Object> jobParams, final Long jobExecId) {
         
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
         final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
@@ -136,27 +137,63 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
         final String drugConceptId = (String) jobParams.get("drugConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
-
+        final String pnc_smry_msql_cmb = (String) jobParams.get("pnc_smry_msql_cmb");
+        final String pnc_indv_jsn = (String) jobParams.get("pnc_indv_jsn");
+        final String pnc_unq_trtmt = (String) jobParams.get("pnc_unq_trtmt");
+        final String pnc_unq_pth_id = (String) jobParams.get("pnc_unq_pth_id");
+        final String pnc_smrypth_fltr = (String) jobParams.get("pnc_smrypth_fltr");
+        final String pnc_smry_ancstr = (String) jobParams.get("pnc_smry_ancstr");
+        final String pnc_tmp_cmb_sq_ct = (String) jobParams.get("pnc_tmp_cmb_sq_ct");
+        
+        final String tempTableCreationSummary_oracle = this.getTempTableCreationOracle(jobParams);
+        
         /**
          * default as "oracle"
          */
         String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary.sql");
         
-        if("sql server".equalsIgnoreCase(sourceDialect))
-        {
+        if ("sql server".equalsIgnoreCase(sourceDialect)) {
             sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary_mssql.sql");
-        }else if("postgresql".equalsIgnoreCase(sourceDialect)){
+        } else if ("postgresql".equalsIgnoreCase(sourceDialect)) {
             sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary_postgres.sql");
         }
-
+        
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "cohortDefId", "studyId",
-                "drugConceptId", "sourceId" };
+                "drugConceptId", "sourceId", "pnc_smry_msql_cmb", "pnc_indv_jsn", "pnc_unq_trtmt", "pnc_unq_pth_id",
+                "pnc_smrypth_fltr", "pnc_smry_ancstr", "tempTableCreationSummary_oracle", "jobExecId", "pnc_tmp_cmb_sq_ct" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
-                this.pncStudy.getStudyId().toString(), drugConceptId, sourceId };
+                this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, pnc_smry_msql_cmb, pnc_indv_jsn,
+                pnc_unq_trtmt, pnc_unq_pth_id, pnc_smrypth_fltr, pnc_smry_ancstr, tempTableCreationSummary_oracle,
+                jobExecId.toString(), pnc_tmp_cmb_sq_ct };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
         
         return sql;
+    }
+    
+    private String getTempTableCreationOracle(final Map<String, Object> jobParams) {
+        
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+        
+        /**
+         * default as "oracle"
+         */
+        String tempTableCreationOracle = ResourceHelper
+                .GetResourceAsString("/resources/panacea/sql/tempTableCreationSummary_oracle.sql");
+        
+        if ("sql server".equalsIgnoreCase(sourceDialect)) {
+            tempTableCreationOracle = "\n";
+        }
+        
+        final String[] params = new String[] {};
+        final String[] values = new String[] {};
+        
+        tempTableCreationOracle = SqlRender.renderSql(tempTableCreationOracle, params, values);
+        tempTableCreationOracle = SqlTranslate.translateSql(tempTableCreationOracle, "sql server", sourceDialect, null,
+            resultsTableQualifier);
+        
+        return tempTableCreationOracle;
     }
 }
