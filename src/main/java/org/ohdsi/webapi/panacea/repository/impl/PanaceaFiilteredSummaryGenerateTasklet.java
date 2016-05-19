@@ -137,7 +137,7 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
         final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
-        final String constraintSql = getConstraintSql();
+        final String constraintSql = getConstraintSql(sourceDialect);
         
         final String pnc_smry_msql_cmb = (String) jobParams.get("pnc_smry_msql_cmb");
         final String pnc_indv_jsn = (String) jobParams.get("pnc_indv_jsn");
@@ -163,13 +163,34 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
             }
             
         } else {
-            sql = "IF OBJECT_ID('\n tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_smrypth_fltr; \n"
-                    + "IF OBJECT_ID('tempdb..#_pnc_smry_ancstr', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_smry_ancstr; \n"
-                    + "IF OBJECT_ID('tempdb..#_pnc_ptsq_ct', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_ptsq_ct; \n"
-                    + "IF OBJECT_ID('tempdb..#_pnc_ptstg_ct', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_ptstg_ct; \n"
-                    + "IF OBJECT_ID('tempdb..#_pnc_tmp_cmb_sq_ct', 'U') IS NOT NULL \n"
-                    + "DROP TABLE #_pnc_tmp_cmb_sq_ct;\n";
+            sql = "";
             
+            if ("oracle".equalsIgnoreCase(sourceDialect)) {
+                sql += "IF OBJECT_ID('tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL \n"
+                        + "DROP TABLE #_pnc_smrypth_fltr; \n"
+                        + "IF OBJECT_ID('tempdb..#_pnc_smry_ancstr', 'U') IS NOT NULL \n"
+                        + "DROP TABLE #_pnc_smry_ancstr; \n" + "IF OBJECT_ID('tempdb..#_pnc_ptsq_ct', 'U') IS NOT NULL \n"
+                        + "DROP TABLE #_pnc_ptsq_ct; \n" + "IF OBJECT_ID('tempdb..#_pnc_ptstg_ct', 'U') IS NOT NULL \n"
+                        + "DROP TABLE #_pnc_ptstg_ct; \n"
+                        + "IF OBJECT_ID('tempdb..#_pnc_tmp_cmb_sq_ct', 'U') IS NOT NULL \n"
+                        + "DROP TABLE #_pnc_tmp_cmb_sq_ct; \n"
+                        + "IF OBJECT_ID('tempdb..#_pnc_indv_jsn', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_indv_jsn; \n"
+                        + "IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL \n"
+                        + "DROP TABLE #_pnc_smry_msql_cmb; \n"
+                        + "IF OBJECT_ID('tempdb..#_pnc_unq_trtmt', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_unq_trtmt; \n"
+                        + "IF OBJECT_ID('tempdb..#_pnc_unq_pth_id', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_unq_pth_id; \n";
+            } else if ("sql server".equalsIgnoreCase(sourceDialect)) {
+                sql += "delete from @pnc_ptsq_ct where job_execution_id = @jobExecId \n"
+                        + "delete from @pnc_ptstg_ct where job_execution_id = @jobExecId; \n"
+                        + "delete from @pnc_tmp_cmb_sq_ct where job_execution_id = @jobExecId; \n"
+                        
+                        + "delete from @pnc_smry_msql_cmb where job_execution_id = @jobExecId; \n"
+                        + "delete from @pnc_indv_jsn where job_execution_id = @jobExecId; \n"
+                        + "delete from @pnc_unq_trtmt where job_execution_id = @jobExecId; \n"
+                        + "delete from @pnc_unq_pth_id where job_execution_id = @jobExecId; \n"
+                        + "delete from @pnc_smrypth_fltr where job_execution_id = @jobExecId; \n"
+                        + "delete from @pnc_smry_ancstr where job_execution_id = @jobExecId; \n";
+            }
         }
         
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "studyId", "sourceId",
@@ -186,7 +207,7 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
         return sql;
     }
     
-    private String getConstraintSql() {
+    private String getConstraintSql(final String sourceDialect) {
         String constraintSql = "";
         
         if (this.pncStudy != null) {
@@ -199,11 +220,20 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
                         + this.pncStudy.getMinUnitCounts());
             }
             if (this.pncStudy.getGapThreshold() != null) {
-                constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql
-                        .concat("\n where NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
-                                + this.pncStudy.getGapThreshold()) : constraintSql
-                        .concat("\n and NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
-                                + this.pncStudy.getGapThreshold());
+                //todo - may remove this by just using isnull to feed into sql render later...
+                if ("oracle".equalsIgnoreCase(sourceDialect)) {
+                    constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql
+                            .concat("\n where NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
+                                    + this.pncStudy.getGapThreshold()) : constraintSql
+                            .concat("\n and NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
+                                    + this.pncStudy.getGapThreshold());
+                } else if ("sql server".equalsIgnoreCase(sourceDialect)) {
+                    constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql
+                            .concat("\n where isnull(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
+                                    + this.pncStudy.getGapThreshold()) : constraintSql
+                            .concat("\n and isnull(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
+                                    + this.pncStudy.getGapThreshold());
+                }
             }
             
             constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql
