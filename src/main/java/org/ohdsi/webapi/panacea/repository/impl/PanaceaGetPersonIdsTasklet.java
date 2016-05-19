@@ -65,7 +65,8 @@ public class PanaceaGetPersonIdsTasklet implements Tasklet {
         try {
             final Map<String, Object> jobParams = chunkContext.getStepContext().getJobParameters();
             
-            final String sql = this.getSql(jobParams);
+            final String sql = this.getSql(jobParams, chunkContext.getStepContext().getStepExecution().getJobExecution()
+                    .getId());
             
             log.debug("PanaceaGetPersonIdsTasklet.execute, begin... ");
             
@@ -130,7 +131,7 @@ public class PanaceaGetPersonIdsTasklet implements Tasklet {
         this.transactionTemplate = transactionTemplate;
     }
     
-    private String getSql(final Map<String, Object> jobParams) {
+    private String getSql(final Map<String, Object> jobParams, final Long jobExecId) {
         String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/getPersonIds.sql");
         
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
@@ -139,10 +140,12 @@ public class PanaceaGetPersonIdsTasklet implements Tasklet {
         final String drugConceptId = (String) jobParams.get("drugConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
+        final String pnc_ptstg_ct = (String) jobParams.get("pnc_ptstg_ct");
         
-        final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "drugConceptId", "sourceId" };
-        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId, drugConceptId,
-                sourceId };
+        final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId",
+                "drugConceptId", "sourceId", "pnc_ptstg_ct", "jobExecId" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
+                drugConceptId, sourceId, pnc_ptstg_ct, jobExecId.toString() };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);

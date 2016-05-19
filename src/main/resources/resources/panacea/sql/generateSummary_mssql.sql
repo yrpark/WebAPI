@@ -1,24 +1,38 @@
+delete from @pnc_smry_msql_cmb where job_execution_id = @jobExecId;
+delete from @pnc_indv_jsn where job_execution_id = @jobExecId;
+delete from @pnc_unq_trtmt where job_execution_id = @jobExecId;
+delete from @pnc_unq_pth_id where job_execution_id = @jobExecId;
+delete from @pnc_smrypth_fltr where job_execution_id = @jobExecId;
+delete from @pnc_smry_ancstr where job_execution_id = @jobExecId;
+
+
 delete from @results_schema.pnc_study_summary_path where study_id = @studyId and source_id = @sourceId;
 
-insert into @results_schema.pnc_study_summary_path (pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_cnt, tx_stg_avg_dr, tx_stg_avg_gap, tx_rslt_version)
-select seq_pnc_stdy_smry.nextval, @studyId, @sourceId, null, aggregatePath.combo_ids, aggregatePath.combo_seq, aggregatePath.tx_seq, aggregatePath.patientCount, aggregatePath.averageDurationDays, aggregatePath.averageGapDays, aggregatePath.result_version 
+insert into @results_schema.pnc_study_summary_path (pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_cnt, tx_stg_avg_dr, tx_stg_avg_gap, tx_rslt_version, tx_avg_frm_strt)
+select NEXT VALUE FOR @results_schema.seq_pnc_stdy_smry, @studyId, @sourceId, null, aggregatePath.combo_ids, aggregatePath.combo_seq, aggregatePath.tx_seq, aggregatePath.patientCount, aggregatePath.averageDurationDays, aggregatePath.averageGapDays, aggregatePath.result_version, aggregatePath.avgFrmCohortStart 
 from
-  (select combo_ids combo_ids, combo_seq combo_seq, tx_seq tx_seq, count(*) patientCount, avg(combo_duration) averageDurationDays, avg(gap_days) averageGapDays, result_version result_version from #_PNC_TMP_CMB_SQ_CT ptTxPath
---    where result_version = 1
-    group by combo_ids, combo_seq, tx_seq, result_version) aggregatePath;
+   (select ptTxPath.combo_ids combo_ids, ptTxPath.combo_seq combo_seq, ptTxPath.tx_seq tx_seq, count(*) patientCount, avg(ptTxPath.combo_duration) averageDurationDays, avg(ptTxPath.gap_days) averageGapDays, ptTxPath.result_version result_version,
+	avg(DATEDIFF(DAY, co.cohort_start_date, ptTxPath.start_date) + 1) avgFrmCohortStart
+  		from @results_schema.@pnc_tmp_cmb_sq_ct ptTxPath
+  		join @ohdsi_schema.cohort co
+  		on co.subject_id = ptTxPath.person_id
+  		and co.cohort_definition_id = (select cohort_definition_id
+    from @results_schema.panacea_study where study_id = @studyId)
+    where ptTxPath.job_execution_id = @jobExecId
+    group by ptTxPath.combo_ids, ptTxPath.combo_seq, ptTxPath.tx_seq, ptTxPath.result_version) aggregatePath;
 
 -- version = 1
 merge into @results_schema.pnc_study_summary_path  m
 using
   (
-	select pathsum.rowid as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
-    parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, NVL(ROUND(pathSum.tx_stg_cnt/parentPath.tx_stg_cnt * 100,2),0) percentage
+	select pathsum.%%physloc%% as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
+    parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(pathSum.tx_stg_cnt/parentPath.tx_stg_cnt * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum
-    join (select rowid, SUBSTR(tx_stg_cmb_pth , 0 , length(tx_stg_cmb_pth) - length(tx_stg_cmb) - 1 ) as parentPath
+    join (select %%physloc%% as rowid, SUBSTRING(tx_stg_cmb_pth , 0 , len(tx_stg_cmb_pth) - len(tx_stg_cmb) - 1 ) as parentPath
     from @results_schema.pnc_study_summary_path
     where study_id = @studyId and source_id = @sourceId and tx_rslt_version = 1 
     ) updateParentPath
-    on updateParentPath.rowid = pathSum.rowid
+    on updateParentPath.rowid = pathSum.%%physloc%%
     join @results_schema.pnc_study_summary_path parentPath
     on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
     and parentPath.study_id = @studyId
@@ -27,11 +41,11 @@ using
     where pathSum.study_id = @studyId and pathSum.source_id = @sourceId
     and pathSum.tx_rslt_version = 1 
     and parentPath.tx_rslt_version = 1 
-    group by pathsum.rowid, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
+    group by pathsum.%%physloc%%, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
   ) m1
   on
   (
-     m.rowid = m1.the_rowid
+     m.%%physloc%% = m1.the_rowid
   )
   WHEN MATCHED then update set m.tx_path_parent_key = m1.parentKey, m.tx_stg_percentage = m1.percentage;
 
@@ -39,8 +53,8 @@ using
 merge into @results_schema.pnc_study_summary_path  m
 using
   (
-    select pathsum.rowid as the_rowid, rootCount.totalRootCount,
-    rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, NVL(ROUND(pathSum.tx_stg_cnt/rootCount.totalRootCount * 100,2),0) percentage
+    select pathsum.%%physloc%% as the_rowid, rootCount.totalRootCount,
+    rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(pathSum.tx_stg_cnt/rootCount.totalRootCount * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
     where tx_path_parent_key is null and tx_rslt_version = 1
       and study_id = @studyId and source_id = @sourceId
@@ -51,7 +65,7 @@ using
   ) m1
   on
   (
-     m.rowid = m1.the_rowid
+     m.%%physloc%% = m1.the_rowid
   )
   WHEN MATCHED then update set m.tx_stg_percentage = m1.percentage;
 
@@ -59,14 +73,14 @@ using
 merge into @results_schema.pnc_study_summary_path  m
 using
   (
-	select pathsum.rowid as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
-    parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, NVL(ROUND(pathSum.tx_stg_cnt/parentPath.tx_stg_cnt * 100,2),0) percentage
+	select pathsum.%%physloc%% as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
+    parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(pathSum.tx_stg_cnt/parentPath.tx_stg_cnt * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum
-    join (select rowid, SUBSTR(tx_stg_cmb_pth , 0 , length(tx_stg_cmb_pth) - length(tx_stg_cmb) - 1 ) as parentPath
+    join (select %%physloc%% as rowid, SUBSTRING(tx_stg_cmb_pth , 0 , len(tx_stg_cmb_pth) - len(tx_stg_cmb) - 1 ) as parentPath
     from @results_schema.pnc_study_summary_path
     where study_id = @studyId and source_id = @sourceId and tx_rslt_version = 2 
     ) updateParentPath
-    on updateParentPath.rowid = pathSum.rowid
+    on updateParentPath.rowid = pathSum.%%physloc%%
     join @results_schema.pnc_study_summary_path parentPath
     on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
     and parentPath.study_id = @studyId
@@ -75,19 +89,19 @@ using
     where pathSum.study_id = @studyId and pathSum.source_id = @sourceId
     and pathSum.tx_rslt_version = 2 
     and parentPath.tx_rslt_version = 2 
-    group by pathsum.rowid, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
+    group by pathsum.%%physloc%%, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
   ) m1
   on
   (
-     m.rowid = m1.the_rowid
+     m.%%physloc%% = m1.the_rowid
   )
   WHEN MATCHED then update set m.tx_path_parent_key = m1.parentKey, m.tx_stg_percentage = m1.percentage;
 
 merge into @results_schema.pnc_study_summary_path  m
 using
   (
-    select pathsum.rowid as the_rowid, rootCount.totalRootCount,
-    rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, NVL(ROUND(pathSum.tx_stg_cnt/rootCount.totalRootCount * 100,2),0) percentage
+    select pathsum.%%physloc%% as the_rowid, rootCount.totalRootCount,
+    rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(pathSum.tx_stg_cnt/rootCount.totalRootCount * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
     where tx_path_parent_key is null and tx_rslt_version = 2
       and study_id = @studyId and source_id = @sourceId
@@ -98,7 +112,7 @@ using
   ) m1
   on
   (
-     m.rowid = m1.the_rowid
+     m.%%physloc%% = m1.the_rowid
   )
   WHEN MATCHED then update set m.tx_stg_percentage = m1.percentage;
 
@@ -106,24 +120,23 @@ delete from @results_schema.pnc_study_summary where study_id = @studyId and sour
 
 
 ---------------ms sql collapse/merge multiple rows to concatenate strings (JSON string for conceptsArrary and conceptsName) ------
-IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL
-  DROP TABLE #_pnc_smry_msql_cmb;
- 
-CREATE TABLE #_pnc_smry_msql_cmb
-(
-    pnc_tx_stg_cmb_id int,
-    conceptsArray varchar(4000),
-	conceptsName varchar(4000)
--- TODO: test this (4000 should be enough for one combo)
---    conceptsArray text,
---	conceptsName text    
-);
-
-insert into #_pnc_smry_msql_cmb (pnc_tx_stg_cmb_id, conceptsArray, conceptsName)
-select pnc_tx_stg_cmb_id,  conceptsArray, conceptsName 
+insert into @results_schema.@pnc_smry_msql_cmb (job_execution_id, pnc_tx_stg_cmb_id, concept_ids, conceptsArray, conceptsName)
+select @jobExecId, comb_id, concept_ids, conceptsArray, conceptsName 
 from
 (
-select distinct tab1.pnc_tx_stg_cmb_id,
+select distinct @jobExecId as jobExecId, tab1.pnc_tx_stg_cmb_id as comb_id,
+  STUFF((SELECT distinct CAST(tab2.concept_id as varchar(max)) + ','
+         from 
+         (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
+            from @results_schema.pnc_tx_stage_combination comb
+            join @results_schema.pnc_tx_stage_combination_map combMap 
+              on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
+              where comb.study_id = @studyId
+         ) tab2
+         where tab1.pnc_tx_stg_cmb_id = tab2.pnc_tx_stg_cmb_id
+            FOR XML PATH(''), TYPE
+            ).value('.', 'NVARCHAR(MAX)') 
+        ,1,0,'') as concept_ids,
   '[' + STUFF((SELECT distinct '{"innerConceptName":' + '"' + tab2.concept_name + '"' + 
     ',"innerConceptId":' + convert(varchar, tab2.concept_id) + '}'
          from 
@@ -136,7 +149,7 @@ select distinct tab1.pnc_tx_stg_cmb_id,
          where tab1.pnc_tx_stg_cmb_id = tab2.pnc_tx_stg_cmb_id
             FOR XML PATH(''), TYPE
             ).value('.', 'NVARCHAR(MAX)') 
-        ,1,0,'') +  ']' conceptsArray,
+        ,1,0,'') +  ']' as conceptsArray,
   STUFF((SELECT distinct tab2.concept_name + ','
          from 
          (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
@@ -148,7 +161,7 @@ select distinct tab1.pnc_tx_stg_cmb_id,
          where tab1.pnc_tx_stg_cmb_id = tab2.pnc_tx_stg_cmb_id
             FOR XML PATH(''), TYPE
             ).value('.', 'NVARCHAR(MAX)') 
-        ,1,0,'') conceptsName
+        ,1,0,'') as conceptsName
 from (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
         from @results_schema.pnc_tx_stage_combination comb
         join @results_schema.pnc_tx_stage_combination_map combMap 
@@ -156,77 +169,41 @@ from (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb
           where comb.study_id = @studyId) tab1
 ) studyCombo;
 
-
 -----------------generate rows of JSON (based on hierarchical data, without using oracle connect/level, each path is a row) insert into temp table----------------------
-IF OBJECT_ID('tempdb..#_pnc_smry_msql_indvdl_json', 'U') IS NOT NULL
-  DROP TABLE #_pnc_smry_msql_indvdl_json;
- 
-CREATE TABLE #_pnc_smry_msql_indvdl_json
-(
-    rnum float,
-    table_row_id int,
-	rslt_version int,
-	JSON text
-);
-
 
 -------------------------------version 1 insert into temp table----------------------------------------------
-insert into #_pnc_smry_msql_indvdl_json(rnum, table_row_id, rslt_version, JSON)
-select rnum, table_row_id, rslt_version, JSON 
-from
-(
-select allRoots.rnum rnum, 1 table_row_id, 1 rslt_version, 
-CASE 
-    WHEN rnum = 1 THEN '{"comboId": "root","children": [' + substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
-    ELSE JSON_SNIPPET
-END
-as JSON
-from 
-(
-  select 
-  rnum rnum,
-  CASE 
-    WHEN Lvl = 1 THEN ',{'
-    WHEN Lvl - LAG(Lvl) OVER (order by rnum) = 1 THEN ',"children" : [{' 
-    ELSE ',{' 
-  END 
-  + ' "comboId" : ' + combo_id + ' '
-  + ' ,"conceptName" : "' + concept_names + '" '  
-  + ' ,"patientCount" : ' + pt_count + ' '
-  + ' ,"percentage" : "' + pt_percentage + '" '  
-  + ' ,"avgDuration" : ' + avg_duration + ' '
-  + ',"concepts" : ' + combo_concepts 
-  + CASE WHEN Lvl > 1 THEN    
-        ',"parentConcept": { "parentConceptName": "' || parent_concept_names || '", '  
-        || '"parentConcepts":' || parent_combo_concepts   || '}'
-    ELSE  NULL
-    END 
-  + CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0 
-     THEN '}' + rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
-     ELSE NULL 
-  END as JSON_SNIPPET
-from 
-(
-   select 
-     smry.rnum                               as rnum
-    ,smry.tx_stg_cmb                           as combo_id
-    ,smry.tx_stg_cmb_pth                       as current_path
-    ,smry.tx_seq                               as path_seq
-    ,smry.tx_stg_avg_dr                        as avg_duration
-    ,smry.tx_stg_cnt                           as pt_count
-    ,smry.tx_stg_percentage                    as pt_percentage
-    ,concepts.conceptsName                as concept_names
-    ,concepts.conceptsArray               as combo_concepts
-    ,smry.lvl                                as Lvl
-    ,parentConcepts.conceptsName			 as parent_concept_names
-    ,parentConcepts.conceptsArray            as parent_combo_concepts
-  FROM 
-    (WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, depthOrder, parent_comb) AS (
+IF OBJECT_ID('tempdb..#pnc_tmp_smry', 'U') IS NOT NULL
+  DROP TABLE #pnc_tmp_smry;
+
+create table #pnc_tmp_smry(
+	rnum int, 
+	combo_id bigint,
+	current_path varchar(4000),
+	path_seq bigint,
+	avg_duration int, 
+	pt_count int, 
+	pt_percentage numeric(5, 2),
+	concept_names varchar(4000),
+	combo_concepts varchar(4000),
+	lvl int,
+	parent_concept_names varchar(4000),
+	parent_combo_concepts varchar(4000),
+	avg_gap int,
+	gap_pcnt numeric(5, 2),
+	uniqueConceptsName varchar(4000),
+	uniqueConceptsArray varchar(4000),
+	uniqueConceptCount int,
+	daysFromStart int
+);
+
+WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, 
+	tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, 
+	tx_stg_percentage, depthOrder, parent_comb) AS (
         SELECT 
-           pnc_stdy_smry_id, tx_path_parent_key,
+           pnc_stdy_smry_id as pnc_stdy_smry_id, tx_path_parent_key as tx_path_parent_key,
            1 AS lvl,
-           tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage
-           ,pnc_stdy_smry_id+'', null as parent_comb
+           tx_stg_cmb as tx_stg_cmb, tx_stg_cmb_pth as tx_stg_cmb_pth, tx_seq as tx_seq, tx_stg_avg_dr as tx_stg_avg_dr, tx_stg_cnt as tx_stg_cnt, tx_stg_percentage as tx_stg_percentage
+           ,CAST(pnc_stdy_smry_id AS varchar(max))+'' as depthOrder, CAST(null as varchar(255)) as parent_comb
           FROM   @results_schema.pnc_study_summary_path
         WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
               where 
@@ -236,105 +213,366 @@ from
               and tx_path_parent_key is null)
         UNION ALL
         SELECT 
-              t2.pnc_stdy_smry_id, t2.tx_path_parent_key,
-              lvl+1,
-              t2.tx_stg_cmb, t2.tx_stg_cmb_pth, t2.tx_seq, t2.tx_stg_avg_dr, t2.tx_stg_cnt, t2.tx_stg_percentage
-              ,depthOrder+'.'+t2.pnc_stdy_smry_id, t1.tx_stg_cmb
+              t2.pnc_stdy_smry_id as pnc_stdy_smry_id, t2.tx_path_parent_key as tx_path_parent_key,
+              t1.lvl+1 as lvl,
+              t2.tx_stg_cmb as tx_stg_cmb, t2.tx_stg_cmb_pth as tx_stg_cmb_pth, t2.tx_seq as tx_seq, t2.tx_stg_avg_dr as tx_stg_avg_dr, t2.tx_stg_cnt as tx_stg_cnt, t2.tx_stg_percentage as tx_stg_percentage
+              ,t1.depthOrder+'.'+CAST(t2.pnc_stdy_smry_id AS varchar(max)) as depthOrder, ISNULL(t1.tx_stg_cmb,'') as parent_comb
         FROM   @results_schema.pnc_study_summary_path t2, t1
         WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
       )
---      SEARCH DEPTH FIRST BY pnc_stdy_smry_id SET order1
-      SELECT row_number() over(order by depthOrder) as rnum, pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, depthOrder, parent_comb
-      FROM   t1
-      order by depthOrder) smry
---    order by order1) smry
-  join #_pnc_smry_msql_cmb concepts 
-  on concepts.pnc_tx_stg_cmb_id = smry.tx_stg_cmb
-  left join #_pnc_smry_msql_cmb parentConcepts 
-  on parentConcepts.pnc_tx_stg_cmb_id = smry.parent_comb  
-) connect_by_query
-order by rnum) allRoots
-union all
-select rnum as rnum, table_row_id as table_row_id, 1 rslt_version, ']}' as JSON from (
-	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
-) individualJsonRows;
+	  insert into #pnc_tmp_smry (rnum, combo_id, current_path, path_seq, avg_duration, pt_count, pt_percentage,	concept_names, combo_concepts, lvl,	parent_concept_names, parent_combo_concepts)
+      SELECT row_number() over(order by depthOrder) as rnum, 
+		tx_stg_cmb as combo_id, 
+		tx_stg_cmb_pth as current_path,
+		tx_seq as path_seq,
+		tx_stg_avg_dr as avg_duration,
+		tx_stg_cnt as pt_count,
+		tx_stg_percentage as pt_percentage,
+	    concepts.conceptsName                as concept_names,
+		concepts.conceptsArray               as combo_concepts,
+		lvl as lvl,
+	    parentConcepts.conceptsName			 as parent_concept_names,
+		parentConcepts.conceptsArray            as parent_combo_concepts
+      FROM t1
+  join @results_schema.@pnc_smry_msql_cmb concepts 
+  on concepts.pnc_tx_stg_cmb_id = t1.tx_stg_cmb
+  and concepts.job_execution_id = @jobExecId
+  left join @results_schema.@pnc_smry_msql_cmb parentConcepts 
+  on parentConcepts.pnc_tx_stg_cmb_id = t1.parent_comb
+  and parentConcepts.job_execution_id = @jobExecId
+  order by depthOrder;
 
--------------------------------------version 1 into summary table-------------------------------------
-insert into @results_schema.pnc_study_summary (study_id, source_id, study_results)
-select @studyId, @sourceId, JSON from (
-	select distinct t1.table_row_id,
-  	STUFF((SELECT distinct '' + t2.JSON
-    	     from #_pnc_smry_msql_indvdl_json t2
-        	 where t1.table_row_id = t2.table_row_id
-            	FOR XML PATH(''), TYPE
-	            ).value('.', 'NVARCHAR(MAX)') 
-    	    ,1,0,'') json
-	from #_pnc_smry_msql_indvdl_json t1
-	where t1.rslt_version = 1
-	order by t1.rnum
-) mergeJsonRowsTable;
+  
 
-----------------------------------version 2 into temp table ------------------------------------------
-insert into #_pnc_smry_msql_indvdl_json(rnum, table_row_id, rslt_version, JSON)
-select rnum, table_row_id, rslt_version, JSON 
+insert into @results_schema.@pnc_indv_jsn(job_execution_id, rnum, table_row_id, rslt_version, JSON)
+select @jobExecId as jobExecId, rnum as rnum, table_row_id as table_row_id, rslt_version as rslt_version, JSON as JSON
 from
 (
-select allRoots.rnum rnum, 1 table_row_id, 2 rslt_version, 
+select allRoots.rnum as rnum, cast(1 as bigint) as table_row_id, 1 as rslt_version, 
 CASE 
-    WHEN rnum = 1 THEN '{"comboId": "root","children": [' + substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
+    WHEN rnum = 1 THEN '{"comboId": "root","children": [' + substring(JSON_SNIPPET, 2, len(JSON_SNIPPET))
     ELSE JSON_SNIPPET
 END
 as JSON
 from 
 (
   select 
-  rnum rnum,
+  rnum as rnum,
   CASE 
     WHEN Lvl = 1 THEN ',{'
     WHEN Lvl - LAG(Lvl) OVER (order by rnum) = 1 THEN ',"children" : [{' 
     ELSE ',{' 
-  END
-  + ' "comboId" : ' + combo_id + ' '
+  END 
+  + ' "comboId" : ' + cast(combo_id as varchar(max))+ ' '
   + ' ,"conceptName" : "' + concept_names + '" '  
-  + ' ,"patientCount" : ' + pt_count + ' '
-  + ' ,"percentage" : "' + pt_percentage + '" '  
-  + ' ,"avgDuration" : ' + avg_duration + ' '
-  + ' ,"avgGapDay" : ' + avg_gap + ' '
-  + ' ,"gapPercent" : "' + gap_pcnt + '" '  
+  + ' ,"patientCount" : ' + cast(pt_count as varchar(max))+ ' '
+  + ' ,"percentage" : "' + cast(pt_percentage as varchar(max)) + '" '  
+  + ' ,"avgDuration" : ' + cast(avg_duration as varchar(max)) + ' '
   + ',"concepts" : ' + combo_concepts 
   + CASE WHEN Lvl > 1 THEN    
-        ',"parentConcept": { "parentConceptName": "' || parent_concept_names || '", '  
-        || '"parentConcepts":' || parent_combo_concepts   || '}'
-    ELSE  NULL
+        ',"parentConcept": { "parentConceptName": "' + parent_concept_names + '", '  
+        + '"parentConcepts":' + parent_combo_concepts   + '}'
+    ELSE cast(NULL as varchar(max))
     END 
-  + CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0 
-     THEN '}' + rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
-     ELSE NULL 
+  + CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0
+--sql server: simplify without rpad... no formatting here
+--     THEN '}' + rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
+     THEN '}' + ']}'
+     ELSE cast(NULL as varchar(max))
   END as JSON_SNIPPET
-from 
-(
-  SELECT 
-     smry.rnum                               as rnum
-    ,smry.tx_stg_cmb                           as combo_id
-    ,smry.tx_stg_cmb_pth                       as current_path
-    ,smry.tx_seq                               as path_seq
-    ,smry.tx_stg_avg_dr                        as avg_duration
-    ,smry.tx_stg_avg_gap                       as avg_gap
-    ,NVL(ROUND(smry.tx_stg_avg_gap/smry.tx_stg_avg_dr * 100,2),0)   as gap_pcnt
-    ,smry.tx_stg_cnt                           as pt_count
-    ,smry.tx_stg_percentage                    as pt_percentage
-    ,concepts.conceptsName                as concept_names
-    ,concepts.conceptsArray               as combo_concepts
-    ,smry.lvl                                as Lvl
-    ,parentConcepts.conceptsName			 as parent_concept_names
-    ,parentConcepts.conceptsArray            as parent_combo_concepts
-  FROM 
-    (WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap, depthOrder, parent_comb) AS (
+from #pnc_tmp_smry connect_by_query
+) allRoots
+union all
+select lastRow.rnum as rnum, lastRow.table_row_id as table_row_id, 1 as rslt_version, ']}' as JSON from (
+	select distinct 1000000000 as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path) lastRow
+) allRootsAndLastPadding;
+
+-------------------------------------version 1 into summary table-------------------------------------
+insert into @results_schema.pnc_study_summary (study_id, source_id, study_results)
+select @studyId, @sourceId, JSON from (
+	select distinct row_number() over(order by t1.rnum) as rnum, t1.table_row_id,
+  	STUFF((SELECT distinct '' + t2.JSON
+    	     from @results_schema.@pnc_indv_jsn t2
+        	 where t1.table_row_id = t2.table_row_id
+				and t2.rslt_version = 2
+				and t2.job_execution_id = @jobExecId
+            	FOR XML PATH(''), TYPE
+	            ).value('.', 'NVARCHAR(MAX)') 
+    	    ,1,0,'') json
+	from @results_schema.@pnc_indv_jsn t1
+	where t1.rslt_version = 1
+	and t1.job_execution_id = @jobExecId
+) mergeJsonRowsTable;
+
+
+------------------try unique path here-----------------
+WITH t1(combo_id, current_path, pnc_stdy_smry_id, parent_key, modified_path, Lvl, depthOrder) AS (
         SELECT 
-           pnc_stdy_smry_id, tx_path_parent_key,
+          tx_stg_cmb                            as combo_id
+          ,tx_stg_cmb_pth                       as current_path
+          ,pnc_stdy_smry_id                     as pnc_stdy_smry_id
+          ,tx_path_parent_key                   as parent_key
+          ,cast(tx_stg_cmb as varchar(max))                           as modified_path
+          ,1                                    as Lvl
+          ,cast(pnc_stdy_smry_id AS varchar(max))+''                 as depthOrder
+          FROM   @results_schema.pnc_study_summary_path
+  		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
+        where 
+	        study_id = @studyId
+    	    and source_id = @sourceId
+        	and tx_rslt_version = 2
+	        and tx_path_parent_key is null)
+        UNION ALL
+        SELECT 
+          t2.tx_stg_cmb                           as combo_id
+          ,t2.tx_stg_cmb_pth                       as current_path
+          ,t2.pnc_stdy_smry_id                     as pnc_stdy_smry_id
+          ,t2.tx_path_parent_key                   as parent_key
+          ,cast(t1.modified_path as varchar(max))+'>'+cast(t2.tx_stg_cmb as varchar(max))       as modified_path
+          ,lvl+1                                as Lvl
+          ,t1.depthOrder+'.'+cast(t2.pnc_stdy_smry_id AS varchar(max)) as depthOrder
+        FROM    @results_schema.pnc_study_summary_path t2, t1
+        WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
+      )
+	 insert into @results_schema.@pnc_unq_trtmt(job_execution_id, rnum, pnc_stdy_smry_id, path_cmb_ids)
+	 select @jobExecId, row_number() over(order by depthOrder) as rnum, pnc_stdy_smry_id as pnc_stdy_smry_id, modified_path as modified_path
+	 from t1
+order by depthOrder;
+
+--update path_unique_treatment for current path unit concpetIds
+WITH t1(combo_id, current_path, pnc_stdy_smry_id, parent_key, modified_path, modified_concepts, Lvl, depthOrder) AS (
+        SELECT 
+          rootPath.tx_stg_cmb                            as combo_id
+          ,tx_stg_cmb_pth                       as current_path
+          ,pnc_stdy_smry_id                     as pnc_stdy_smry_id
+          ,tx_path_parent_key                   as parent_key
+          ,cast(tx_stg_cmb as varchar(max))                           as modified_path
+          ,cast(comb.concept_ids as varchar(max))                     as modified_concepts
+          ,1                                    as Lvl
+          ,cast(pnc_stdy_smry_id as varchar(max))+''                 as depthOrder
+          FROM @results_schema.pnc_study_summary_path rootPath
+          join @results_schema.@pnc_smry_msql_cmb comb
+          on rootPath.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
+          and comb.job_execution_id = @jobExecId
+  		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
+        where 
+	        study_id = @studyId
+    	    and source_id = @sourceId
+        	and tx_rslt_version = 2
+	        and tx_path_parent_key is null)
+        UNION ALL
+        SELECT 
+          t2.tx_stg_cmb                           as combo_id
+          ,t2.tx_stg_cmb_pth                       as current_path
+          ,t2.pnc_stdy_smry_id                     as pnc_stdy_smry_id
+          ,t2.tx_path_parent_key                   as parent_key
+          ,t1.modified_path+'>'+cast(t2.tx_stg_cmb as varchar(max))       as modified_path
+--this case clause simplify caltulation of duplicate concept_ids by just assert if concept_ids string already in parents ids ',id1,id2,id3,'
+--compare path too: if previous path contains current path combo '>combo_id>', no need to append again
+--concepts_ids in #_pnc_smry_msql_cmb.concept_ids should help
+          ,
+          CASE 
+		     WHEN CHARINDEX(modified_concepts, ',' + comb.concept_ids + ',') > 0
+    		 or CHARINDEX(modified_path, '>' + t2.tx_stg_cmb + '>') > 0
+		     THEN modified_concepts
+    		 ELSE modified_concepts+','+cast(comb.concept_ids as varchar(max))
+		  END
+												as modified_concepts
+          ,lvl+1                                as Lvl
+          ,depthOrder+'.'+cast(t2.pnc_stdy_smry_id as varchar(max)) as depthOrder
+        FROM (@results_schema.pnc_study_summary_path t2
+        join @results_schema.@pnc_smry_msql_cmb comb
+        on t2.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
+        and comb.job_execution_id = @jobExecId), t1
+        WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
+      )
+	  merge into @results_schema.@pnc_unq_trtmt m
+	  using
+	  (
+	  SELECT row_number() over(order by depthOrder) as rnum, combo_id, modified_path, modified_concepts, lvl, current_path, pnc_stdy_smry_id, parent_key, depthOrder
+      FROM   t1
+--sql server change: no order by here... need test...
+--order by depthOrder
+	  ) m1
+on
+(
+  m1.pnc_stdy_smry_id = m.pnc_stdy_smry_id
+  and m.job_execution_id = @jobExecId
+)
+WHEN MATCHED then update set m.path_unique_treatment = m1.modified_concepts;
+
+--split conceptIds with "," from #_pnc_unq_trtmt per smry_id and insert order by lastPos (which is used as the order of the concepts in the path)
+WITH splitter_cte(smry_id, origin, pos, lastPos) AS (
+      SELECT 
+        pnc_stdy_smry_id smry_id,
+        path_unique_treatment as origin,
+        CHARINDEX(path_unique_treatment, ',') as pos, 
+        0 as lastPos
+      from @results_schema.@pnc_unq_trtmt
+      where job_execution_id = @jobExecId
+      UNION ALL
+      SELECT 
+        smry_id as smry_id,
+        origin as origin, 
+        CHARINDEX(origin, ',', pos + 1) as pos, 
+        pos as lastPos
+      FROM splitter_cte
+      WHERE pos > 0
+    )
+insert into @results_schema.@pnc_unq_pth_id (job_execution_id, pnc_tx_smry_id, concept_id, concept_order)
+SELECT 
+	  @jobExecId,
+      smry_id, 
+--      origin, 
+      SUBSTRING(origin, lastPos + 1,
+        case when pos = 0 then 80000
+        else pos - lastPos -1 end) as ids,
+--      pos,
+      lastPos
+    FROM splitter_cte
+--try this (need more test): for order by conceptId for keep uniquenes of concept namesl like "Warfrin,Asparin" or "Asprin,Warfrin"
+--    order by smry_id, lastPos) coneptIds;
+    order by smry_id, ids;
+
+--delete duplicate concept_id per smry_id in the path if it's not the first on in the path by min(concept_order)
+delete from @results_schema.@pnc_unq_pth_id 
+where %%physloc%% in (select conceptIds.%%physloc%% from @results_schema.@pnc_unq_pth_id conceptIds, 
+  (select pnc_tx_smry_id, concept_id, min(concept_order) as concept_order
+    from @results_schema.@pnc_unq_pth_id
+    where job_execution_id = @jobExecId
+    group by pnc_tx_smry_id, concept_id
+  ) uniqueIds
+where
+  conceptIds.pnc_tx_smry_id = uniqueIds.pnc_tx_smry_id
+  and conceptIds.concept_id = uniqueIds.concept_id
+  and conceptIds.concept_order != uniqueIds.concept_order
+  and conceptIds.job_execution_id = @jobExecId
+)
+and job_execution_id = @jobExecId;
+
+--update conceptsArray and conceptName JSON by join concept table
+merge into @results_schema.@pnc_unq_pth_id m
+using
+(
+	select path1.pnc_tx_smry_id,
+    '[' + STUFF((SELECT distinct '{"innerConceptName":' + '"' + path2.concept_name + '"' + 
+    ',"innerConceptId":' + convert(varchar, path2.concept_id) + ']'
+         from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
+			concepts.concept_name as concept_name
+			from @results_schema.@pnc_unq_pth_id path
+			join @cdm_schema.concept concepts
+			on path.concept_id = concepts.concept_id
+			where path.job_execution_id = @jobExecId
+		) path2
+         where path1.pnc_tx_smry_id = path2.pnc_tx_smry_id
+            FOR XML PATH(''), TYPE
+            ).value('.', 'NVARCHAR(MAX)') 
+        ,1,0,'') +  ']' as conceptsArray,
+	STUFF((SELECT distinct path2.concept_name + ','
+         from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
+			concepts.concept_name as concept_name
+			from @results_schema.@pnc_unq_pth_id path
+			join @cdm_schema.concept concepts
+			on path.concept_id = concepts.concept_id
+			where path.job_execution_id = @jobExecId
+		) path2
+         where path1.pnc_tx_smry_id = path2.pnc_tx_smry_id
+            FOR XML PATH(''), TYPE
+            ).value('.', 'NVARCHAR(MAX)')  
+        ,1,0,'') as conceptsName
+	from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
+		concepts.concept_name as concept_name
+		from @results_schema.@pnc_unq_pth_id path
+		join @cdm_schema.concept concepts
+		on path.concept_id = concepts.concept_id
+		where path.job_execution_id = @jobExecId
+	) path1
+	group by pnc_tx_smry_id
+) m1
+on
+(
+  m.pnc_tx_smry_id = m1.pnc_tx_smry_id
+  and m.job_execution_id = @jobExecId
+)
+WHEN MATCHED then update set m.conceptsArray = m1.conceptsArray,
+ m.conceptsName = m1.conceptsName;
+-- ,m.concept_count = m1.conceptCount;
+ 
+merge into @results_schema.@pnc_unq_pth_id m
+using
+(
+	select path1.pnc_tx_smry_id,
+    count(distinct concepts.concept_id) conceptCount
+    from @results_schema.@pnc_unq_pth_id path1
+    join @cdm_schema.concept concepts
+    on path1.concept_id = concepts.concept_id
+    where path1.job_execution_id = @jobExecId
+    group by path1.pnc_tx_smry_id
+) m1
+on
+(
+  m.pnc_tx_smry_id = m1.pnc_tx_smry_id
+  and m.job_execution_id = @jobExecId
+)
+WHEN MATCHED then update set m.concept_count = m1.conceptCount;
+
+
+--delete duplicat smry_id rows (now we have smry_id with it's unique concepts conceptsArray and conceptsName)
+delete from @results_schema.@pnc_unq_pth_id 
+where %%physloc%% in (select conceptIds.%%physloc%% from @results_schema.@pnc_unq_pth_id conceptIds, 
+  (select pnc_tx_smry_id, min(concept_order) as concept_order
+    from @results_schema.@pnc_unq_pth_id
+    where job_execution_id = @jobExecId
+    group by pnc_tx_smry_id
+  ) uniqueIds
+where
+  conceptIds.pnc_tx_smry_id = uniqueIds.pnc_tx_smry_id
+  and conceptIds.concept_order != uniqueIds.concept_order
+  and conceptIds.job_execution_id = @jobExecId
+)
+and job_execution_id = @jobExecId;
+
+--------------------version 2----------------------------------------------
+--IF OBJECT_ID('tempdb..#pnc_tmp_smry', 'U') IS NOT NULL
+--  DROP TABLE #pnc_tmp_smry;
+
+--create table #pnc_tmp_smry(
+--	rnum int, 
+--	combo_id bigint,
+--	current_path varchar(4000),
+--	path_seq bigint,
+--	avg_duration int, 
+--	pt_count int, 
+--	pt_percentage numeric(5, 2),
+--	concept_names varchar(4000),
+--	combo_concepts varchar(4000),
+--	lvl int,
+--	parent_concept_names varchar(4000),
+--	parent_combo_concepts varchar(4000)
+--);
+----------------------------------version 2 into temp table ------------------------------------------
+--    ,uniqueConcepts.conceptsName		  as uniqueConceptsName
+--    ,uniqueConcepts.conceptsArray		  as uniqueConceptsArray
+--    ,uniqueConcepts.concept_count		  as uniqueConceptCount    
+--smry.tx_avg_frm_strt				  as daysFromStart
+
+--    ,tx_stg_avg_gap                       as avg_gap
+--    ,NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0)   as gap_pcnt
+
+delete from #pnc_tmp_smry;
+
+WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, 
+	tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, 
+	tx_stg_percentage, tx_stg_avg_gap, depthOrder, parent_comb, daysFromStart) AS (
+	    SELECT 
+           pnc_stdy_smry_id as pnc_stdy_smry_id, tx_path_parent_key as tx_path_parent_key,
            1 AS lvl,
-           tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap
-           ,pnc_stdy_smry_id+'', null as parent_comb
+           tx_stg_cmb as tx_stg_cmb, tx_stg_cmb_pth as tx_stg_cmb_pth, tx_seq as tx_seq, tx_stg_avg_dr as tx_stg_avg_dr, tx_stg_cnt as tx_stg_cnt,
+           tx_stg_percentage as tx_stg_percentage
+           ,tx_stg_avg_gap as  tx_stg_avg_gap
+           ,CAST(pnc_stdy_smry_id AS varchar(max))+'' as depthOrder, 
+           CAST(null as varchar(255)) as parent_comb
+           ,tx_avg_frm_strt				  as daysFromStart
           FROM   @results_schema.pnc_study_summary_path
         WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
               where 
@@ -344,43 +582,163 @@ from
               and tx_path_parent_key is null)
         UNION ALL
         SELECT 
-              t2.pnc_stdy_smry_id, t2.tx_path_parent_key,
-              lvl+1,
-              t2.tx_stg_cmb, t2.tx_stg_cmb_pth, t2.tx_seq, t2.tx_stg_avg_dr, t2.tx_stg_cnt, t2.tx_stg_percentage, t2.tx_stg_avg_gap
-              ,depthOrder+'.'+t2.pnc_stdy_smry_id, t1.tx_stg_cmb
+              t2.pnc_stdy_smry_id as pnc_stdy_smry_id, t2.tx_path_parent_key as tx_path_parent_key,
+              t1.lvl+1 as lvl,
+              t2.tx_stg_cmb as tx_stg_cmb, t2.tx_stg_cmb_pth as tx_stg_cmb_pth, t2.tx_seq as tx_seq, t2.tx_stg_avg_dr as tx_stg_avg_dr, 
+              t2.tx_stg_cnt as tx_stg_cnt, t2.tx_stg_percentage as tx_stg_percentage
+              ,t2.tx_stg_avg_gap as tx_stg_avg_gap 
+              ,t1.depthOrder+'.'+CAST(t2.pnc_stdy_smry_id AS varchar(max)) as depthOrder, ISNULL(t1.tx_stg_cmb,'') as parent_comb
+              ,t2.tx_avg_frm_strt				  as daysFromStart
         FROM   @results_schema.pnc_study_summary_path t2, t1
         WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
       )
---      SEARCH DEPTH FIRST BY pnc_stdy_smry_id SET order1
-      SELECT row_number() over(order by depthOrder) as rnum, pnc_stdy_smry_id, tx_path_parent_key, lvl, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_gap, depthOrder, parent_comb
-      FROM   t1
-      order by depthOrder) smry
---    order by order1) smry
-  join #_pnc_smry_msql_cmb concepts 
-  on concepts.pnc_tx_stg_cmb_id = smry.tx_stg_cmb
-  left join #_pnc_smry_msql_cmb parentConcepts 
-  on parentConcepts.pnc_tx_stg_cmb_id = smry.parent_comb  
-) connect_by_query
-order by rnum) allRoots
+	  insert into #pnc_tmp_smry (rnum, combo_id, current_path, path_seq, avg_duration, pt_count, pt_percentage,	concept_names, 
+	  	combo_concepts, lvl, parent_concept_names, parent_combo_concepts,
+		avg_gap, gap_pcnt, uniqueConceptsName, uniqueConceptsArray, uniqueConceptCount, daysFromStart)
+      SELECT row_number() over(order by depthOrder) as rnum, 
+		tx_stg_cmb as combo_id, 
+		tx_stg_cmb_pth as current_path,
+		tx_seq as path_seq,
+		tx_stg_avg_dr as avg_duration,
+		tx_stg_cnt as pt_count,
+		tx_stg_percentage as pt_percentage,
+	    concepts.conceptsName as concept_names,
+		concepts.conceptsArray as combo_concepts,
+		lvl as lvl,
+	    parentConcepts.conceptsName as parent_concept_names,
+		parentConcepts.conceptsArray as parent_combo_concepts
+    	,tx_stg_avg_gap                       as avg_gap
+    	,isnull(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0)   as gap_pcnt
+    	,uniqueConcepts.conceptsName		  as uniqueConceptsName
+    	,uniqueConcepts.conceptsArray		  as uniqueConceptsArray
+    	,uniqueConcepts.concept_count		  as uniqueConceptCount    
+		,daysFromStart	   					  as daysFromStart
+      FROM t1
+	  join @results_schema.@pnc_smry_msql_cmb concepts 
+	  on concepts.pnc_tx_stg_cmb_id = t1.tx_stg_cmb
+  	  and concepts.job_execution_id = @jobExecId
+  	  left join @results_schema.@pnc_smry_msql_cmb parentConcepts 
+  	  on parentConcepts.pnc_tx_stg_cmb_id = t1.parent_comb
+  	  and parentConcepts.job_execution_id = @jobExecId
+	  join (select pnc_tx_smry_id, conceptsName, conceptsArray, concept_count from @results_schema.@pnc_unq_pth_id where job_execution_id = @jobExecId) uniqueConcepts
+	  on uniqueConcepts.pnc_tx_smry_id = t1.pnc_stdy_smry_id  	  
+  	  order by depthOrder;
+
+insert into @results_schema.@pnc_indv_jsn(job_execution_id, rnum, table_row_id, rslt_version, JSON)
+select @jobExecId as jobExecId, rnum as rnum, table_row_id as table_row_id, rslt_version as rslt_version, JSON as JSON
+from
+(
+select allRoots.rnum as rnum, cast(1 as bigint) as table_row_id, 2 as rslt_version, 
+CASE 
+--	WHEN rnum = 1 THEN '{"comboId": "root","children": [' + substring(JSON_SNIPPET, 2, len(JSON_SNIPPET))
+--    ELSE JSON_SNIPPET
+    WHEN rnum = 1 THEN '{"comboId": "root"' 
+    + ',"totalCountFirstTherapy":'
+    + (select sum(tx_stg_cnt) from @results_schema.pnc_study_summary_path 
+    	where study_id = @studyId 
+    	and source_id = @sourceId
+        and tx_path_parent_key is null
+        and tx_seq = 1
+        and tx_rslt_version = 2)
+    + ',"totalCohortCount":'
+    + (select count( distinct subject_id) from @ohdsi_schema.cohort
+        where cohort_definition_id = (select cohort_definition_id from 
+        @results_schema.panacea_study 
+        where study_id = @studyId))
+    + ',"firstTherapyPercentage":'
+    + (select isnull(ROUND(firstCount.firstCount/cohortTotal.cohortTotal * 100,2),0) firstTherrapyPercentage from 
+        (select sum(tx_stg_cnt) as firstCount from @results_schema.pnc_study_summary_path 
+        where study_id = @studyId 
+        and source_id = @sourceId
+        and tx_path_parent_key is null
+        and tx_seq = 1
+        and tx_rslt_version = 2) firstCount,  
+        (select count( distinct subject_id) as cohortTotal from @ohdsi_schema.cohort
+        where cohort_definition_id = (select cohort_definition_id from 
+        @results_schema.panacea_study 
+        where study_id = @studyId)) cohortTotal)
+    +',"children": [' 
+    + substring(JSON_SNIPPET, 2, len(JSON_SNIPPET))
+    ELSE JSON_SNIPPET
+END
+as JSON
+from 
+(
+  select 
+  rnum as rnum,
+  CASE 
+    WHEN Lvl = 1 THEN ',{'
+    WHEN Lvl - LAG(Lvl) OVER (order by rnum) = 1 THEN ',"children" : [{' 
+    ELSE ',{' 
+  END 
+  + ' "comboId" : ' + cast(combo_id as varchar(max))+ ' '
+  + ' ,"conceptName" : "' + concept_names + '" '  
+  + ' ,"patientCount" : ' + cast(pt_count as varchar(max))+ ' '
+  + ' ,"percentage" : "' + cast(pt_percentage as varchar(max)) + '" '  
+  + ' ,"avgDuration" : ' + cast(avg_duration as varchar(max)) + ' '
+  + ' ,"avgGapDay" : ' + cast(avg_gap as varchar(max)) + ' '
+  + ' ,"gapPercent" : "' + cast(gap_pcnt as varchar(max))+ '" '
+  + ' ,"daysFromCohortStart" : ' + cast(daysFromStart as varchar(max)) + ' '
+  + ',"concepts" : ' + combo_concepts 
+  + ',"uniqueConceptsName" : "' + uniqueConceptsName + '" '
+  + ',"uniqueConceptsArray" : ' + uniqueConceptsArray
+  + ' ,"uniqueConceptCount" : ' + cast(uniqueConceptCount as varchar(max))+ ' '
+  + CASE WHEN Lvl > 1 THEN    
+        ',"parentConcept": { "parentConceptName": "' + parent_concept_names + '", '  
+        + '"parentConcepts":' + parent_combo_concepts   + '}'
+    ELSE cast(NULL as varchar(max))
+    END 
+   + CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0
+--sql server: simplify without rpad... no formatting here
+--     THEN '}' || rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
+     THEN '}' + ']}'
+     ELSE cast(NULL as varchar(max))
+  END as JSON_SNIPPET
+from #pnc_tmp_smry connect_by_query
+) allRoots
 union all
-select rnum as rnum, table_row_id as table_row_id, 2 rslt_version, ']}' as JSON from (
-	select distinct 1/0F as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path)
-) individualJsonRows;
-
-
+select lastRow.rnum as rnum, lastRow.table_row_id as table_row_id, 1 as rslt_version, ']}' as JSON from (
+	select distinct 1000000000 as rnum, 1 as table_row_id from @results_schema.pnc_study_summary_path) lastRow
+) allRootsAndLastPadding;
+  	  
 -------------------------------------version 2 into summary table-------------------------------------
-update @results_schema.pnc_study_summary set study_results_2 = ( select JSON from (
-select @studyId, @sourceId, JSON from (
-	select distinct t1.table_row_id,
+--merge into @results_schema.pnc_study_summary m
+--using
+--(
+--	select 1 as rnum, 2 as table_row_id, json from (
+--	select distinct row_number() over(order by t1.rnum) as rnum, t1.table_row_id as table_row_id,
+--  	STUFF((SELECT distinct '' + t2.JSON
+--    	     from @pnc_indv_jsn t2
+--        	 where t1.table_row_id = t2.table_row_id
+--        	 and t2.rslt_version = 2
+--			 and t2.job_execution_id = @jobExecId
+--            	FOR XML PATH(''), TYPE
+--	            ).value('.', 'NVARCHAR(MAX)') 
+--    	    ,1,0,'') as json
+--	from @pnc_indv_jsn t1
+--	where t1.rslt_version = 2
+--	and t1.job_execution_id = @jobExecId) oneJson
+--) m1
+--on
+--(
+--  m.study_id = @studyId and m.source_id = @sourceId
+--)
+--WHEN MATCHED THEN UPDATE SET m.study_results_2 = m1.json, m.last_update_time = CURRENT_TIMESTAMP;
+
+UPDATE @results_schema.pnc_study_summary set study_results_2 = m1.json, last_update_time = CURRENT_TIMESTAMP
+FROM
+	(select 1 as rnum, 2 as table_row_id, json from (
+	select distinct row_number() over(order by t1.rnum) as rnum, t1.table_row_id as table_row_id,
   	STUFF((SELECT distinct '' + t2.JSON
-    	     from #_pnc_smry_msql_indvdl_json t2
+    	     from @results_schema.@pnc_indv_jsn t2
         	 where t1.table_row_id = t2.table_row_id
+        	 and t2.rslt_version = 2
+			 and t2.job_execution_id = @jobExecId
             	FOR XML PATH(''), TYPE
 	            ).value('.', 'NVARCHAR(MAX)') 
-    	    ,1,0,'') json
-	from #_pnc_smry_msql_indvdl_json t1
+    	    ,1,0,'') as json
+	from @results_schema.@pnc_indv_jsn t1
 	where t1.rslt_version = 2
-	order by t1.rnum
-) mergeJsonRowsTable) mergedJson),
-last_update_time = CURRENT_TIMESTAMP 
-where study_id = @studyId and source_id = @sourceId;
+	and t1.job_execution_id = @jobExecId) oneJson
+	) m1
+WHERE study_id = @studyId and source_id = @sourceId;
