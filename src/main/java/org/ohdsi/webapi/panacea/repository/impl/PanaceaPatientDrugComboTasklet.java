@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.persistence.EntityManager;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -37,6 +39,7 @@ import org.ohdsi.webapi.helper.ResourceHelper;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
+import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationMapRepository;
 import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationRepository;
 import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.scope.context.ChunkContext;
@@ -60,6 +63,8 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     
     private final PanaceaStageCombinationRepository pncStageCombinationRepository;
     
+    private final PanaceaStageCombinationMapRepository pncStageCombinationMapRepository;
+    
     private static final int String = 0;
     
     private static final int List = 0;
@@ -68,12 +73,16 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     
     private TransactionTemplate transactionTemplate;
     
+    // @PersistenceContext
+    // @Autowired
+    private final EntityManager entityManager;
+    
     private final PanaceaStudy pncStudy;
     
-    //key-- comboIds concatenated with "|"
+    // key-- comboIds concatenated with "|"
     private final Map<String, PanaceaStageCombination> pncStgComboMap = new HashMap<String, PanaceaStageCombination>();
     
-    //concept--comboId
+    // concept--comboId
     private final Map<String, Long> pncStgSingleConceptComboMap = new HashMap<String, Long>();
     
     private final Comparator patientStageCombinationCountDateComparator = new Comparator<PatientStageCombinationCount>() {
@@ -94,12 +103,15 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
      * @param pncStudy
      */
     public PanaceaPatientDrugComboTasklet(final JdbcTemplate jdbcTemplate, final TransactionTemplate transactionTemplate,
-        final PanaceaStudy pncStudy, final PanaceaStageCombinationRepository pncStageCombinationRepository) {
+        final PanaceaStudy pncStudy, final PanaceaStageCombinationRepository pncStageCombinationRepository,
+        final PanaceaStageCombinationMapRepository pncStageCombinationMapRepository, final EntityManager em) {
         super();
         this.jdbcTemplate = jdbcTemplate;
         this.transactionTemplate = transactionTemplate;
         this.pncStudy = pncStudy;
         this.pncStageCombinationRepository = pncStageCombinationRepository;
+        this.pncStageCombinationMapRepository = pncStageCombinationMapRepository;
+        this.entityManager = em;
     }
     
     /**
@@ -117,6 +129,29 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             
             final int switchWindow = new Integer((String) jobParams.get("switchWindow")).intValue();
             final int ptCountThreshold = 400;
+            
+            /**
+             * sql server workaround (hibernate does not support sequence for sql server dialect.
+             * Cause id always 0 for saved/persistent objects. That cases same session multiple
+             * objects with the same id exceptions
+             */
+            final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
+            final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+            final String sourceDialect = (String) jobParams.get("sourceDialect");
+            final String sourceId = (String) jobParams.get("sourceId");
+            
+            if ("sql server".equalsIgnoreCase(sourceDialect)) {
+                String mssqlCreateTempSeqTableSql = "create table #pnc_tmp_mssql_seq_id(nextcombid bigint); \n";
+                final String[] mssqlCreateTempSeqTableParams = new String[] {};
+                final String[] mssqlCreateTempSeqTableValues = new String[] {};
+                
+                mssqlCreateTempSeqTableSql = SqlRender.renderSql(mssqlCreateTempSeqTableSql, mssqlCreateTempSeqTableParams,
+                    mssqlCreateTempSeqTableValues);
+                mssqlCreateTempSeqTableSql = SqlTranslate.translateSql(mssqlCreateTempSeqTableSql, "sql server",
+                    sourceDialect, null, resultsTableQualifier);
+                
+                this.batchUpdate(mssqlCreateTempSeqTableSql);
+            }
             
             if ((allDistinctPersonId != null) && (allDistinctPersonId.size() > 0)) {
                 final Iterator<String> ptIdIter = allDistinctPersonId.iterator();
@@ -153,10 +188,13 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         
                         log.debug("PanaceaPatientDrugComboTasklet.execute, returned size -- " + patientStageCountList.size());
                         
-                        //                        final List<PatientStageCombinationCount> calculatedOverlappingPSCCList = mergeComboOverlapWindow(
-                        //                            patientStageCountList, switchWindow, jobParams);
-                        //                        
-                        //                        persistentPatientStageCombinationCount(calculatedOverlappingPSCCList, jobParams);
+                        // final List<PatientStageCombinationCount>
+                        // calculatedOverlappingPSCCList =
+                        // mergeComboOverlapWindow(
+                        // patientStageCountList, switchWindow, jobParams);
+                        //
+                        // persistentPatientStageCombinationCount(calculatedOverlappingPSCCList,
+                        // jobParams);
                         
                         final Map<Integer, List<PatientStageCombinationCount>> calculatedOverlappingPSCCMap = mergeComboOverlapWindow(
                             patientStageCountList, switchWindow, jobParams);
@@ -198,11 +236,11 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
         } catch (final Exception e) {
             e.printStackTrace();
             
-            //TODO -- consider this bad? and terminate the job?
-            //return RepeatStatus.CONTINUABLE;
+            // TODO -- consider this bad? and terminate the job?
+            // return RepeatStatus.CONTINUABLE;
             return RepeatStatus.FINISHED;
         } finally {
-            //TODO
+            // TODO
             final DefaultTransactionDefinition completeTx = new DefaultTransactionDefinition();
             completeTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
             final TransactionStatus completeStatus = this.transactionTemplate.getTransactionManager().getTransaction(
@@ -242,11 +280,12 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     
     private String getSql(final Map<String, Object> jobParams, final ChunkContext chunkContext,
                           final String allDistinctPersonIdStr) {
-        //String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/getPersonIds.sql");
-        //sql server temp table workaround...
+        // String sql =
+        // ResourceHelper.GetResourceAsString("/resources/panacea/sql/getPersonIds.sql");
+        // sql server temp table workaround...
         String sql = "select ptstg.person_id as person_id, ptstg.tx_stg_cmb_id cmb_id, ptstg.stg_start_date start_date, ptstg.stg_end_date end_date "
                 + "from @pnc_ptstg_ct  ptstg "
-                //                + "from #_pnc_ptstg_ct  ptstg "
+                // + "from #_pnc_ptstg_ct ptstg "
                 + "where "
                 + "person_id in (@allDistinctPersonId) and job_execution_id = @jobExecId "
                 + "order by person_id, stg_start_date, stg_end_date";
@@ -282,7 +321,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             final List<PatientStageCombinationCount> truncatedList = new ArrayList<PatientStageCombinationCount>();
             for (final PatientStageCount psc : patientStageCountList) {
                 if (psc.getPersonId().equals(currentPersonId)) {
-                    //from same patient
+                    // from same patient
                     while ((truncatedList.size() > 0) && truncatedList.get(0).getStartDate().before(psc.getStartDate())) {
                         popAndMergeList(mergedList, truncatedList, null, switchWindow);
                     }
@@ -296,7 +335,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     popAndMergeList(mergedList, truncatedList, newPSCC, switchWindow);
                     
                     if (patientStageCountList.indexOf(psc) == (patientStageCountList.size() - 1)) {
-                        //last object in the original list
+                        // last object in the original list
                         
                         while (truncatedList.size() > 0) {
                             popAndMergeList(mergedList, truncatedList, null, switchWindow);
@@ -310,7 +349,8 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         truncatedList.clear();
                     }
                 } else {
-                    //read to roll to next patient after popping all from truncatedList 
+                    // read to roll to next patient after popping all from
+                    // truncatedList
                     while (truncatedList.size() > 0) {
                         popAndMergeList(mergedList, truncatedList, null, switchWindow);
                     }
@@ -322,7 +362,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     mergedList.clear();
                     truncatedList.clear();
                     
-                    //first object for next patient
+                    // first object for next patient
                     currentPersonId = psc.getPersonId();
                     
                     final PatientStageCombinationCount newPSCC = new PatientStageCombinationCount();
@@ -347,10 +387,10 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             for (final Map.Entry<Long, List<PatientStageCombinationCount>> entry : mergedComboPatientMap.entrySet()) {
                 for (final PatientStageCombinationCount pscc : entry.getValue()) {
                     if (this.pncStgComboMap.get(pscc.getComboIds()) != null) {
-                        //existing combo
+                        // existing combo
                         pscc.setComboIds(this.pncStgComboMap.get(pscc.getComboIds()).getPncTxStgCmbId().toString());
                     } else {
-                        //new combo
+                        // new combo
                         if (!newPatientStageCombination.containsKey(pscc.getComboIds())) {
                             final PanaceaStageCombination newCombo = new PanaceaStageCombination();
                             newCombo.setStudyId(this.pncStudy.getStudyId());
@@ -363,8 +403,15 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                             for (final String comboString : psccCombos) {
                                 final PanaceaStageCombinationMap combMap1 = new PanaceaStageCombinationMap();
                                 
-                                //TODO -- check on key-concept single concept generation (delete duplicates when job starts? may cause other other job run results fail...)
-                                //TODO -- should handle this with lowest combo_id check loadStudyPncStgSingleConceptCombo() method, script using min() function to remove duplicate single concept combo there 
+                                // TODO -- check on key-concept single concept
+                                // generation (delete duplicates when job
+                                // starts? may cause other other job run results
+                                // fail...)
+                                // TODO -- should handle this with lowest
+                                // combo_id check
+                                // loadStudyPncStgSingleConceptCombo() method,
+                                // script using min() function to remove
+                                // duplicate single concept combo there
                                 final PanaceaStageCombination conceptCombo = this.pncStgComboMap.get(comboString);
                                 
                                 if ((conceptCombo != null) && (conceptCombo.getCombMapList() != null)
@@ -372,7 +419,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                                     combMap1.setConceptId(conceptCombo.getCombMapList().get(0).getConceptId());
                                     combMap1.setConceptName(conceptCombo.getCombMapList().get(0).getConceptName());
                                 } else {
-                                    //TODO -- error logging
+                                    // TODO -- error logging
                                 }
                                 
                                 mapList.add(combMap1);
@@ -387,9 +434,19 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                 }
             }
             
-            this.pncStageCombinationRepository.save(newPSCombo);
+            /**
+             * sql server workaround (hibernate does not support sequence for sql server dialect.
+             * Cause id always 0 for saved/persistent objects. That cases same session multiple
+             * objects with the same id exceptions
+             */
+            final String sourceDialect = (String) jobParams.get("sourceDialect");
+            if ("sql server".equalsIgnoreCase(sourceDialect)) {
+                this.saveComboMap(newPSCombo, jobParams, this.pncStudy.getStudyId());
+            } else {
+                this.pncStageCombinationRepository.save(newPSCombo);
+            }
             
-            //TODO -- change this to manipulate the Map?
+            // TODO -- change this to manipulate the Map?
             this.loadStudyPncStgCombo(this.pncStudy.getStudyId());
             
             final List<PatientStageCombinationCount> collapsedPSCCList = new ArrayList<PatientStageCombinationCount>();
@@ -405,10 +462,10 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     pscc.setStage(new Integer(stage));
                     
                     if (this.pncStgComboMap.get(pscc.getComboIds()) != null) {
-                        //existing combo
+                        // existing combo
                         pscc.setComboIds(this.pncStgComboMap.get(pscc.getComboIds()).getPncTxStgCmbId().toString());
                     } else {
-                        //TODO -- error logging
+                        // TODO -- error logging
                     }
                     
                     if (stage == 1) {
@@ -483,7 +540,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             return psccMapWithVersion;
             
         } else {
-            //TODO - error logging
+            // TODO - error logging
             return null;
         }
     }
@@ -502,7 +559,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             }
             
             if (mergedList.size() > 0) {
-                //mergedList has elements
+                // mergedList has elements
                 final PatientStageCombinationCount lastMergedPSCC = mergedList.get(mergedList.size() - 1);
                 
                 if (lastMergedPSCC.getStartDate().after(poppingPSCC.getStartDate())) {
@@ -511,10 +568,10 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                 }
                 
                 if (poppingPSCC.getStartDate().before(lastMergedPSCC.getEndDate())) {
-                    //overlapping
+                    // overlapping
                     
                     if (poppingPSCC.getEndDate().before(lastMergedPSCC.getEndDate())) {
-                        //popping time window is "within" last merged object
+                        // popping time window is "within" last merged object
                         
                         final int overlappingDays = Days.daysBetween(new DateTime(poppingPSCC.getStartDate()),
                             new DateTime(poppingPSCC.getEndDate())).getDays();
@@ -530,22 +587,21 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                             
                             lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
                             
-                            //TODO - verify this more!!!
+                            // TODO - verify this more!!!
                             if (lastMergedPSCC.getStartDate().equals(lastMergedPSCC.getEndDate())) {
                                 mergedList.remove(mergedList.size() - 1);
                             }
                             /**
                              * see java doc for method combinationSplit()
                              */
-                            /*                            else {
-                                                            final List<PatientStageCombinationCount> splittedEarlyMergedList = combinationSplit(
-                                                                lastMergedPSCC, switchWindow);
-                                                            if (splittedEarlyMergedList != null) {
-                                                                mergedList.remove(mergedList.size() - 1);
-                                                                mergedList.addAll(splittedEarlyMergedList);
-                                                            }
-                                                        }
-                            */
+                            /*
+                             * else { final List<PatientStageCombinationCount>
+                             * splittedEarlyMergedList = combinationSplit(
+                             * lastMergedPSCC, switchWindow); if
+                             * (splittedEarlyMergedList != null) {
+                             * mergedList.remove(mergedList.size() - 1);
+                             * mergedList.addAll(splittedEarlyMergedList); } }
+                             */
                             mergedList.add(poppingPSCC);
                             
                             if (!newPSCCFromOriginalList) {
@@ -555,19 +611,19 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                             /**
                              * see java doc for combinationSplit()
                              */
-                            /*                            final List<PatientStageCombinationCount> splittedNewList = combinationSplit(newPSCC,
-                                                            switchWindow);
-                                                        if (splittedNewList != null) {
-                                                            truncatedList.addAll(splittedNewList);
-                                                        } else {
-                                                            truncatedList.add(newPSCC);
-                                                        }*/
+                            /*
+                             * final List<PatientStageCombinationCount>
+                             * splittedNewList = combinationSplit(newPSCC,
+                             * switchWindow); if (splittedNewList != null) {
+                             * truncatedList.addAll(splittedNewList); } else {
+                             * truncatedList.add(newPSCC); }
+                             */
                             
                             truncatedList.add(newPSCC);
                             
                             Collections.sort(truncatedList, this.patientStageCombinationCountDateComparator);
                         } else {
-                            //no overlapping, just pop
+                            // no overlapping, just pop
                             mergedList.add(poppingPSCC);
                             
                             if (!newPSCCFromOriginalList) {
@@ -576,7 +632,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                             
                         }
                     } else if (poppingPSCC.getEndDate().after(lastMergedPSCC.getEndDate())) {
-                        //popping object end date is after last merged object
+                        // popping object end date is after last merged object
                         
                         final int overlappingDays = Days.daysBetween(new DateTime(poppingPSCC.getStartDate()),
                             new DateTime(lastMergedPSCC.getEndDate())).getDays();
@@ -593,22 +649,21 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                             
                             lastMergedPSCC.setEndDate(poppingPSCC.getStartDate());
                             
-                            //TODO - verify this more!!!
+                            // TODO - verify this more!!!
                             if (lastMergedPSCC.getStartDate().equals(lastMergedPSCC.getEndDate())) {
                                 mergedList.remove(mergedList.size() - 1);
                             }
                             /**
                              * see java doc for combinationSplit()
                              */
-                            /*                            else {
-                                                            final List<PatientStageCombinationCount> splittedEarlyMergedList = combinationSplit(
-                                                                lastMergedPSCC, switchWindow);
-                                                            if (splittedEarlyMergedList != null) {
-                                                                mergedList.remove(mergedList.size() - 1);
-                                                                mergedList.addAll(splittedEarlyMergedList);
-                                                            }
-                                                        }
-                            */
+                            /*
+                             * else { final List<PatientStageCombinationCount>
+                             * splittedEarlyMergedList = combinationSplit(
+                             * lastMergedPSCC, switchWindow); if
+                             * (splittedEarlyMergedList != null) {
+                             * mergedList.remove(mergedList.size() - 1);
+                             * mergedList.addAll(splittedEarlyMergedList); } }
+                             */
                             mergedList.add(poppingPSCC);
                             
                             if (!newPSCCFromOriginalList) {
@@ -618,19 +673,18 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                             /**
                              * see java doc for combinationSplit()
                              */
-                            /*                            final List<PatientStageCombinationCount> splittedNewList = combinationSplit(newPSCC,
-                                                            switchWindow);
-                                                        if (splittedNewList != null) {
-                                                            truncatedList.addAll(splittedNewList);
-                                                        } else {
-                                                            truncatedList.add(newPSCC);
-                                                        }
-                            */
+                            /*
+                             * final List<PatientStageCombinationCount>
+                             * splittedNewList = combinationSplit(newPSCC,
+                             * switchWindow); if (splittedNewList != null) {
+                             * truncatedList.addAll(splittedNewList); } else {
+                             * truncatedList.add(newPSCC); }
+                             */
                             truncatedList.add(newPSCC);
                             
                             Collections.sort(truncatedList, this.patientStageCombinationCountDateComparator);
                         } else {
-                            //no overlapping, just pop
+                            // no overlapping, just pop
                             mergedList.add(poppingPSCC);
                             
                             if (!newPSCCFromOriginalList) {
@@ -640,7 +694,8 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         }
                         
                     } else if (poppingPSCC.getEndDate().equals(lastMergedPSCC.getEndDate())) {
-                        //popping object end date is the same as last merged object
+                        // popping object end date is the same as last merged
+                        // object
                         
                         final int overlappingDays = Days.daysBetween(new DateTime(poppingPSCC.getStartDate()),
                             new DateTime(lastMergedPSCC.getEndDate())).getDays();
@@ -657,7 +712,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                                 truncatedList.remove(0);
                             }
                         } else {
-                            //no overlapping, just pop
+                            // no overlapping, just pop
                             mergedList.add(poppingPSCC);
                             
                             if (!newPSCCFromOriginalList) {
@@ -667,7 +722,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         }
                     }
                 } else {
-                    //no overlapping, just pop
+                    // no overlapping, just pop
                     mergedList.add(poppingPSCC);
                     
                     if (!newPSCCFromOriginalList) {
@@ -675,16 +730,16 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     }
                 }
             } else {
-                //mergedList has no elements, just add the first one
+                // mergedList has no elements, just add the first one
                 mergedList.add(poppingPSCC);
                 
-                //TODO -- check if still needed
+                // TODO -- check if still needed
                 if (!newPSCCFromOriginalList) {
                     truncatedList.remove(0);
                 }
             }
         } else {
-            //TODO -- error logging
+            // TODO -- error logging
         }
     }
     
@@ -779,10 +834,11 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     return psccList;
                 }
             }
-            //TODO - verify this as returned value
-            //            final List<PatientStageCombinationCount> psccList = new ArrayList<PatientStageCombinationCount>();
-            //            psccList.add(pscc);
-            //            return psccList;
+            // TODO - verify this as returned value
+            // final List<PatientStageCombinationCount> psccList = new
+            // ArrayList<PatientStageCombinationCount>();
+            // psccList.add(pscc);
+            // return psccList;
             return null;
         } else {
             return null;
@@ -809,26 +865,19 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
         
-        /*        final String[] sqlStatements = SqlSplit.splitSql(sql);
-                
-                final int[] updateCounts = this.jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
-                    
-                    @Override
-                    public void setValues(final PreparedStatement ps, final int i) throws SQLException {
-                        ps.setLong(1, 123);
-                        ps.setString(2, "dfad");
-                        ps.setDate(3, null);
-                        ps.setDate(4, null);
-                        ps.setInt(5, 1);
-                    }
-                    
-                    @Override
-                    public int getBatchSize() {
-                        return psccList.size();
-                    }
-                });
-        */
-        //TODO -- commit!!!!!
+        /*
+         * final String[] sqlStatements = SqlSplit.splitSql(sql);
+         * 
+         * final int[] updateCounts = this.jdbcTemplate.batchUpdate(sql, new
+         * BatchPreparedStatementSetter() {
+         * 
+         * @Override public void setValues(final PreparedStatement ps, final int
+         * i) throws SQLException { ps.setLong(1, 123); ps.setString(2, "dfad");
+         * ps.setDate(3, null); ps.setDate(4, null); ps.setInt(5, 1); }
+         * 
+         * @Override public int getBatchSize() { return psccList.size(); } });
+         */
+        // TODO -- commit!!!!!
         
         try {
             return this.batchInsertPSCC(sql, psccList);
@@ -895,7 +944,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     && singleConceptComboMap.containsKey(pncStgCombo.getCombMapList().get(0).getConceptId().toString())) {
                 return pncStgCombo.getPncTxStgCmbId().toString();
             } else if (pncStgCombo.getCombMapList().size() == 1) {
-                //TODO -- error logging
+                // TODO -- error logging
                 return null;
             } else {
                 String keyString = "";
@@ -906,20 +955,20 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                         keyString += StringUtils.isEmpty(keyString) ? comboConceptComboId.toString() : "|"
                                 + comboConceptComboId.toString();
                     } else {
-                        //TODO -- error logging
+                        // TODO -- error logging
                     }
                 }
                 
                 return keyString;
             }
         } else {
-            //TODO -- error logging
+            // TODO -- error logging
             return null;
         }
     }
     
     private void loadStudyPncStgSingleConceptCombo(final Map<String, Object> jobParams) {
-        //script order by combo_id
+        // script order by combo_id
         String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/getSingleConceptCombo.sql");
         
         final String resultsTableQualifier = (String) jobParams.get("results_schema");
@@ -965,5 +1014,84 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                     combo.getPncTxStgCmbId());
             }
         }
+    }
+    
+    /**
+     * sql server workaround (hibernate does not support sequence for sql server dialect. Cause id
+     * always 0 for saved/persistent objects. That cases same session multiple objects with the same
+     * id exceptions
+     */
+    private void saveComboMap(final List<PanaceaStageCombination> newPSCombo, final Map<String, Object> jobParams,
+                              final Long studyId) {
+        String sql = "";
+        
+        for (final PanaceaStageCombination psc : newPSCombo) {
+            // sql += "create table #pnc_tmp_mssql_seq_id(nextcombid bigint);
+            // \n"
+            sql += "delete from #pnc_tmp_mssql_seq_id; \n insert into #pnc_tmp_mssql_seq_id select NEXT VALUE FOR @results_schema.seq_pnc_tx_stg_cmb; \n";
+            
+            // sql += "insert into @results_schema.pnc_tx_stage_combination
+            // (pnc_tx_stg_cmb_mp_id, pnc_tx_stg_cmb_id, concept_id,
+            // concept_name) \n"
+            
+            for (final PanaceaStageCombinationMap pscm : psc.getCombMapList()) {
+                sql += "insert into @results_schema.pnc_tx_stage_combination_map (pnc_tx_stg_cmb_mp_id, pnc_tx_stg_cmb_id, concept_id, concept_name) \n"
+                        + "select NEXT VALUE FOR @results_schema.seq_pnc_tx_stg_cmb_mp, nextcombid, \n"
+                        + pscm.getConceptId().toString()
+                        + ", '"
+                        + pscm.getConceptName()
+                        + "' from #pnc_tmp_mssql_seq_id; \n";
+            }
+            
+            sql += "insert INTO @results_schema.pnc_tx_stage_combination (PNC_TX_STG_CMB_ID,STUDY_ID) \n"
+                    + "select nextcombid, @studyId from #pnc_tmp_mssql_seq_id; \n";
+            // sql += "\n\n MERGE INTO @results_schema.pnc_tx_stage_combination
+            // comb \n" + "USING \n" + "( \n"
+            // + "SELECT combo_map.pnc_tx_stg_cmb_id pnc_tx_stg_cmb_id FROM
+            // @results_schema.pnc_tx_stage_combination_map combo_map \n"
+            // + ") adding_combo \n" + "ON \n" + "( \n"
+            // + "comb.pnc_tx_stg_cmb_id = adding_combo.pnc_tx_stg_cmb_id \n" +
+            // ") \n"
+            // + "WHEN NOT MATCHED THEN INSERT (PNC_TX_STG_CMB_ID,STUDY_ID) \n"
+            // + "VALUES (adding_combo.pnc_tx_stg_cmb_id, @studyId); \n\n\n";
+        }
+        
+        sql += "delete from #pnc_tmp_mssql_seq_id; \n";
+        
+        final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
+        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+        final String cohortDefId = (String) jobParams.get("cohortDefId");
+        final String drugConceptId = (String) jobParams.get("drugConceptId");
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        final String sourceId = (String) jobParams.get("sourceId");
+        final String pnc_ptstg_ct = (String) jobParams.get("pnc_ptstg_ct");
+        
+        final String[] params = new String[] { "cdm_schema", "results_schema", "studyId" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, studyId.toString() };
+        
+        // sql +=
+        // ResourceHelper.GetResourceAsString("/resources/panacea/sql/runSqlWorkaroundPanaceaStudy.sql");
+        
+        sql = SqlRender.renderSql(sql, params, values);
+        sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
+        
+        this.batchUpdate(sql);
+    };
+    
+    /**
+     * sql server workaround (hibernate does not support sequence for sql server dialect. Cause id
+     * always 0 for saved/persistent objects. That cases same session multiple objects with the same
+     * id exceptions
+     */
+    private void batchUpdate(final String sql) {
+        final int[] ret = this.transactionTemplate.execute(new TransactionCallback<int[]>() {
+            
+            @Override
+            public int[] doInTransaction(final TransactionStatus status) {
+                final int[] updateCounts = PanaceaPatientDrugComboTasklet.this.jdbcTemplate.batchUpdate(sql);
+                
+                return updateCounts;
+            }
+        });
     }
 }

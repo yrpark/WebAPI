@@ -275,7 +275,8 @@ public class PanaceaService extends AbstractDaoService {
             ps.setCreateTime(new Timestamp(date.getTime()));
         }
         
-        return this.getPanaceaStudyRepository().save(ps);
+        final PanaceaStudy newS = this.getPanaceaStudyRepository().save(ps);
+        return newS;
     }
     
     /**
@@ -592,10 +593,9 @@ public class PanaceaService extends AbstractDaoService {
                     builder.addString("sourceDialect", source.getSourceDialect());
                     builder.addString("sourceId", new Integer(source.getSourceId()).toString());
                     
-                    if("sql server".equalsIgnoreCase(source.getSourceDialect()))
-                    {
+                    if ("sql server".equalsIgnoreCase(source.getSourceDialect())) {
                         builder.addString("rowIdString", "%%physloc%%");
-                    }else{
+                    } else {
                         //Oracle as default (not considering postgres now...)
                         builder.addString("rowIdString", "rowid");
                     }
@@ -623,7 +623,7 @@ public class PanaceaService extends AbstractDaoService {
                     builder.addString("drugEraStudyOptionalDateConstraint", drugEraStudyOptionalDateConstraint);
                     builder.addString("procedureStudyOptionalDateConstraint", procedureStudyOptionalDateConstraint);
                     
-                    addTempTableNames(builder, source);
+                    addTempTableNames(builder, source, resultsTableQualifier);
                     
                     final JobParameters jobParameters = builder.toJobParameters();
                     
@@ -652,7 +652,7 @@ public class PanaceaService extends AbstractDaoService {
                     
                     final PanaceaPatientDrugComboTasklet pncPatientDrugComboTasklet = new PanaceaPatientDrugComboTasklet(
                             this.getSourceJdbcTemplate(source), this.getTransactionTemplate(), pncStudy,
-                            this.pncStageCombinationRepository);
+                            this.pncStageCombinationRepository, this.pncStageCombinationMapRepository, this.em);
                     
                     final Step pncPatientDrugComboTaskletStep = this.stepBuilders.get("pncPatientDrugComboTaskletStep")
                             .tasklet(pncPatientDrugComboTasklet).exceptionHandler(new TerminateJobStepExceptionHandler())
@@ -722,17 +722,16 @@ public class PanaceaService extends AbstractDaoService {
                     builder.addString("studyId", studyId.toString());
                     builder.addString("sourceDialect", source.getSourceDialect());
                     builder.addString("sourceId", new Integer(source.getSourceId()).toString());
-
-                    addTempTableNames(builder, source);
                     
-                    if("sql server".equalsIgnoreCase(source.getSourceDialect()))
-                    {
+                    addTempTableNames(builder, source, resultsTableQualifier);
+                    
+                    if ("sql server".equalsIgnoreCase(source.getSourceDialect())) {
                         builder.addString("rowIdString", "%%physloc%%");
-                    }else{
+                    } else {
                         //Oracle as default (not considering postgres now...)
                         builder.addString("rowIdString", "rowid");
                     }
-
+                    
                     final JobParameters jobParameters = builder.toJobParameters();
                     
                     final PanaceaFiilteredSummaryGenerateTasklet pncFilteredSummaryTasklet = new PanaceaFiilteredSummaryGenerateTasklet(
@@ -761,23 +760,23 @@ public class PanaceaService extends AbstractDaoService {
             return null;
         }
     }
-
+    
     //TODO - find a common/util place for this later...
-    private void addTempTableNames(JobParametersBuilder builder, Source source){
-        if("sql server".equalsIgnoreCase(source.getSourceDialect()))
-        {
-            builder.addString("pnc_ptsq_ct", "pnc_tmp_ptsq_ct");
-            builder.addString("pnc_ptstg_ct", "pnc_tmp_ptstg_ct");
-            builder.addString("pnc_tmp_cmb_sq_ct", "pnc_tmp_cmb_sq_ct");
+    private void addTempTableNames(final JobParametersBuilder builder, final Source source,
+                                   final String resultsTableQualifier) {
+        if ("sql server".equalsIgnoreCase(source.getSourceDialect())) {
+            builder.addString("pnc_ptsq_ct", resultsTableQualifier + ".pnc_tmp_ptsq_ct");
+            builder.addString("pnc_ptstg_ct", resultsTableQualifier + ".pnc_tmp_ptstg_ct");
+            builder.addString("pnc_tmp_cmb_sq_ct", resultsTableQualifier + ".pnc_tmp_cmb_sq_ct");
             
-            builder.addString("pnc_smry_msql_cmb", "pnc_tmp_smry_msql_cmb");
-            builder.addString("pnc_indv_jsn", "pnc_tmp_indv_jsn");
-            builder.addString("pnc_unq_trtmt", "pnc_tmp_unq_trtmt");
-            builder.addString("pnc_unq_pth_id", "pnc_tmp_unq_pth_id");
+            builder.addString("pnc_smry_msql_cmb", resultsTableQualifier + ".pnc_tmp_smry_msql_cmb");
+            builder.addString("pnc_indv_jsn", resultsTableQualifier + ".pnc_tmp_indv_jsn");
+            builder.addString("pnc_unq_trtmt", resultsTableQualifier + ".pnc_tmp_unq_trtmt");
+            builder.addString("pnc_unq_pth_id", resultsTableQualifier + ".pnc_tmp_unq_pth_id");
             
-            builder.addString("pnc_smrypth_fltr", "pnc_tmp_smrypth_fltr");
-            builder.addString("pnc_smry_ancstr", "pnc_tmp_smry_ancstr");
-        }else{
+            builder.addString("pnc_smrypth_fltr", resultsTableQualifier + ".pnc_tmp_smrypth_fltr");
+            builder.addString("pnc_smry_ancstr", resultsTableQualifier + ".pnc_tmp_smry_ancstr");
+        } else {
             //Oracle as default (not considering postgres now...)
             builder.addString("pnc_ptsq_ct", "#_pnc_ptsq_ct");
             builder.addString("pnc_ptstg_ct", "#_pnc_ptstg_ct");
