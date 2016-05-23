@@ -3,7 +3,7 @@ from @results_schema.pnc_tx_stage_combination comb
 join @results_schema.pnc_tx_stage_combination_map combMap 
 on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
 join 
-(select comb.pnc_tx_stg_cmb_id, count(*) from @results_schema.pnc_tx_stage_combination comb
+(select comb.pnc_tx_stg_cmb_id, count(*) cnt from @results_schema.pnc_tx_stage_combination comb
 join @results_schema.pnc_tx_stage_combination_map combMap 
 on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
 where comb.study_id = @studyId

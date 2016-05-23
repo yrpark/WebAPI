@@ -32,7 +32,7 @@ create table #pnc_tmp_smry(
 
 --recreate #_pnc_smry_msql_cmb and #_pnc_smry_msql_cmb for making the filtered version tasklet run (they are not created from generateSummary script)
 ---------------ms sql collapse/merge multiple rows to concatenate strings (JSON string for conceptsArrary and conceptsName) ------
-insert into @results_schema.@pnc_smry_msql_cmb (job_execution_id, pnc_tx_stg_cmb_id, concept_ids, conceptsArray, conceptsName)
+insert into @pnc_smry_msql_cmb (job_execution_id, pnc_tx_stg_cmb_id, concept_ids, conceptsArray, conceptsName)
 select @jobExecId, comb_id, concept_ids, conceptsArray, conceptsName 
 from
 (
@@ -83,7 +83,7 @@ from (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb
 
 -----------------generate rows of JSON (based on hierarchical data, without using oracle connect/level, each path is a row) insert into temp table----------------------
 -------------------------filtering based on filter out conditions -----------------------
-insert into @results_schema.@pnc_smrypth_fltr 
+insert into @pnc_smrypth_fltr 
 select @jobExecId, pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth,
     tx_seq,
     tx_stg_cnt,
@@ -99,8 +99,8 @@ select @jobExecId, pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx
         and tx_rslt_version = 2;
 
 ----------- delete rows that do not qualify the conditions for fitlering out-----------
-delete from @results_schema.@pnc_smrypth_fltr where pnc_stdy_smry_id not in (
-    select pnc_stdy_smry_id from @results_schema.@pnc_smrypth_fltr qualified
+delete from @pnc_smrypth_fltr where pnc_stdy_smry_id not in (
+    select pnc_stdy_smry_id from @pnc_smrypth_fltr qualified
 --TODO!!!!!! change this with real condition string
 --    where tx_stg_avg_dr >= 50);
 --    where tx_stg_avg_gap < 150
@@ -127,10 +127,10 @@ with AncestryTree (pnc_stdy_smry_id, ancestor, lvl) as (
     			t.ancestor as ancestor, 
     			t.lvl + 1 as lvl
 	  		from AncestryTree t 
-  			join pnc_study_summary_path items 
+  			join @results_schema.pnc_study_summary_path items 
   				on t.pnc_stdy_smry_id = Items.tx_path_parent_key
  		)
-insert into @results_schema.@pnc_smry_ancstr
+insert into @pnc_smry_ancstr
 select @jobExecId, nullParentKey, pnc_stdy_smry_id, realLevel
 from (
   select validancestor.nullParentKey, validancestor.ancestorlevel, 
@@ -139,9 +139,9 @@ from (
       when path.pnc_stdy_smry_id is null then 1000000000
     end as realLevel,
   validancestor.parentid, path.pnc_stdy_smry_id
-  from @results_schema.@pnc_smrypth_fltr path
+  from @pnc_smrypth_fltr path
   right join
-  (select smry.tx_path_parent_key nullParentKey, nullParentAncestors.l ancestorLevel, nullParentAncestors.parent parentId from @results_schema.@pnc_smrypth_fltr smry
+  (select smry.tx_path_parent_key nullParentKey, nullParentAncestors.l ancestorLevel, nullParentAncestors.parent parentId from @pnc_smrypth_fltr smry
     join
     (SELECT pnc_stdy_smry_id, ancestor AS parent, lvl as l
       FROM
@@ -150,7 +150,7 @@ from (
       ) t
       WHERE t.ancestor <> t.pnc_stdy_smry_id
       and t.pnc_stdy_smry_id in 
-      (select tx_path_parent_key from @results_schema.@pnc_smrypth_fltr where tx_path_parent_key not in (select PNC_STDY_SMRY_ID from @results_schema.@pnc_smrypth_fltr
+      (select tx_path_parent_key from @pnc_smrypth_fltr where tx_path_parent_key not in (select PNC_STDY_SMRY_ID from @pnc_smrypth_fltr
       	where job_execution_id = @jobExecId)
       	and job_execution_id = @jobExecId)
     ) nullParentAncestors
@@ -161,14 +161,14 @@ from (
 
   
 --update null parent key in #_pnc_smrypth_fltr with valid ancestor id which exists in #_pnc_smrypth_fltr or null (null is from level set to 1000000 from table of #_pnc_smry_ancstr)
-merge into @results_schema.@pnc_smrypth_fltr m
+merge into @pnc_smrypth_fltr m
 using
   (
-    select path.pnc_stdy_smry_id, updateParent.pnc_ancestor_id from @results_schema.@pnc_smrypth_fltr path,
+    select path.pnc_stdy_smry_id, updateParent.pnc_ancestor_id from @pnc_smrypth_fltr path,
     (select pnc_stdy_parent_id, pnc_ancestor_id
     	from (select pnc_stdy_parent_id, pnc_ancestor_id, reallevel, 
     	row_number() over (partition by pnc_stdy_parent_id order by reallevel) rn
-    	from @results_schema.@pnc_smry_ancstr where job_execution_id = @jobExecId) inner1
+    	from @pnc_smry_ancstr where job_execution_id = @jobExecId) inner1
     where rn = 1) updateParent
     where path.tx_path_parent_key = updateParent.pnc_stdy_parent_id
     and path.job_execution_id = @jobExecId
@@ -191,7 +191,7 @@ using
           ,cast(tx_stg_cmb as varchar(max))                           as modified_path
           ,1                                    as Lvl
           ,cast(pnc_stdy_smry_id as varchar(max))+''                 as depthOrder
-          FROM   @results_schema.@pnc_smrypth_fltr
+          FROM   @pnc_smrypth_fltr
         WHERE tx_path_parent_key is null
         and job_execution_id = @jobExecId
         UNION ALL
@@ -204,11 +204,11 @@ using
           ,modified_path+'>'+cast(t2.tx_stg_cmb as varchar(max))       as modified_path
           ,lvl+1                                as Lvl
           ,depthOrder+'.'+cast(t2.pnc_stdy_smry_id as varchar(max)) as depthOrder
-        FROM    @results_schema.@pnc_smrypth_fltr t2, t1
+        FROM    @pnc_smrypth_fltr t2, t1
         WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
         and t2.job_execution_id = @jobExecId
       )
-merge into @results_schema.@pnc_smrypth_fltr m
+merge into @pnc_smrypth_fltr m
 using
 (
       SELECT row_number() over(order by depthOrder) as rnum, combo_id, modified_path, lvl, current_path, pnc_stdy_smry_id, parent_key, depthOrder
@@ -235,8 +235,8 @@ WITH t1(combo_id, current_path, pnc_stdy_smry_id, parent_key, modified_path, Lvl
           ,1                                    as Lvl
           ,cast(pnc_stdy_smry_id AS varchar(max))+''                 as depthOrder
           , job_execution_id as job_execution_id
-          FROM   @results_schema.@pnc_smrypth_fltr
-  		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.@pnc_smrypth_fltr
+          FROM   @pnc_smrypth_fltr
+  		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @pnc_smrypth_fltr
         where 
 	        study_id = @studyId
     	    and source_id = @sourceId
@@ -253,11 +253,11 @@ WITH t1(combo_id, current_path, pnc_stdy_smry_id, parent_key, modified_path, Lvl
           ,lvl+1                                as Lvl
           ,t1.depthOrder+'.'+cast(t2.pnc_stdy_smry_id AS varchar(max)) as depthOrder
           ,t2.job_execution_id as job_execution_id
-        FROM    @results_schema.@pnc_smrypth_fltr t2, t1
+        FROM    @pnc_smrypth_fltr t2, t1
         WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
         and t2.job_execution_id = @jobExecId
       )
-	 insert into @results_schema.@pnc_unq_trtmt(job_execution_id, rnum, pnc_stdy_smry_id, path_cmb_ids)
+	 insert into @pnc_unq_trtmt(job_execution_id, rnum, pnc_stdy_smry_id, path_cmb_ids)
 	 select @jobExecId, row_number() over(order by depthOrder) as rnum, pnc_stdy_smry_id as pnc_stdy_smry_id, modified_path as modified_path
 	 from t1
 order by depthOrder;
@@ -274,11 +274,11 @@ WITH t1(combo_id, current_path, pnc_stdy_smry_id, parent_key, modified_path, mod
           ,1                                    as Lvl
           ,cast(pnc_stdy_smry_id as varchar(max))+''                 as depthOrder
           ,rootPath.job_execution_id as job_execution_id
-          FROM @results_schema.@pnc_smrypth_fltr rootPath
-          join @results_schema.@pnc_smry_msql_cmb comb
+          FROM @pnc_smrypth_fltr rootPath
+          join @pnc_smry_msql_cmb comb
           on rootPath.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
           and comb.job_execution_id = @jobExecId
-  		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.@pnc_smrypth_fltr
+  		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @pnc_smrypth_fltr
         where 
 	        study_id = @studyId
     	    and source_id = @sourceId
@@ -307,15 +307,15 @@ WITH t1(combo_id, current_path, pnc_stdy_smry_id, parent_key, modified_path, mod
           ,lvl+1                                as Lvl
           ,depthOrder+'.'+cast(t2.pnc_stdy_smry_id as varchar(max)) as depthOrder
           ,t2.job_execution_id as job_execution_id
-        FROM (@results_schema.@pnc_smrypth_fltr t2
-        join @results_schema.@pnc_smry_msql_cmb comb
+        FROM (@pnc_smrypth_fltr t2
+        join @pnc_smry_msql_cmb comb
         on t2.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
         and comb.job_execution_id = @jobExecId
         and t2.job_execution_id = @jobExecId), t1
         WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
         and t1.job_execution_id = @jobExecId
       )
-	  merge into @results_schema.@pnc_unq_trtmt m
+	  merge into @pnc_unq_trtmt m
 	  using
 	  (
 	  SELECT row_number() over(order by depthOrder) as rnum, combo_id, modified_path, modified_concepts, lvl, current_path, pnc_stdy_smry_id, parent_key, depthOrder
@@ -337,7 +337,7 @@ WITH splitter_cte(smry_id, origin, pos, lastPos) AS (
         path_unique_treatment as origin,
         CHARINDEX(path_unique_treatment, ',') as pos, 
         0 as lastPos
-      from @results_schema.@pnc_unq_trtmt
+      from @pnc_unq_trtmt
       where job_execution_id = @jobExecId
       UNION ALL
       SELECT 
@@ -348,7 +348,7 @@ WITH splitter_cte(smry_id, origin, pos, lastPos) AS (
       FROM splitter_cte
       WHERE pos > 0
     )
-insert into @results_schema.@pnc_unq_pth_id (job_execution_id, pnc_tx_smry_id, concept_id, concept_order)
+insert into @pnc_unq_pth_id (job_execution_id, pnc_tx_smry_id, concept_id, concept_order)
 SELECT 
 	  @jobExecId,
       smry_id, 
@@ -364,10 +364,10 @@ SELECT
     order by smry_id, ids;
 
 --delete duplicate concept_id per smry_id in the path if it's not the first on in the path by min(concept_order)
-delete from @results_schema.@pnc_unq_pth_id 
-where %%physloc%% in (select conceptIds.%%physloc%% from @results_schema.@pnc_unq_pth_id conceptIds, 
+delete from @pnc_unq_pth_id 
+where %%physloc%% in (select conceptIds.%%physloc%% from @pnc_unq_pth_id conceptIds, 
   (select pnc_tx_smry_id, concept_id, min(concept_order) as concept_order
-    from @results_schema.@pnc_unq_pth_id
+    from @pnc_unq_pth_id
     where job_execution_id = @jobExecId
     group by pnc_tx_smry_id, concept_id
   ) uniqueIds
@@ -380,7 +380,7 @@ where
 and job_execution_id = @jobExecId;
 
 --update conceptsArray and conceptName JSON by join concept table
-merge into @results_schema.@pnc_unq_pth_id m
+merge into @pnc_unq_pth_id m
 using
 (
 	select path1.pnc_tx_smry_id,
@@ -388,7 +388,7 @@ using
     ',"innerConceptId":' + convert(varchar, path2.concept_id) + ']'
          from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
 			concepts.concept_name as concept_name
-			from @results_schema.@pnc_unq_pth_id path
+			from @pnc_unq_pth_id path
 			join @cdm_schema.concept concepts
 			on path.concept_id = concepts.concept_id
 			where path.job_execution_id = @jobExecId
@@ -400,7 +400,7 @@ using
 	STUFF((SELECT distinct path2.concept_name + ','
          from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
 			concepts.concept_name as concept_name
-			from @results_schema.@pnc_unq_pth_id path
+			from @pnc_unq_pth_id path
 			join @cdm_schema.concept concepts
 			on path.concept_id = concepts.concept_id
 			where path.job_execution_id = @jobExecId
@@ -411,7 +411,7 @@ using
         ,1,0,'') as conceptsName
 	from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
 		concepts.concept_name as concept_name
-		from @results_schema.@pnc_unq_pth_id path
+		from @pnc_unq_pth_id path
 		join @cdm_schema.concept concepts
 		on path.concept_id = concepts.concept_id
 		where path.job_execution_id = @jobExecId
@@ -427,12 +427,12 @@ WHEN MATCHED then update set m.conceptsArray = m1.conceptsArray,
  m.conceptsName = m1.conceptsName;
 -- ,m.concept_count = m1.conceptCount;
  
-merge into @results_schema.@pnc_unq_pth_id m
+merge into @pnc_unq_pth_id m
 using
 (
 	select path1.pnc_tx_smry_id,
     count(distinct concepts.concept_id) conceptCount
-    from @results_schema.@pnc_unq_pth_id path1
+    from @pnc_unq_pth_id path1
     join @cdm_schema.concept concepts
     on path1.concept_id = concepts.concept_id
     where path1.job_execution_id = @jobExecId
@@ -447,10 +447,10 @@ WHEN MATCHED then update set m.concept_count = m1.conceptCount;
 
 
 --delete duplicat smry_id rows (now we have smry_id with it's unique concepts conceptsArray and conceptsName)
-delete from @results_schema.@pnc_unq_pth_id 
-where %%physloc%% in (select conceptIds.%%physloc%% from @results_schema.@pnc_unq_pth_id conceptIds, 
+delete from @pnc_unq_pth_id 
+where %%physloc%% in (select conceptIds.%%physloc%% from @pnc_unq_pth_id conceptIds, 
   (select pnc_tx_smry_id, min(concept_order) as concept_order
-    from @results_schema.@pnc_unq_pth_id
+    from @pnc_unq_pth_id
     where job_execution_id = @jobExecId
     group by pnc_tx_smry_id
   ) uniqueIds
@@ -476,8 +476,8 @@ WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl,
            ,CAST(pnc_stdy_smry_id AS varchar(max))+'' as depthOrder, 
            CAST(null as varchar(255)) as parent_comb
            ,tx_avg_frm_strt				  as daysFromStart
-          FROM @results_schema.@pnc_smrypth_fltr
-        WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id FROM @results_schema.@pnc_smrypth_fltr
+          FROM @pnc_smrypth_fltr
+        WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id FROM @pnc_smrypth_fltr
               where 
               study_id = @studyId
               and source_id = @sourceId
@@ -494,7 +494,7 @@ WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl,
               ,t2.tx_stg_avg_gap as tx_stg_avg_gap 
               ,t1.depthOrder+'.'+CAST(t2.pnc_stdy_smry_id AS varchar(max)) as depthOrder, ISNULL(t1.tx_stg_cmb,'') as parent_comb
               ,t2.tx_avg_frm_strt				  as daysFromStart
-        FROM   @results_schema.@pnc_smrypth_fltr t2, t1
+        FROM   @pnc_smrypth_fltr t2, t1
         WHERE   t2.tx_path_parent_key = t1.pnc_stdy_smry_id
         		and t2.job_execution_id = @jobExecId
       )
@@ -520,17 +520,17 @@ WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl,
     	,uniqueConcepts.concept_count		  as uniqueConceptCount    
 		,daysFromStart	   					  as daysFromStart
       FROM t1
-	  join @results_schema.@pnc_smry_msql_cmb concepts 
+	  join @pnc_smry_msql_cmb concepts 
 	  on concepts.pnc_tx_stg_cmb_id = t1.tx_stg_cmb
   	  and concepts.job_execution_id = @jobExecId
-  	  left join @results_schema.@pnc_smry_msql_cmb parentConcepts 
+  	  left join @pnc_smry_msql_cmb parentConcepts 
   	  on parentConcepts.pnc_tx_stg_cmb_id = t1.parent_comb
   	  and parentConcepts.job_execution_id = @jobExecId
-	  join (select pnc_tx_smry_id, conceptsName, conceptsArray, concept_count from @results_schema.@pnc_unq_pth_id where job_execution_id = @jobExecId) uniqueConcepts
+	  join (select pnc_tx_smry_id, conceptsName, conceptsArray, concept_count from @pnc_unq_pth_id where job_execution_id = @jobExecId) uniqueConcepts
 	  on uniqueConcepts.pnc_tx_smry_id = t1.pnc_stdy_smry_id  	  
   	  order by depthOrder;
 
-insert into @results_schema.@pnc_indv_jsn(job_execution_id, rnum, table_row_id, JSON)
+insert into @pnc_indv_jsn(job_execution_id, rnum, table_row_id, JSON)
 select @jobExecId, rnum, table_row_id, JSON 
 from
 (
@@ -540,7 +540,7 @@ CASE
 --    ELSE JSON_SNIPPET
     WHEN rnum = 1 THEN '{"comboId": "root"' 
     + ',"totalCountFirstTherapy":'
-    + (select sum(tx_stg_cnt) from @results_schema.@pnc_smrypth_fltr 
+    + (select sum(tx_stg_cnt) from @pnc_smrypth_fltr 
         where tx_path_parent_key is null
         and tx_seq = 1
         and job_execution_id = @jobExecId)
@@ -551,7 +551,7 @@ CASE
         where study_id = @studyId))
     + ',"firstTherapyPercentage":'
     + (select isnull(ROUND(firstCount.firstCount/cohortTotal.cohortTotal * 100,2),0) firstTherrapyPercentage from 
-        (select sum(tx_stg_cnt) as firstCount from @results_schema.@pnc_smrypth_fltr 
+        (select sum(tx_stg_cnt) as firstCount from @pnc_smrypth_fltr 
         where tx_path_parent_key is null
         and tx_seq = 1
         and job_execution_id = @jobExecId) firstCount,  
@@ -600,7 +600,7 @@ from #pnc_tmp_smry connect_by_query
 ) allRoots
 union all
 select lastRow.rnum as rnum, lastRow.table_row_id as table_row_id, ']}' as JSON from (
-	select distinct 1000000000 as rnum, 1 as table_row_id from @results_schema.@pnc_smrypth_fltr) lastRow
+	select distinct 1000000000 as rnum, 1 as table_row_id from @pnc_smrypth_fltr) lastRow
 ) allRootsAndLastPadding;
   	  
 -------------------------------------version 2 into summary table-------------------------------------
@@ -609,13 +609,13 @@ FROM
 	(select 1 as rnum, 2 as table_row_id, json from (
 	select distinct row_number() over(order by t1.rnum) as rnum, t1.table_row_id as table_row_id,
   	STUFF((SELECT distinct '' + t2.JSON
-    	     from @results_schema.@pnc_indv_jsn t2
+    	     from @pnc_indv_jsn t2
         	 where t1.table_row_id = t2.table_row_id
 			 and t2.job_execution_id = @jobExecId
             	FOR XML PATH(''), TYPE
 	            ).value('.', 'NVARCHAR(MAX)') 
     	    ,1,0,'') as json
-	from @results_schema.@pnc_indv_jsn t1
+	from @pnc_indv_jsn t1
 	where t1.job_execution_id = @jobExecId) oneJson
 	) m1
 WHERE study_id = @studyId and source_id = @sourceId;

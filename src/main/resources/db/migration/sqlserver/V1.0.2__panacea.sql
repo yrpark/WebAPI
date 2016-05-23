@@ -1,12 +1,13 @@
-CREATE SEQUENCE [${ohdsiSchema}].seq_pnc_stdy 
+CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_stdy
+--CREATE SEQUENCE seq_pnc_stdy 
 START WITH 1
 INCREMENT BY 1
 MAXVALUE 9223372036854775807 NO CYCLE;
 
-CREATE TABLE [${ohdsiSchema}].panacea_study
+CREATE TABLE ${ohdsiSchema}.panacea_study
 (
 --    study_id    BIGINT IDENTITY (1, 1) NOT NULL PRIMARY KEY,
-    study_id    BIGINT NOT NULL DEFAULT NEXT VALUE FOR [${ohdsiSchema}].seq_pnc_stdy PRIMARY KEY,
+    study_id    BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_stdy PRIMARY KEY,
     study_name  VARCHAR(255),
     study_desc  VARCHAR(255),
     concept_set_def TEXT,
@@ -23,33 +24,33 @@ CREATE TABLE [${ohdsiSchema}].panacea_study
     create_time datetime
 );
 
-CREATE SEQUENCE [${ohdsiSchema}].seq_pnc_tx_stg_cmb
+CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_tx_stg_cmb
 START WITH 1
 INCREMENT BY 1
 MAXVALUE 9223372036854775807 NO CYCLE;
 
-CREATE TABLE [${ohdsiSchema}].pnc_tx_stage_combination
+CREATE TABLE ${ohdsiSchema}.pnc_tx_stage_combination
 (
 --    pnc_tx_stg_cmb_id BIGINT IDENTITY (1, 1) NOT NULL PRIMARY KEY,
-    pnc_tx_stg_cmb_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR [${ohdsiSchema}].seq_pnc_tx_stg_cmb PRIMARY KEY,
+    pnc_tx_stg_cmb_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_tx_stg_cmb PRIMARY KEY,
     study_id    BIGINT,
-    CONSTRAINT fk_pnctxcmb_pncstdy FOREIGN KEY (study_id) REFERENCES WebAPI.dbo.panacea_study (study_id)
+    CONSTRAINT fk_pnctxcmb_pncstdy FOREIGN KEY (study_id) REFERENCES ${ohdsiSchema}.panacea_study (study_id)
 );
 
-CREATE SEQUENCE [${ohdsiSchema}].seq_pnc_tx_stg_cmb_mp
+CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_tx_stg_cmb_mp
 START WITH 1
 INCREMENT BY 1
 MAXVALUE 9223372036854775807 NO CYCLE;
 
-CREATE TABLE [${ohdsiSchema}].pnc_tx_stage_combination_map
+CREATE TABLE ${ohdsiSchema}.pnc_tx_stage_combination_map
 (
-    pnc_tx_stg_cmb_mp_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR [${ohdsiSchema}].seq_pnc_tx_stg_cmb_mp PRIMARY KEY,
+    pnc_tx_stg_cmb_mp_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_tx_stg_cmb_mp PRIMARY KEY,
     pnc_tx_stg_cmb_id BIGINT,
     concept_id BIGINT not null,
     concept_name VARCHAR(255)
 );
 
-CREATE TABLE [${ohdsiSchema}].pnc_study_summary
+CREATE TABLE ${ohdsiSchema}.pnc_study_summary
 (
     study_id BIGINT  NOT NULL,
     source_id INT,
@@ -59,14 +60,14 @@ CREATE TABLE [${ohdsiSchema}].pnc_study_summary
     last_update_time datetime
 );
 
-CREATE SEQUENCE [${ohdsiSchema}].seq_pnc_stdy_smry
+CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_stdy_smry
 START WITH 1
 INCREMENT BY 1
 MAXVALUE 9223372036854775807 NO CYCLE;
 
-CREATE TABLE [${ohdsiSchema}].pnc_study_summary_path
+CREATE TABLE ${ohdsiSchema}.pnc_study_summary_path
 (
-    pnc_stdy_smry_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR [${ohdsiSchema}].seq_pnc_stdy_smry PRIMARY KEY,
+    pnc_stdy_smry_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_stdy_smry PRIMARY KEY,
     study_id BIGINT,
     source_id INT,
     tx_path_parent_key BIGINT,
@@ -81,7 +82,7 @@ CREATE TABLE [${ohdsiSchema}].pnc_study_summary_path
     tx_rslt_version INT
 );
 
---CREATE TABLE [${ohdsiSchema}].pnc_tmp_pt_sq_ct
+--CREATE TABLE ${ohdsiSchema}.pnc_tmp_pt_sq_ct
 --(
 --    pnc_pt_sq_ct_id BIGINT not null primary key,
 --    study_id  BIGINT FOREIGN KEY REFERENCES WebAPI.dbo.panacea_study (study_id),
@@ -95,7 +96,7 @@ CREATE TABLE [${ohdsiSchema}].pnc_study_summary_path
 --    duration_days INT not null
 --);
 
---CREATE TABLE [${ohdsiSchema}].pnc_tmp_pt_stg_sq_ct
+--CREATE TABLE ${ohdsiSchema}.pnc_tmp_pt_stg_sq_ct
 --(
 --    pnc_pt_stg_sq_id bigint not null primary key,
 --    study_id  bigint not null foreign key references WebAPI.dbo.panacea_study (study_id),
@@ -113,7 +114,7 @@ CREATE INDEX pnc_smry_pth_qry_idx ON ${ohdsiSchema}.pnc_study_summary_path (stud
 CREATE INDEX pnc_smry_pth_prnt_idx ON ${ohdsiSchema}.pnc_study_summary_path (tx_path_parent_key, tx_rslt_version);
 
 ---------following are sql server temp table workaround------------
-CREATE TABLE [${ohdsiSchema}].pnc_tmp_ptsq_ct
+CREATE TABLE ${ohdsiSchema}.pnc_tmp_ptsq_ct
 (
   job_execution_id BIGINT,
   study_id INT,
@@ -127,7 +128,7 @@ CREATE TABLE [${ohdsiSchema}].pnc_tmp_ptsq_ct
   duration_days INT
 );
 
-CREATE TABLE [${ohdsiSchema}].pnc_tmp_ptstg_ct
+CREATE TABLE ${ohdsiSchema}.pnc_tmp_ptstg_ct
 (
   job_execution_id BIGINT,
   study_id INT,
@@ -140,7 +141,7 @@ CREATE TABLE [${ohdsiSchema}].pnc_tmp_ptstg_ct
   stg_duration_days INT
 );
 
-CREATE TABLE [${ohdsiSchema}].pnc_tmp_cmb_sq_ct
+CREATE TABLE ${ohdsiSchema}.pnc_tmp_cmb_sq_ct
 (
 	job_execution_id BIGINT,
 	person_id INT,
@@ -155,7 +156,7 @@ CREATE TABLE [${ohdsiSchema}].pnc_tmp_cmb_sq_ct
 );
 
 -----summary generation----------------------
-CREATE TABLE [${ohdsiSchema}].pnc_tmp_smry_msql_cmb
+CREATE TABLE ${ohdsiSchema}.pnc_tmp_smry_msql_cmb
 (
     job_execution_id BIGINT,
     pnc_tx_stg_cmb_id BIGINT,
@@ -167,7 +168,7 @@ CREATE TABLE [${ohdsiSchema}].pnc_tmp_smry_msql_cmb
 --	conceptsName text    
 );
 
-CREATE TABLE [${ohdsiSchema}].pnc_tmp_indv_jsn
+CREATE TABLE ${ohdsiSchema}.pnc_tmp_indv_jsn
 (
     job_execution_id BIGINT,
     rnum float,
@@ -176,7 +177,7 @@ CREATE TABLE [${ohdsiSchema}].pnc_tmp_indv_jsn
 	JSON varchar(4000)
 );
 
-CREATE TABLE [${ohdsiSchema}].pnc_tmp_unq_trtmt
+CREATE TABLE ${ohdsiSchema}.pnc_tmp_unq_trtmt
 (
     job_execution_id BIGINT,
     rnum float,
@@ -186,7 +187,7 @@ CREATE TABLE [${ohdsiSchema}].pnc_tmp_unq_trtmt
     path_unique_treatment varchar(4000)
 );
 
-CREATE TABLE [${ohdsiSchema}].pnc_tmp_unq_pth_id
+CREATE TABLE ${ohdsiSchema}.pnc_tmp_unq_pth_id
 (
     job_execution_id BIGINT,
     pnc_tx_smry_id BIGINT,
@@ -198,7 +199,7 @@ CREATE TABLE [${ohdsiSchema}].pnc_tmp_unq_pth_id
 );
 
 ------------filtered summary only tables-----------
-CREATE TABLE [${ohdsiSchema}].pnc_tmp_smrypth_fltr
+CREATE TABLE ${ohdsiSchema}.pnc_tmp_smrypth_fltr
 (
     job_execution_id BIGINT,
     pnc_stdy_smry_id BIGINT,
@@ -216,7 +217,7 @@ CREATE TABLE [${ohdsiSchema}].pnc_tmp_smrypth_fltr
     tx_rslt_version int
 );
 
-CREATE TABLE [${ohdsiSchema}].pnc_tmp_smry_ancstr
+CREATE TABLE ${ohdsiSchema}.pnc_tmp_smry_ancstr
 (
     job_execution_id BIGINT,
     pnc_stdy_parent_id    BIGINT,

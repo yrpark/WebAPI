@@ -1,7 +1,7 @@
 
 
 insert into @results_schema.pnc_tx_stage_combination_map (pnc_tx_stg_cmb_mp_id, pnc_tx_stg_cmb_id, concept_id, concept_name)
-select NEXT VALUE FOR @results_schema.seq_pnc_tx_stg_cmb_mp, NEXT VALUE FOR @results_schema.seq_pnc_tx_stg_cmb, concept_id, concept_name from 
+select NEXT VALUE FOR @results_schema.seq_pnc_tx_stg_cmb_mp, NEXT VALUE FOR @results_schema.seq_pnc_tx_stg_cmb, concept_id, concept_name from
   (SELECT DISTINCT myConcept.concept_id concept_id, myConcept.concept_name concept_name FROM @cdm_schema.concept myConcept
     where myconcept.concept_id in (@allConceptIdsStr)
     and myConcept.concept_id NOT IN
