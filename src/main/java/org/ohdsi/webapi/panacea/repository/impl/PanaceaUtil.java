@@ -38,7 +38,7 @@ public class PanaceaUtil {
      */
     public static JSONObject mergeFromRootNode(final String summaryJson) {
         try {
-            final JSONObject rootNode = new JSONObject(summaryJson);
+            JSONObject rootNode = new JSONObject(summaryJson);
             
             if (rootNode.has("children")) {
                 final JSONArray childJsonArray = rootNode.getJSONArray("children");
@@ -61,8 +61,7 @@ public class PanaceaUtil {
                             
                             merged.put("simpleUniqueConceptId", entry.getKey().intValue());
                             merged.put("simpleUniqueConceptName", entry.getValue());
-                            merged.put("simpleUniqueConceptPercentage",  merged.get("percentage"));
-
+                            merged.put("simpleUniqueConceptPercentage", merged.get("percentage"));
                             
                         } catch (final JSONException e) {
                             // TODO Auto-generated catch block
@@ -78,6 +77,8 @@ public class PanaceaUtil {
                 if (newChildArray.length() > 0) {
                     rootNode.putOpt("children", newChildArray);
                 }
+                
+                rootNode = mergeSameRingSameParentDuplicates(rootNode);
             }
             
             return rootNode;
@@ -204,11 +205,11 @@ public class PanaceaUtil {
                 child.put("simpleUniqueConceptId", entry.getKey().intValue());
                 child.put("simpleUniqueConceptName", entry.getValue());
                 
-                double percentage = ((double)child.getInt("patientCount")) / ((double)parent.getInt("patientCount")) * ((double)100);
+                final double percentage = (((double) child.getInt("patientCount")) / ((double) parent.getInt("patientCount"))) * (100);
                 
-                double rounded = (double) Math.round(percentage * 100) / 100;
+                final double rounded = (double) Math.round(percentage * 100) / 100;
                 
-                child.put("simpleUniqueConceptPercentage",  rounded);
+                child.put("simpleUniqueConceptPercentage", rounded);
                 
             } catch (final JSONException e) {
                 // TODO Auto-generated catch block
@@ -270,6 +271,114 @@ public class PanaceaUtil {
         }
         
         return node;
+    }
+    
+    //Call this after merging adjacent duplicate units with "simpleUniqueConceptId", "simpleUniqueConceptName" and "simpleUniqueConceptPercentage" added 
+    //public static JSONArray mergeSameRingSameParentDuplicates(final JSONArray inputNodes) {
+    public static JSONObject mergeSameRingSameParentDuplicates(final JSONObject inputNode) {
+        try {
+            if (inputNode != null) {
+                //                for (int i = 0; i < nodes.length(); i++) {
+                //final JSONObject node = inputNodes.getJSONObject(i);
+                if (inputNode.has("children")) {
+                    final JSONArray childJsonArray = inputNode.getJSONArray("children");
+                    
+                    final JSONArray mergedChildArray = mergeChildDuplicates(childJsonArray, inputNode);
+                    
+                    inputNode.remove("children");
+                    if (mergedChildArray != null) {
+                        inputNode.put("children", mergedChildArray);
+                    }
+                }
+                
+                if (inputNode.has("children") && (inputNode.getJSONArray("children") != null)) {
+                    final JSONArray childJsonArray = inputNode.getJSONArray("children");
+                    for (int i = 0; i < childJsonArray.length(); i++) {
+                        final JSONObject child = childJsonArray.getJSONObject(i);
+                        if (child != null) {
+                            mergeSameRingSameParentDuplicates(child);
+                        }
+                    }
+                }
+                
+                return inputNode;
+            } else {
+                return null;
+            }
+        } catch (final JSONException e) {
+            // TODO Auto-generated catch block
+            log.error("Error generated", e);
+            e.printStackTrace();
+        }
+        
+        return null;
+    }
+    
+    public static JSONArray mergeChildDuplicates(final JSONArray nodes, final JSONObject parent) {
+        try {
+            if (nodes != null) {
+                final Map<Integer, JSONObject> nodesMap = new HashMap<Integer, JSONObject>();
+                
+                for (int i = 0; i < nodes.length(); i++) {
+                    if (nodes.get(i) != null) {
+                        final JSONObject node = nodes.getJSONObject(i);
+                        final Integer conceptId = new Integer(node.getInt("simpleUniqueConceptId"));
+                        
+                        if (nodesMap.containsKey(conceptId)) {
+                            final JSONObject existedNode = nodesMap.get(conceptId);
+                            
+                            final int existedNodePatientCount = existedNode.getInt("patientCount");
+                            final int currentNodePatientCount = node.getInt("patientCount");
+                            
+                            existedNode.put("patientCount", existedNodePatientCount + currentNodePatientCount);
+                            
+                            int parentCount = 0;
+                            if (parent.has("comboId") && parent.getString("comboId").equals("root")) {
+                                parentCount = parent.getInt("totalCohortCount");
+                            } else {
+                                parentCount = parent.getInt("patientCount");
+                            }
+                            
+                            final double percentage = (((double) (existedNodePatientCount + currentNodePatientCount)) / ((double) parentCount)) * (100);
+                            final double rounded = (double) Math.round(percentage * 100) / 100;
+                            
+                            existedNode.put("simpleUniqueConceptPercentage", rounded);
+                            
+                            if (existedNode.has("children") && node.has("children")) {
+                                final JSONArray childJsonArray = existedNode.getJSONArray("children");
+                                final JSONArray mergingJsonArray = node.getJSONArray("children");
+                                
+                                for (int j = 0; j < mergingJsonArray.length(); j++) {
+                                    if (mergingJsonArray.get(j) != null) {
+                                        childJsonArray.put(mergingJsonArray.get(j));
+                                    }
+                                }
+                                existedNode.put("children", childJsonArray);
+                            } else if (node.has("children")) {
+                                final JSONArray mergingJsonArray = node.getJSONArray("children");
+                                
+                                existedNode.put("children", mergingJsonArray);
+                            }
+                        } else {
+                            nodesMap.put(conceptId, node);
+                        }
+                    }
+                }
+                
+                final JSONArray returnJsonArray = new JSONArray();
+                
+                for (final Map.Entry<Integer, JSONObject> entry : nodesMap.entrySet()) {
+                    returnJsonArray.put(entry.getValue());
+                }
+                
+                return returnJsonArray;
+            }
+        } catch (final JSONException e) {
+            // TODO Auto-generated catch block
+            log.error("Error generated", e);
+        }
+        
+        return null;
     }
     
     //NOT being used -- could change for use of merge same comboId with same children...

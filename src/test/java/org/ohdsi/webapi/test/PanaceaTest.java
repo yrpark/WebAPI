@@ -228,7 +228,8 @@ public class PanaceaTest extends TestCase {
     @Test
     public void testGetStudySummaryAndJSON() {
         try {
-            final PanaceaSummary summary = this.pncService.getStudySummary(new Long(31), new Integer(1));
+            //final PanaceaSummary summary = this.pncService.getStudySummary(new Long(31), new Integer(1));
+            final PanaceaSummary summary = this.pncService.getStudySummary(new Long(101), new Integer(1));
             
             //            final JSONObject rootNode = new JSONObject(summary.getStudyResultFiltered());
             //            
