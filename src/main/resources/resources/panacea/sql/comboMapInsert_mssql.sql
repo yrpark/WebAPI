@@ -13,7 +13,7 @@ select NEXT VALUE FOR @results_schema.seq_pnc_tx_stg_cmb_mp, NEXT VALUE FOR @res
           (select comb.pnc_tx_stg_cmb_id pnc_tx_stg_cmb_id, count(*) cnt from @results_schema.pnc_tx_stage_combination comb
           join @results_schema.pnc_tx_stage_combination_map combMap 
           on combmap.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
-          where comb.study_id = 1
+          where comb.study_id = @studyId
           group by comb.pnc_tx_stg_cmb_id
           having count(*) = 1) multiple_ids_combo
           on multiple_ids_combo.pnc_tx_stg_cmb_id = comb.pnc_tx_stg_cmb_id
