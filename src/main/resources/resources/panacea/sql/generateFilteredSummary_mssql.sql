@@ -534,7 +534,7 @@ WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl,
 	    parentConcepts.conceptsName as parent_concept_names,
 		parentConcepts.conceptsArray as parent_combo_concepts
     	,tx_stg_avg_gap                       as avg_gap
-    	,isnull(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0)   as gap_pcnt
+    	,isnull(ROUND(cast(tx_stg_avg_gap as float)/cast(tx_stg_avg_dr as float) * 100,2),0)   as gap_pcnt
     	,uniqueConcepts.conceptsName		  as uniqueConceptsName
     	,uniqueConcepts.conceptsArray		  as uniqueConceptsArray
     	,uniqueConcepts.concept_count		  as uniqueConceptCount    
@@ -570,7 +570,7 @@ CASE
         @results_schema.panacea_study 
         where study_id = @studyId))
     + ',"firstTherapyPercentage":'
-    + (select cast(isnull(ROUND(firstCount.firstCount/cohortTotal.cohortTotal * 100,2),0) as varchar(max)) firstTherrapyPercentage from 
+    + (select cast(isnull(ROUND(cast(firstCount.firstCount as float)/cast(cohortTotal.cohortTotal as float) * 100,2),0) as varchar(max)) firstTherrapyPercentage from 
         (select sum(tx_stg_cnt) as firstCount from @pnc_smrypth_fltr 
         where tx_path_parent_key is null
         and tx_seq = 1

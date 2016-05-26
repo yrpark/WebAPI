@@ -26,7 +26,7 @@ merge into @results_schema.pnc_study_summary_path  m
 using
   (
 	select pathsum.%%physloc%% as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
-    parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(pathSum.tx_stg_cnt/parentPath.tx_stg_cnt * 100,2),0) percentage
+    parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(parentPath.tx_stg_cnt as float) * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum
     join (select %%physloc%% as rowid, SUBSTRING(tx_stg_cmb_pth , 0 , len(tx_stg_cmb_pth) - len(tx_stg_cmb) ) as parentPath
     from @results_schema.pnc_study_summary_path
@@ -54,7 +54,7 @@ merge into @results_schema.pnc_study_summary_path  m
 using
   (
     select pathsum.%%physloc%% as the_rowid, rootCount.totalRootCount,
-    rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(pathSum.tx_stg_cnt/rootCount.totalRootCount * 100,2),0) percentage
+    rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(rootCount.totalRootCount as float) * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
     where tx_path_parent_key is null and tx_rslt_version = 1
       and study_id = @studyId and source_id = @sourceId
@@ -74,7 +74,7 @@ merge into @results_schema.pnc_study_summary_path  m
 using
   (
 	select pathsum.%%physloc%% as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
-    parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(pathSum.tx_stg_cnt/parentPath.tx_stg_cnt * 100,2),0) percentage
+    parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(parentPath.tx_stg_cnt as float) * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum
     join (select %%physloc%% as rowid, SUBSTRING(tx_stg_cmb_pth , 0 , len(tx_stg_cmb_pth) - len(tx_stg_cmb) ) as parentPath
     from @results_schema.pnc_study_summary_path
@@ -101,7 +101,7 @@ merge into @results_schema.pnc_study_summary_path  m
 using
   (
     select pathsum.%%physloc%% as the_rowid, rootCount.totalRootCount,
-    rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(pathSum.tx_stg_cnt/rootCount.totalRootCount * 100,2),0) percentage
+    rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(rootCount.totalRootCount as float) * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
     where tx_path_parent_key is null and tx_rslt_version = 2
       and study_id = @studyId and source_id = @sourceId
@@ -646,7 +646,7 @@ WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl,
 	    parentConcepts.conceptsName as parent_concept_names,
 		parentConcepts.conceptsArray as parent_combo_concepts
     	,tx_stg_avg_gap                       as avg_gap
-    	,isnull(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0)   as gap_pcnt
+    	,isnull(ROUND(cast(tx_stg_avg_gap as float)/cast(tx_stg_avg_dr as float) * 100,2),0)   as gap_pcnt
     	,uniqueConcepts.conceptsName		  as uniqueConceptsName
     	,uniqueConcepts.conceptsArray		  as uniqueConceptsArray
     	,uniqueConcepts.concept_count		  as uniqueConceptCount    
@@ -684,7 +684,7 @@ CASE
         @results_schema.panacea_study 
         where study_id = @studyId))
     + ',"firstTherapyPercentage":'
-    + (select cast(isnull(ROUND(firstCount.firstCount/cohortTotal.cohortTotal * 100,2),0) as varchar(max)) firstTherrapyPercentage from 
+    + (select cast(isnull(ROUND(cast(firstCount.firstCount as float)/cast(cohortTotal.cohortTotal as float) * 100,2),0) as varchar(max)) firstTherrapyPercentage from 
         (select sum(tx_stg_cnt) as firstCount from @results_schema.pnc_study_summary_path 
         where study_id = @studyId 
         and source_id = @sourceId
