@@ -13,6 +13,8 @@ import org.ohdsi.webapi.source.SourceInfo;
 import org.ohdsi.webapi.source.SourceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationInfoService;
 
 @Path("/source/")
 @Component
@@ -22,7 +24,7 @@ public class SourceService extends AbstractDaoService {
   private SourceRepository sourceRepository;
 
   private static Collection<SourceInfo> cachedSources = null;
-  
+
   @Path("sources")
   @GET
   @Produces(MediaType.APPLICATION_JSON)
@@ -32,19 +34,34 @@ public class SourceService extends AbstractDaoService {
       ArrayList<SourceInfo> sources = new ArrayList<>();
       for (Source source : sourceRepository.findAll()) {
         sources.add(new SourceInfo(source));
+
+        Collection<SourceDaimon> daimons = source.getDaimons();
+        for (SourceDaimon daimon : daimons) {
+          if (daimon.getDaimonType() == SourceDaimon.DaimonType.Results) {
+            Flyway flyway = new Flyway();
+            flyway.setDataSource(source.getSourceConnection(), null, null);
+            flyway.setLocations("classpath:resultdb/migration/" + source.getSourceDialect());
+            flyway.setTable("dbresult_migration");
+            flyway.setBaselineOnMigrate(true); // establish metadata table if it doesn't exist yet
+            int migrate;
+            migrate = flyway.migrate();
+            
+            int foo = migrate;
+          }
+        }
       }
       cachedSources = sources;
     }
     return cachedSources;
   }
-  
+
   @Path("refresh")
   @GET
-  @Produces(MediaType.APPLICATION_JSON)  
+  @Produces(MediaType.APPLICATION_JSON)
   public Collection<SourceInfo> refreshSources() {
     cachedSources = null;
     return getSources();
-  }  
+  }
 
   @Path("priorityVocabulary")
   @GET
