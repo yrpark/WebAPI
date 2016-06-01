@@ -14,7 +14,7 @@
     <!-- Spring Boot manages spring.version as well -->
     <spring.boot.version>1.2.1.RELEASE</spring.boot.version>
     <spring.batch.version>3.0.3.RELEASE</spring.batch.version>
-    <flyway.version>3.1</flyway.version>
+    <flyway.version>4.0.1</flyway.version>
     <start-class>org.ohdsi.webapi.WebApi</start-class>
 
     <!-- Primary DataSource -->
@@ -114,7 +114,7 @@
         <configuration>
           <skipTests>true</skipTests>
         </configuration>
-</plugin>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -232,8 +232,6 @@
     </dependencies>
   </dependencyManagement>
   <dependencies>
-    <!-- <dependency> <groupId>org.springframework.boot</groupId> <artifactId>spring-boot-starter-actuator</artifactId> 
-    <version>${spring.boot.version}</version> </dependency> -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter</artifactId>
@@ -287,9 +285,6 @@
       <version>3.1.0</version>
       <scope>provided</scope>
     </dependency>
-    <!-- <dependency> <groupId>org.glassfish.jersey.containers</groupId> <artifactId>jersey-container-servlet</artifactId> 
-    </dependency> <dependency> <groupId>org.glassfish.jersey.media</groupId> 
-    <artifactId>jersey-media-json-jackson</artifactId> </dependency> -->
     <dependency>
       <groupId>org.ohdsi.sql</groupId>
       <artifactId>SqlRender</artifactId>
@@ -322,17 +317,15 @@
       <version>${flyway.version}</version>
     </dependency>
     <dependency>
-	<groupId>org.apache.httpcomponents</groupId>
-	<artifactId>httpclient</artifactId>
-	<version>4.3.6</version>
-</dependency>
-<dependency>
-	<groupId>commons-httpclient</groupId>
-	<artifactId>commons-httpclient</artifactId>
-	<version>3.1</version>
-</dependency>
-
-    
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.3.6</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-httpclient</groupId>
+      <artifactId>commons-httpclient</artifactId>
+      <version>3.1</version>
+    </dependency>
     <dependency>
       <groupId>org.springframework.batch</groupId>
       <artifactId>spring-batch-admin-manager</artifactId>
@@ -348,7 +341,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-   
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
