@@ -219,6 +219,8 @@ public class PanaceaService extends AbstractDaoService {
             ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResultFiltered()).toString());
         }
         
+        PanaceaUtil.setSingleIngredientBeforeAndAfterJSONArray(ps);
+        
         return ps;
     }
     
