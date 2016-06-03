@@ -20,11 +20,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.ohdsi.webapi.panacea.pojo.PanaceaSummary;
 
 /**
  * A util class mainly for JSON manipulation after calculation (introduced for unique pathway)
@@ -32,6 +34,35 @@ import org.codehaus.jettison.json.JSONObject;
 public class PanaceaUtil {
     
     private static final Log log = LogFactory.getLog(PanaceaUtil.class);
+    
+    public static void setSingleIngredientBeforeAndAfterJSONArray(final PanaceaSummary ps) {
+        try {
+            JSONObject rootNode;
+            
+            rootNode = new JSONObject(ps.getStudyResultUniquePath());
+            
+            final JSONArray singleIngredientJSONArray = rootNode.getJSONArray("singleIngredient");
+            
+            if (!StringUtils.isEmpty(ps.getStudyResultFiltered())) {
+                final JSONObject filteredVersionJObj = new JSONObject(ps.getStudyResultFiltered());
+                filteredVersionJObj.put("singleIngredient", singleIngredientJSONArray);
+                ps.setStudyResultFiltered(filteredVersionJObj.toString());
+            }
+            if (!StringUtils.isEmpty(ps.getStudyResultCollapsed())) {
+                final JSONObject collapseVersionJObj = new JSONObject(ps.getStudyResultCollapsed());
+                collapseVersionJObj.put("singleIngredient", singleIngredientJSONArray);
+                ps.setStudyResultCollapsed(collapseVersionJObj.toString());
+            }
+            if (!StringUtils.isEmpty(ps.getStudyResults())) {
+                final JSONObject originVersionJObj = new JSONObject(ps.getStudyResults());
+                originVersionJObj.put("singleIngredient", singleIngredientJSONArray);
+                ps.setStudyResults(originVersionJObj.toString());
+            }
+        } catch (final JSONException e) {
+            // TODO Auto-generated catch block
+            log.error("Error generated", e);
+        }
+    }
     
     /**
      * Call mergeNode() for merging for unique pathway
@@ -79,6 +110,10 @@ public class PanaceaUtil {
                 }
                 
                 rootNode = mergeSameRingSameParentDuplicates(rootNode);
+                
+                final JSONArray beforeAndAfterIngredientJSONArray = getSingleIngredientBeforeAndAfter(rootNode);
+                
+                rootNode.put("singleIngredient", beforeAndAfterIngredientJSONArray);
             }
             
             return rootNode;
@@ -302,6 +337,405 @@ public class PanaceaUtil {
                 }
                 
                 return inputNode;
+            } else {
+                return null;
+            }
+        } catch (final JSONException e) {
+            // TODO Auto-generated catch block
+            log.error("Error generated", e);
+            e.printStackTrace();
+        }
+        
+        return null;
+    }
+    
+    public static JSONArray getSingleIngredientBeforeAndAfter(final JSONObject inputNode) {
+        
+        final List<Map<String, Map<String, Map<String, Integer>>>> allNodes = new ArrayList<Map<String, Map<String, Map<String, Integer>>>>();
+        calculateSingleIngredientBeforeAndAfter(inputNode, allNodes);
+        
+        final Map<String, Map<String, Integer>> afterDrugMap = new HashMap<String, Map<String, Integer>>();
+        
+        for (final Map<String, Map<String, Map<String, Integer>>> nodeMap : allNodes) {
+            if (nodeMap != null) {
+                final Map.Entry<String, Map<String, Map<String, Integer>>> nodeEntry = nodeMap.entrySet().iterator().next();
+                
+                final String nodeDrugName = nodeEntry.getKey();
+                
+                final Map<String, Map<String, Integer>> nodeAncestorDescendantMap = nodeEntry.getValue();
+                
+                final Map<String, Integer> nodeDescendantMap = nodeAncestorDescendantMap.get("descendant");
+                
+                for (final Map.Entry<String, Integer> entry : nodeDescendantMap.entrySet()) {
+                    if (!afterDrugMap.containsKey(nodeDrugName)) {
+                        afterDrugMap.put(nodeDrugName, new HashMap<String, Integer>());
+                    }
+                    
+                    final String descedantDrugName = entry.getKey();
+                    final Integer descedantDrugCount = entry.getValue();
+                    
+                    //TODO -- "currentNodeCount" for the total count
+                    if (afterDrugMap.get(nodeDrugName).containsKey(descedantDrugName)) {
+                        afterDrugMap.get(nodeDrugName).put(descedantDrugName,
+                            afterDrugMap.get(nodeDrugName).get(descedantDrugName) + descedantDrugCount);
+                    } else {
+                        afterDrugMap.get(nodeDrugName).put(descedantDrugName, descedantDrugCount);
+                    }
+                }
+            }
+        }
+        
+        final Map<String, Map<String, Map<String, Number>>> returnAfterDrugMap = new HashMap<String, Map<String, Map<String, Number>>>();
+        
+        for (final Map.Entry<String, Map<String, Integer>> entry : afterDrugMap.entrySet()) {
+            final String drugName = entry.getKey();
+            final Map<String, Integer> descendantMap = entry.getValue();
+            
+            final Integer totalCount = descendantMap.get("currentNodeCount");
+            
+            for (final Map.Entry<String, Integer> descendantEntry : descendantMap.entrySet()) {
+                if (!returnAfterDrugMap.containsKey(drugName)) {
+                    returnAfterDrugMap.put(drugName, new HashMap<String, Map<String, Number>>());
+                }
+                
+                final String descdDrugName = descendantEntry.getKey();
+                final Integer descdDrugCount = descendantEntry.getValue();
+                
+                if (!descendantEntry.getKey().equals("currentNodeCount")) {
+                    final Map<String, Number> descdMap = new HashMap<String, Number>();
+                    
+                    final double percentage = (((double) descdDrugCount) / ((double) totalCount)) * (100);
+                    final double rounded = (double) Math.round(percentage * 100) / 100;
+                    
+                    descdMap.put("count", descdDrugCount);
+                    descdMap.put("percentage", rounded);
+                    
+                    returnAfterDrugMap.get(drugName).put(descdDrugName, descdMap);
+                }
+            }
+            
+            final Map<String, Number> descdMap = new HashMap<String, Number>();
+            descdMap.put("totalCount", totalCount);
+            returnAfterDrugMap.get(drugName).put("totalCount", descdMap);
+        }
+        
+        final List<Map<String, Map<String, Map<String, Integer>>>> allNodesAncestor = new ArrayList<Map<String, Map<String, Map<String, Integer>>>>();
+        final Map<String, Integer> parentMap = new HashMap<String, Integer>();
+        calculateSingleIngredientBeforeAllNodes(null, inputNode, allNodesAncestor, parentMap);
+        
+        final Map<String, Map<String, Integer>> beforeDrugMap = new HashMap<String, Map<String, Integer>>();
+        
+        for (final Map<String, Map<String, Map<String, Integer>>> nodeMap : allNodesAncestor) {
+            if (nodeMap != null) {
+                final Map.Entry<String, Map<String, Map<String, Integer>>> nodeEntry = nodeMap.entrySet().iterator().next();
+                
+                final String nodeDrugName = nodeEntry.getKey();
+                
+                final Map<String, Map<String, Integer>> nodeAncestorDescendantMap = nodeEntry.getValue();
+                
+                final Map<String, Integer> nodeAncestortMap = nodeAncestorDescendantMap.get("ancestor");
+                
+                final int nodeCount = nodeAncestortMap.get("currentNodeCount");
+                
+                for (final Map.Entry<String, Integer> entry : nodeAncestortMap.entrySet()) {
+                    if (!beforeDrugMap.containsKey(nodeDrugName)) {
+                        beforeDrugMap.put(nodeDrugName, new HashMap<String, Integer>());
+                    }
+                    
+                    final String ancestorDrugName = entry.getKey();
+                    
+                    if (beforeDrugMap.get(nodeDrugName).containsKey(ancestorDrugName)) {
+                        beforeDrugMap.get(nodeDrugName).put(ancestorDrugName,
+                            beforeDrugMap.get(nodeDrugName).get(ancestorDrugName) + nodeCount);
+                    } else {
+                        beforeDrugMap.get(nodeDrugName).put(ancestorDrugName, nodeCount);
+                    }
+                }
+            }
+        }
+        
+        final Map<String, Map<String, Map<String, Number>>> returnBeforeDrugMap = new HashMap<String, Map<String, Map<String, Number>>>();
+        
+        for (final Map.Entry<String, Map<String, Integer>> entry : beforeDrugMap.entrySet()) {
+            final String drugName = entry.getKey();
+            final Map<String, Integer> ancestorMap = entry.getValue();
+            
+            final Integer totalCount = ancestorMap.get("currentNodeCount");
+            
+            for (final Map.Entry<String, Integer> ancestorEntry : ancestorMap.entrySet()) {
+                if (!returnBeforeDrugMap.containsKey(drugName)) {
+                    returnBeforeDrugMap.put(drugName, new HashMap<String, Map<String, Number>>());
+                }
+                
+                final String ancestorDrugName = ancestorEntry.getKey();
+                final Integer ancestorDrugCount = ancestorEntry.getValue();
+                
+                if (!ancestorEntry.getKey().equals("currentNodeCount")) {
+                    final Map<String, Number> descdMap = new HashMap<String, Number>();
+                    
+                    final double percentage = (((double) ancestorDrugCount) / ((double) totalCount)) * (100);
+                    final double rounded = (double) Math.round(percentage * 100) / 100;
+                    
+                    descdMap.put("count", ancestorDrugCount);
+                    descdMap.put("percentage", rounded);
+                    
+                    returnBeforeDrugMap.get(drugName).put(ancestorDrugName, descdMap);
+                }
+            }
+            
+            final Map<String, Number> ancestorTotalMap = new HashMap<String, Number>();
+            ancestorTotalMap.put("totalCount", totalCount);
+            returnBeforeDrugMap.get(drugName).put("totalCount", ancestorTotalMap);
+        }
+        
+        final JSONArray returnArray = new JSONArray();
+        
+        for (final Map.Entry<String, Map<String, Map<String, Number>>> entry : returnAfterDrugMap.entrySet()) {
+            final String drugName = entry.getKey();
+            
+            final Integer totalCount = (Integer) entry.getValue().get("totalCount").get("totalCount");
+            
+            final Map<String, Map<String, Number>> descendantMap = entry.getValue();
+            
+            final JSONArray drugDescdArray = new JSONArray();
+            
+            for (final Map.Entry<String, Map<String, Number>> descendantEntry : descendantMap.entrySet()) {
+                final String descdDrugName = descendantEntry.getKey();
+                
+                if (!descdDrugName.equals("totalCount")) {
+                    final Integer descdDrugCount = (Integer) descendantEntry.getValue().get("count");
+                    final Double descdDrugPercentage = (Double) descendantEntry.getValue().get("percentage");
+                    
+                    final JSONObject oneDescdObj = new JSONObject();
+                    
+                    try {
+                        oneDescdObj.put("descendantConceptName", descdDrugName);
+                        oneDescdObj.put("descendantCount", descdDrugCount);
+                        oneDescdObj.put("descendantPercentage", descdDrugPercentage);
+                        
+                        drugDescdArray.put(oneDescdObj);
+                        
+                    } catch (final JSONException e) {
+                        // TODO Auto-generated catch block
+                        log.error("Error generated", e);
+                    }
+                }
+            }
+            
+            final JSONArray drugAncestorArray = new JSONArray();
+            final Map<String, Map<String, Number>> ancestorMap = returnBeforeDrugMap.get(drugName);
+            for (final Map.Entry<String, Map<String, Number>> ancestorEntry : ancestorMap.entrySet()) {
+                final String ancestorDrugName = ancestorEntry.getKey();
+                
+                if (!ancestorDrugName.equals("totalCount")) {
+                    final Integer ancestorDrugCount = (Integer) ancestorEntry.getValue().get("count");
+                    final Double ancestorDrugPercentage = (Double) ancestorEntry.getValue().get("percentage");
+                    
+                    final JSONObject onAncestorObj = new JSONObject();
+                    
+                    try {
+                        onAncestorObj.put("ancestorConceptName", ancestorDrugName);
+                        onAncestorObj.put("ancestorCount", ancestorDrugCount);
+                        onAncestorObj.put("ancestorPercentage", ancestorDrugPercentage);
+                        
+                        drugAncestorArray.put(onAncestorObj);
+                        
+                    } catch (final JSONException e) {
+                        // TODO Auto-generated catch block
+                        log.error("Error generated", e);
+                    }
+                }
+            }
+            
+            final JSONObject drugObj = new JSONObject();
+            try {
+                
+                drugObj.put("oneDrugName", drugName);
+                drugObj.put("totalCount", totalCount);
+                drugObj.put("descendantArray", drugDescdArray);
+                drugObj.put("ancestorArray", drugAncestorArray);
+                
+            } catch (final JSONException e) {
+                // TODO Auto-generated catch block
+                log.error("Error generated", e);
+            }
+            
+            returnArray.put(drugObj);
+        }
+        
+        return returnArray;
+    }
+    
+    public static void calculateSingleIngredientBeforeAndAfter(final JSONObject inputNode,
+                                                               final List<Map<String, Map<String, Map<String, Integer>>>> allNodes) {
+        try {
+            if (inputNode != null) {
+                
+                if (inputNode.has("simpleUniqueConceptName")) {
+                    final Map<String, Integer> descendantMap = new HashMap<String, Integer>();
+                    
+                    if ((!inputNode.has("children")) && inputNode.has("patientCount")) {
+                        //leaf
+                        if (descendantMap.containsKey("None")) {
+                            final int count = descendantMap.get("None") + inputNode.getInt("patientCount");
+                            descendantMap.put("None", new Integer(count));
+                        } else {
+                            descendantMap.put("None", inputNode.getInt("patientCount"));
+                        }
+                    } else {
+                        getNodeAllDescendantsDrug(inputNode, descendantMap);
+                    }
+                    
+                    final Map<String, Map<String, Integer>> ancestorAndDescendantMap = new HashMap<String, Map<String, Integer>>();
+                    
+                    descendantMap.put("currentNodeCount", inputNode.getInt("patientCount"));
+                    ancestorAndDescendantMap.put("descendant", descendantMap);
+                    
+                    final Map<String, Map<String, Map<String, Integer>>> nodeMap = new HashMap<String, Map<String, Map<String, Integer>>>();
+                    
+                    nodeMap.put(inputNode.getString("simpleUniqueConceptName"), ancestorAndDescendantMap);
+                    
+                    allNodes.add(nodeMap);
+                } else {
+                    //root
+                }
+                
+                if (inputNode.has("children") && (inputNode.getJSONArray("children") != null)) {
+                    final JSONArray childJsonArray = inputNode.getJSONArray("children");
+                    for (int i = 0; i < childJsonArray.length(); i++) {
+                        final JSONObject child = childJsonArray.getJSONObject(i);
+                        
+                        calculateSingleIngredientBeforeAndAfter(child, allNodes);
+                    }
+                }
+                
+            }
+        } catch (final JSONException e) {
+            // TODO Auto-generated catch block
+            log.error("Error generated", e);
+            e.printStackTrace();
+        }
+    }
+    
+    public static void getNodeAllDescendantsDrug(final JSONObject inputNode, final Map<String, Integer> descendantMap) {
+        try {
+            if (inputNode != null) {
+                //final Map<String, Integer> descendantMap = new HashMap<String, Integer>();
+                if (inputNode.has("children") && inputNode.has("patientCount")) {
+                    final JSONArray childJsonArray = inputNode.getJSONArray("children");
+                    
+                    for (int i = 0; i < childJsonArray.length(); i++) {
+                        final JSONObject child = childJsonArray.getJSONObject(i);
+                        
+                        if ((child != null) && child.has("simpleUniqueConceptName")) {
+                            if (descendantMap.containsKey(child.getString("simpleUniqueConceptName"))) {
+                                final int count = descendantMap.get(child.getString("simpleUniqueConceptName"))
+                                        + child.getInt("patientCount");
+                                descendantMap.put(child.getString("simpleUniqueConceptName"), new Integer(count));
+                            } else {
+                                descendantMap.put(child.getString("simpleUniqueConceptName"), child.getInt("patientCount"));
+                            }
+                        }
+                    }
+                    
+                    for (int i = 0; i < childJsonArray.length(); i++) {
+                        final JSONObject child = childJsonArray.getJSONObject(i);
+                        
+                        getNodeAllDescendantsDrug(child, descendantMap);
+                    }
+                }
+            }
+        } catch (final JSONException e) {
+            // TODO Auto-generated catch block
+            log.error("Error generated", e);
+            e.printStackTrace();
+        }
+    }
+    
+    public static void calculateSingleIngredientBeforeAllNodes(final JSONObject parentNode,
+                                                               final JSONObject childNode,
+                                                               final List<Map<String, Map<String, Map<String, Integer>>>> allNodes,
+                                                               final Map<String, Integer> parentMap) {
+        try {
+            if (childNode != null) {
+                
+                //final Map<String, Integer> currentNodeAncestorMap = new HashMap<String, Integer>();
+                Map<String, Integer> ancestorMap = new HashMap<String, Integer>();
+                
+                if (childNode.has("simpleUniqueConceptName")) {
+                    ancestorMap = getNodeAllAncestorDrug(parentNode, childNode, parentMap);
+                    
+                    final Map<String, Map<String, Integer>> ancestorAndDescendantMap = new HashMap<String, Map<String, Integer>>();
+                    
+                    ancestorMap.put("currentNodeCount", childNode.getInt("patientCount"));
+                    ancestorAndDescendantMap.put("ancestor", ancestorMap);
+                    
+                    final Map<String, Map<String, Map<String, Integer>>> nodeMap = new HashMap<String, Map<String, Map<String, Integer>>>();
+                    
+                    nodeMap.put(childNode.getString("simpleUniqueConceptName"), ancestorAndDescendantMap);
+                    
+                    allNodes.add(nodeMap);
+                } else {
+                    //root
+                }
+                
+                if (childNode.has("children") && (childNode.getJSONArray("children") != null)) {
+                    final JSONArray childJsonArray = childNode.getJSONArray("children");
+                    for (int i = 0; i < childJsonArray.length(); i++) {
+                        final JSONObject child = childJsonArray.getJSONObject(i);
+                        
+                        calculateSingleIngredientBeforeAllNodes(childNode, child, allNodes, ancestorMap);
+                    }
+                }
+            }
+        } catch (final JSONException e) {
+            // TODO Auto-generated catch block
+            log.error("Error generated", e);
+            e.printStackTrace();
+        }
+    }
+    
+    public static Map<String, Integer> getNodeAllAncestorDrug(final JSONObject parentNode, final JSONObject childNode,
+                                                              final Map<String, Integer> parentNodeAncestorMap) {
+        
+        try {
+            if ((parentNode != null) && (childNode != null)) {
+                
+                final Map<String, Integer> childAncestorMap = new HashMap<String, Integer>();
+                
+                childAncestorMap.putAll(parentNodeAncestorMap);
+                
+                childAncestorMap.put("currentNodeCount", childNode.getInt("patientCount"));
+                
+                String parentDrugName = "";
+                
+                if (parentNode.has("simpleUniqueConceptName")) {
+                    parentDrugName = parentNode.getString("simpleUniqueConceptName");
+                    
+                    //remove "None" from non-first ring drugs
+                    if (childAncestorMap.containsKey("None")) {
+                        childAncestorMap.remove("None");
+                    }
+                } else {
+                    //root as parentNode:
+                    parentDrugName = "None";
+                }
+                
+                //no need of this count in fact: current child count is as "currentNodeCount", this is the actually count 
+                childAncestorMap.put(parentDrugName, childNode.getInt("patientCount"));
+                //if (childAncestorMap.containsKey(parentDrugName)) {
+                //childAncestorMap.put(parentDrugName,
+                //        childAncestorMap.get(parentDrugName) + childNode.getInt("patientCount"));
+                //} else {
+                //    childAncestorMap.put(parentDrugName, childNode.getInt("patientCount"));
+                //}
+                
+                return childAncestorMap;
+            } else if ((parentNode == null) && (childNode != null)) {
+                //root as childNode:
+                final Map<String, Integer> childAncestorMap = new HashMap<String, Integer>();
+                
+                return childAncestorMap;
             } else {
                 return null;
             }
