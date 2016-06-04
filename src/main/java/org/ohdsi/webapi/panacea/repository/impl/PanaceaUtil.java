@@ -586,6 +586,23 @@ public class PanaceaUtil {
                         getNodeAllDescendantsDrug(inputNode, descendantMap);
                     }
                     
+                    //calculate current node's "none after" for non-leaf node (leaf node already taken care of in //leaf section above)
+                    if ((inputNode.has("children")) && inputNode.has("patientCount")) {
+                        int directChildTotalCount = 0;
+                        
+                        final JSONArray childJsonArray = inputNode.getJSONArray("children");
+                        for (int i = 0; i < childJsonArray.length(); i++) {
+                            final JSONObject child = childJsonArray.getJSONObject(i);
+                            
+                            if ((child != null) && child.has("patientCount")) {
+                                directChildTotalCount += child.getInt("patientCount");
+                            }
+                        }
+                        
+                        final int currentNodeNoneAfterCount = inputNode.getInt("patientCount") - directChildTotalCount;
+                        descendantMap.put("None", currentNodeNoneAfterCount);
+                    }
+                    
                     final Map<String, Map<String, Integer>> ancestorAndDescendantMap = new HashMap<String, Map<String, Integer>>();
                     
                     descendantMap.put("currentNodeCount", inputNode.getInt("patientCount"));
