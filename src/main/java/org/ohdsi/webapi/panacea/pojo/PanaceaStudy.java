@@ -354,7 +354,7 @@ public class PanaceaStudy implements Serializable {
         ps.setStudyDesc(this.studyDesc);
         ps.setStudyDetail(this.studyDetail);
         ps.setStudyDuration(this.studyDuration);
-        ps.setStudyName(this.studyName);
+        ps.setStudyName(this.studyName + " (Copy)");
         ps.setSwitchWindow(this.switchWindow);
         
         return ps;
