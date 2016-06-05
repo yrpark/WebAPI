@@ -596,12 +596,12 @@ public class PanaceaUtil {
                     
                     if ((!inputNode.has("children")) && inputNode.has("patientCount")) {
                         //leaf
-                        if (descendantMap.containsKey("None")) {
-                            final int count = descendantMap.get("None") + inputNode.getInt("patientCount");
-                            descendantMap.put("None", new Integer(count));
-                        } else {
-                            descendantMap.put("None", inputNode.getInt("patientCount"));
-                        }
+//                        if (descendantMap.containsKey("None")) {
+//                            final int count = descendantMap.get("None") + inputNode.getInt("patientCount");
+//                            descendantMap.put("None", new Integer(count));
+//                        } else {
+//                            descendantMap.put("None", inputNode.getInt("patientCount"));
+//                        }
                     } else {
                         getNodeAllDescendantsDrug(inputNode, descendantMap);
                     }
@@ -620,7 +620,7 @@ public class PanaceaUtil {
                         }
                         
                         final int currentNodeNoneAfterCount = inputNode.getInt("patientCount") - directChildTotalCount;
-                        descendantMap.put("None", currentNodeNoneAfterCount);
+//                        descendantMap.put("None", currentNodeNoneAfterCount);
                     }
                     
                     final Map<String, Map<String, Integer>> ancestorAndDescendantMap = new HashMap<String, Map<String, Integer>>();
@@ -750,9 +750,9 @@ public class PanaceaUtil {
                     parentDrugName = parentNode.getString("simpleUniqueConceptName");
                     
                     //remove "None" from non-first ring drugs
-//                    if (childAncestorMap.containsKey("None")) {
-//                        childAncestorMap.remove("None");
-//                    }
+                    if (childAncestorMap.containsKey("None")) {
+                        childAncestorMap.remove("None");
+                    }
                 } else {
                     //root as parentNode:
                     parentDrugName = "None";
