@@ -211,12 +211,15 @@ public class PanaceaService extends AbstractDaoService {
         
         if (StringUtils.isEmpty(ps.getStudyResultFiltered())) {
             if (!StringUtils.isEmpty(ps.getStudyResultCollapsed())) {
-                ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResultCollapsed()).toString());
+            	ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResultCollapsed()).toString());
+                ps.setStudyResultCollapsed(PanaceaUtil.includeNone(ps.getStudyResultCollapsed()));
             } else if (!StringUtils.isEmpty(ps.getStudyResults())) {
-                ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResults()).toString());
+            	ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResults()).toString());
+                ps.setStudyResults(PanaceaUtil.includeNone(ps.getStudyResults()));
             }
         } else {
-            ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResultFiltered()).toString());
+        	ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResultFiltered()).toString());
+            ps.setStudyResultFiltered(PanaceaUtil.includeNone(ps.getStudyResultFiltered()));
         }
         
         PanaceaUtil.setSingleIngredientBeforeAndAfterJSONArray(ps);
