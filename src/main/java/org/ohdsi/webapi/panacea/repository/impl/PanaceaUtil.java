@@ -313,12 +313,32 @@ public class PanaceaUtil {
     public static JSONObject mergeSameRingSameParentDuplicates(final JSONObject inputNode) {
         try {
             if (inputNode != null) {
+            	
+              
                 //                for (int i = 0; i < nodes.length(); i++) {
                 //final JSONObject node = inputNodes.getJSONObject(i);
                 if (inputNode.has("children")) {
                     final JSONArray childJsonArray = inputNode.getJSONArray("children");
                     
                     final JSONArray mergedChildArray = mergeChildDuplicates(childJsonArray, inputNode);
+                    
+                    // add the none child
+                    if (inputNode.has("patientCount")) {
+                    	int directChildTotalCount = 0;
+                        
+                        for (int i = 0; i < childJsonArray.length(); i++) {
+                            final JSONObject child = childJsonArray.getJSONObject(i);
+                            
+                            if ((child != null) && child.has("patientCount")) {
+                                directChildTotalCount += child.getInt("patientCount");
+                            }
+                        }
+                        
+                        final int currentNodeNoneAfterCount = inputNode.getInt("patientCount") - directChildTotalCount;
+                        final JSONObject noneObject = createNoneObject(currentNodeNoneAfterCount);
+                        mergedChildArray.put(noneObject);
+                        
+                    }
                     
                     inputNode.remove("children");
                     if (mergedChildArray != null) {
@@ -730,9 +750,9 @@ public class PanaceaUtil {
                     parentDrugName = parentNode.getString("simpleUniqueConceptName");
                     
                     //remove "None" from non-first ring drugs
-                    if (childAncestorMap.containsKey("None")) {
-                        childAncestorMap.remove("None");
-                    }
+//                    if (childAncestorMap.containsKey("None")) {
+//                        childAncestorMap.remove("None");
+//                    }
                 } else {
                     //root as parentNode:
                     parentDrugName = "None";
@@ -913,4 +933,88 @@ public class PanaceaUtil {
         
         return node;
     }
+    
+
+    public static JSONObject addNoneToChildren(final JSONObject inputNode) {
+        try {
+            if (inputNode != null) {
+            	
+              
+                //                for (int i = 0; i < nodes.length(); i++) {
+                //final JSONObject node = inputNodes.getJSONObject(i);
+                if (inputNode.has("children")) {
+                    final JSONArray childJsonArray = inputNode.getJSONArray("children");
+                    
+                    
+                    // add the none child
+                    if (inputNode.has("patientCount")) {
+                    	int directChildTotalCount = 0;
+                        
+                        for (int i = 0; i < childJsonArray.length(); i++) {
+                            final JSONObject child = childJsonArray.getJSONObject(i);
+                            
+                            if ((child != null) && child.has("patientCount")) {
+                                directChildTotalCount += child.getInt("patientCount");
+                            }
+                        }
+                        
+                        final int currentNodeNoneAfterCount = inputNode.getInt("patientCount") - directChildTotalCount;
+                        final JSONObject noneObject = createNoneObject(currentNodeNoneAfterCount);
+                        childJsonArray.put(noneObject);
+                        
+                    }
+                    
+                    inputNode.remove("children");
+                    if (childJsonArray != null) {
+                        inputNode.put("children", childJsonArray);
+                    }
+                }
+                
+                if (inputNode.has("children") && (inputNode.getJSONArray("children") != null)) {
+                    final JSONArray childJsonArray = inputNode.getJSONArray("children");
+                    for (int i = 0; i < childJsonArray.length(); i++) {
+                        final JSONObject child = childJsonArray.getJSONObject(i);
+                        if (child != null) {
+                        	addNoneToChildren(child);
+                        }
+                    }
+                }
+                
+                return inputNode;
+            } else {
+                return null;
+            }
+        } catch (final JSONException e) {
+            log.error("Error generated", e);
+            e.printStackTrace();
+        }
+        
+        return null;
+    }
+
+    private static JSONObject createNoneObject(int noneCount) throws JSONException {
+    	final JSONObject noneObject = new JSONObject();
+        noneObject.put("patientCount", noneCount);
+        noneObject.put("conceptName", "None");
+        noneObject.put("simpleUniqueConceptName", "None");
+        noneObject.put("uniqueConceptsArray", new JSONArray());
+        return noneObject;
+    }
+    
+	public static String includeNone(final String res) {
+		try {
+			final JSONObject root = new JSONObject(res);
+			if (root.has("children")) {
+				final JSONObject rootWithNone = addNoneToChildren(root);
+				if (root != null) {
+					return rootWithNone.toString();
+				}
+			}
+		} catch (Exception e) {
+			log.error("unable to include none", e);
+		}
+		return res;
+	}
+
+
 }
