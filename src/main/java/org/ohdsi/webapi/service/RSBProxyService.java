@@ -26,6 +26,7 @@ import javax.ws.rs.core.MediaType;
 import org.ohdsi.webapi.job.JobExecutionResource;
 import org.ohdsi.webapi.job.JobTemplate;
 import org.ohdsi.webapi.rsb.ClusterCohortRequest;
+import org.ohdsi.webapi.rsb.CohortComparisonRequest;
 import org.ohdsi.webapi.rsb.ProxyResult;
 import org.springframework.stereotype.Component;
 import org.ohdsi.webapi.rsb.RSBTasklet;
@@ -59,6 +60,42 @@ public class RSBProxyService extends AbstractDaoService {
   @Produces(MediaType.APPLICATION_JSON)
   public String test(@PathParam("sourceKey") String sourceKey) {
     return "pass";
+  }
+
+  @Path("cohortcomparison")
+  @POST
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.APPLICATION_JSON)
+  public ProxyResult processCohortComparison(CohortComparisonRequest request) {
+    ProxyResult result = new ProxyResult();
+
+    String functionName = "generateCohortComparison";
+    HashMap<String, Object> parameters = new HashMap();
+    parameters.put("executionId", 100);    
+    parameters.put("treatment", request.treatment);
+    parameters.put("comparator", request.comparator);
+    parameters.put("outcome", request.outcome);
+    parameters.put("exclusions", request.exclusions);
+    parameters.put("sourceKey", request.sourceKey);
+
+    RSBTasklet t = new RSBTasklet(functionName, parameters);
+
+    Step executeRSBStep = stepFactory.get("rsbTask")
+            .tasklet(t)
+            .build();
+
+    JobParametersBuilder builder = new JobParametersBuilder();
+    builder.addString("jobName", "generating cohort comparison on " + request.sourceKey);
+    JobParameters jobParameters = builder.toJobParameters();
+    Job generateCohortJob = jobFactory.get("executeRSB")
+            .start(executeRSBStep)
+            .build();
+
+    JobExecutionResource jer = jobTemplate.launch(generateCohortJob, jobParameters);
+    result.status = jer.getStatus();
+    result.message = jer.getExecutionId().toString();
+
+    return result;
   }
 
   @Path("clustercohort")
