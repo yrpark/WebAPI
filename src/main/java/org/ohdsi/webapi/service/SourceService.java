@@ -2,6 +2,7 @@ package org.ohdsi.webapi.service;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Collections;
 import java.util.Comparator;
 import javax.ws.rs.GET;
@@ -16,7 +17,7 @@ import org.ohdsi.webapi.source.SourceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.MigrationInfoService;
+import org.flywaydb.core.api.MigrationInfo;
 
 @Path("/source/")
 @Component
@@ -49,22 +50,36 @@ public class SourceService extends AbstractDaoService {
   public Collection<SourceInfo> getSources() {
 
     if (cachedSources == null) {
+
+      HashMap<String, String> resultPlaceholders = new HashMap<>();
+
       ArrayList<SourceInfo> sources = new ArrayList<>();
       for (Source source : sourceRepository.findAll()) {
-        sources.add(new SourceInfo(source));
+        SourceInfo sourceInfo = new SourceInfo(source);
+
+        sources.add(sourceInfo);
 
         Collection<SourceDaimon> daimons = source.getDaimons();
         for (SourceDaimon daimon : daimons) {
           if (daimon.getDaimonType() == SourceDaimon.DaimonType.Results) {
-            Flyway flyway = new Flyway();
-            flyway.setDataSource(source.getSourceConnection(), null, null);
-            flyway.setLocations("classpath:resultdb/migration/" + source.getSourceDialect());
-            flyway.setTable("dbresult_migration");
-            flyway.setBaselineOnMigrate(true); // establish metadata table if it doesn't exist yet
-            int migrate;
-            migrate = flyway.migrate();
-            
-            int foo = migrate;
+            resultPlaceholders.clear();
+            resultPlaceholders.put("resultSchema", daimon.getTableQualifier());
+
+            try {
+              Flyway flyway = new Flyway();
+              flyway.setPlaceholders(resultPlaceholders);
+              flyway.setDataSource(source.getSourceConnection(), null, null);
+              flyway.setLocations("classpath:resultdb/migration/" + source.getSourceDialect());
+              flyway.setTable("dbresult_migration");
+              flyway.setBaselineOnMigrate(true); // establish metadata table if it doesn't exist yet
+              flyway.migrate();
+              MigrationInfo[] migrationInfo = flyway.info().all();
+              for (MigrationInfo mi : migrationInfo) {
+                sourceInfo.notes.add(mi.getDescription());
+              }
+            } catch (Exception ex) {
+              sourceInfo.notes.add(ex.getMessage());
+            }
           }
         }
       }
@@ -107,7 +122,9 @@ public class SourceService extends AbstractDaoService {
   @Path("{key}")
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public SourceInfo getSource(@PathParam("key") final String sourceKey) {
+  public SourceInfo getSource(@PathParam("key")
+          final String sourceKey
+  ) {
     return sourceRepository.findBySourceKey(sourceKey).getSourceInfo();
   }
 }
