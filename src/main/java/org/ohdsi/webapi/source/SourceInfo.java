@@ -15,6 +15,7 @@
  */
 package org.ohdsi.webapi.source;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 /**
@@ -27,6 +28,7 @@ public class SourceInfo {
   public String sourceDialect;
   public String sourceKey;
   public Collection<SourceDaimon> daimons;
+  public ArrayList<String> notes;
   
   public SourceInfo(Source s) {
     sourceId = s.getSourceId();
@@ -34,5 +36,6 @@ public class SourceInfo {
     sourceDialect = s.getSourceDialect();
     sourceKey = s.getSourceKey();
     daimons = s.getDaimons();
+    notes = new ArrayList<>();
   }
 }
