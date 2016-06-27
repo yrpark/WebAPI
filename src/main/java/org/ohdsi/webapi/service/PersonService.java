@@ -30,6 +30,7 @@ import org.ohdsi.sql.SqlRender;
 import org.ohdsi.sql.SqlTranslate;
 import org.ohdsi.webapi.helper.ResourceHelper;
 import org.ohdsi.webapi.person.PersonRecord;
+import org.ohdsi.webapi.person.CohortPerson;
 import org.ohdsi.webapi.person.PersonProfile;
 import org.ohdsi.webapi.source.Source;
 import org.ohdsi.webapi.source.SourceDaimon;
@@ -58,7 +59,23 @@ public class PersonService extends AbstractDaoService {
     Source source = getSourceRepository().findBySourceKey(sourceKey);
     String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
 
-    String sql_statement = ResourceHelper.GetResourceAsString("/resources/person/sql/getRecords.sql");
+    String sql_statement = ResourceHelper.GetResourceAsString("/resources/person/sql/personInfo.sql");
+    sql_statement = SqlRender.renderSql(sql_statement, new String[]{"personId", "tableQualifier"}, new String[]{personId, tableQualifier});
+    sql_statement = SqlTranslate.translateSql(sql_statement, "sql server", source.getSourceDialect());
+    
+    profile.gender = "not found";
+    getSourceJdbcTemplate(source).query(sql_statement, new RowMapper<Void>() {
+      @Override
+      public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
+        profile.gender = resultSet.getString("gender");
+        return null;
+      }
+    });
+    if (profile.gender.equals("not found")) {
+        throw new RuntimeException("Can't find person " + personId);        
+    }
+
+    sql_statement = ResourceHelper.GetResourceAsString("/resources/person/sql/getRecords.sql");
     sql_statement = SqlRender.renderSql(sql_statement, new String[]{"personId", "tableQualifier"}, new String[]{personId, tableQualifier});
     sql_statement = SqlTranslate.translateSql(sql_statement, "sql server", source.getSourceDialect());
 
@@ -74,6 +91,24 @@ public class PersonService extends AbstractDaoService {
         item.endDate = resultSet.getTimestamp("end_date");
         
         profile.records.add(item);
+        return null;
+      }
+    });
+
+    sql_statement = ResourceHelper.GetResourceAsString("/resources/person/sql/getCohorts.sql");
+    sql_statement = SqlRender.renderSql(sql_statement, new String[]{"subjectId", "tableQualifier"}, new String[]{personId, tableQualifier});
+    sql_statement = SqlTranslate.translateSql(sql_statement, "sql server", source.getSourceDialect());
+
+    getSourceJdbcTemplate(source).query(sql_statement, new RowMapper<Void>() {
+      @Override
+      public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
+        CohortPerson item = new CohortPerson();
+        
+        item.startDate = resultSet.getTimestamp("cohort_start_date");
+        item.endDate = resultSet.getTimestamp("cohort_end_date");
+        item.cohortDefinitionId = resultSet.getLong("cohort_definition_id");
+        
+        profile.cohorts.add(item);
         return null;
       }
     });
