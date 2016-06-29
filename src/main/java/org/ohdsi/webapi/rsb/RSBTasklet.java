@@ -28,6 +28,8 @@ import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 
 /**
  *
@@ -38,9 +40,13 @@ public class RSBTasklet implements Tasklet {
   private HashMap parameters;
   private String functionName;
   private String rsbEndpoint;
+
+	@Autowired
+	  private Environment env;
   
   public RSBTasklet(String functionName, HashMap parameters) {
-    rsbEndpoint = "http://hixbeta.jnj.com:8999/rsb/api/rest/jobs";
+    String rServiceHost = this.env.getRequiredProperty("r.servicehost");
+    rsbEndpoint = rServiceHost + "rsb/api/rest/jobs";
     this.parameters = parameters;
     this.functionName = functionName;
   }

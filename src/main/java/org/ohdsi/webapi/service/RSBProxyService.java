@@ -61,7 +61,7 @@ public class RSBProxyService extends AbstractDaoService {
   public String test(@PathParam("sourceKey") String sourceKey) {
     return "pass";
   }
-
+ 
   @Path("cohortcomparison")
   @POST
   @Produces(MediaType.APPLICATION_JSON)
