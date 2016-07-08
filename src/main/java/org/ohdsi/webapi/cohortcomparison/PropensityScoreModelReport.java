@@ -1,6 +1,4 @@
 /*
- * Copyright 2016 fdefalco.
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,10 +13,38 @@
  */
 package org.ohdsi.webapi.cohortcomparison;
 
+import java.util.ArrayList;
+import org.ohdsi.sql.SqlRender;
+import org.ohdsi.sql.SqlTranslate;
+import org.ohdsi.webapi.helper.ResourceHelper;
+import org.ohdsi.webapi.source.Source;
+import org.ohdsi.webapi.source.SourceDaimon;
+
 /**
- *
- * @author fdefalco
+ * @author fdefalco <fdefalco@ohdsi.org>
  */
 public class PropensityScoreModelReport {
-  
+   
+  private float auc;
+  private ArrayList<PropensityScoreModelCovariate> covariates;
+
+  public PropensityScoreModelReport() {
+    covariates = new ArrayList<>();
+  }
+    
+  public float getAuc() {
+    return auc;
+  }
+
+  public void setAuc(float auc) {
+    this.auc = auc;
+  }
+
+  public ArrayList<PropensityScoreModelCovariate> getCovariates() {
+    return covariates;
+  }
+
+  public void setCovariates(ArrayList<PropensityScoreModelCovariate> covariates) {
+    this.covariates = covariates;
+  }
 }

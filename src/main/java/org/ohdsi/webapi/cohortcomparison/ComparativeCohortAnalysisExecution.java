@@ -36,6 +36,9 @@ public class ComparativeCohortAnalysisExecution implements Serializable {
   @Column(name="cca_execution_id")  
   private Integer id; 
   
+  @Column(name="source_key")
+  private String sourceKey;
+  
   @Column(name="cca_id")  
   private Integer analysisId; 
    
@@ -72,6 +75,14 @@ public class ComparativeCohortAnalysisExecution implements Serializable {
 
   public void setId(Integer id) {
     this.id = id;
+  }
+
+  public String getSourceKey() {
+    return sourceKey;
+  }
+
+  public void setSourceKey(String sourceKey) {
+    this.sourceKey = sourceKey;
   }
 
   public Integer getAnalysisId() {

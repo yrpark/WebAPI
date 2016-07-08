@@ -15,6 +15,7 @@ CREATE TABLE [${ohdsiSchema}].[cca](
 CREATE TABLE [${ohdsiSchema}].[cca_execution](
   [cca_execution_id] [int] IDENTITY (1, 1) NOT NULL,
   [cca_id] [int] NOT NULL,
+  [source_key] [varchar](50) NOT NULL,
   [treatment_id] [int] NOT NULL,
   [comparator_id] [int] NOT NULL,
   [outcome_id] [int] NOT NULL,

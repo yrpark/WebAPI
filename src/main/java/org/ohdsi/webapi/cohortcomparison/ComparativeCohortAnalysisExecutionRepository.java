@@ -23,5 +23,5 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface ComparativeCohortAnalysisExecutionRepository extends CrudRepository<ComparativeCohortAnalysisExecution,Integer>{
   List<ComparativeCohortAnalysisExecution> findAllByAnalysisId(Integer analysisId);  
-  ComparativeCohortAnalysisExecution findByExecutionId(Integer executionId);
+  ComparativeCohortAnalysisExecution findById(Integer id);
 }

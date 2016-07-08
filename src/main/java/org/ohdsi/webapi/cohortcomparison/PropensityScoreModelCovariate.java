@@ -13,12 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ohdsi.webapi.rsb;
+package org.ohdsi.webapi.cohortcomparison;
 
 /**
  *
  * @author fdefalco
  */
-public class ConnectionDetails {
+public class PropensityScoreModelCovariate {
+  private float value;
+  private Long id;
+  private String name;
+
+  public float getValue() {
+    return value;
+  }
+
+  public void setValue(float value) {
+    this.value = value;
+  }
+
+  public Long getId() {
+    return id;
+  }
+
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
   
 }

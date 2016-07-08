@@ -1,6 +1,4 @@
 /*
- * Copyright 2016 fdefalco.
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -22,40 +20,67 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.ohdsi.webapi.cohortcomparison.ComparativeCohortAnalysisExecution;
+import org.ohdsi.webapi.cohortcomparison.ComparativeCohortAnalysisExecutionRepository;
 import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
 
 /**
- *
- * @author fdefalco
+ * @author fdefalco - <fdefalco@ohdsi.org>
  */
+
 public class RSBTasklet implements Tasklet {
 
   private HashMap parameters;
   private String functionName;
-  private String rsbEndpoint;
+  private String rServiceHost;
+  private int executionId;
+  private final ComparativeCohortAnalysisExecutionRepository ccaeRepository;
 
-	@Autowired
-	  private Environment env;
-  
-  public RSBTasklet(String functionName, HashMap parameters) {
-    String rServiceHost = this.env.getRequiredProperty("r.servicehost");
-    rsbEndpoint = rServiceHost + "rsb/api/rest/jobs";
+  public RSBTasklet(ComparativeCohortAnalysisExecutionRepository repository) {
+    ccaeRepository = repository;
+  }
+
+  public String getRServiceHost() {
+    return rServiceHost;
+  }
+
+  public void setRServiceHost(String rServiceHost) {
+    this.rServiceHost = rServiceHost;
+  }
+
+  public HashMap getParameters() {
+    return parameters;
+  }
+
+  public void setParameters(HashMap parameters) {
     this.parameters = parameters;
+  }
+
+  public String getFunctionName() {
+    return functionName;
+  }
+
+  public void setFunctionName(String functionName) {
     this.functionName = functionName;
   }
 
+  public int getExecutionId() {
+    return executionId;
+  }
+
+  public void setExecutionId(int executionId) {
+    this.executionId = executionId;
+  }
+
   @Override
-  public RepeatStatus execute(final StepContribution contribution, final ChunkContext chunkContext) throws Exception {
+  public RepeatStatus execute(final StepContribution contribution, final ChunkContext chunkContext) throws Exception {  
+    String rsbEndpoint = rServiceHost + "rsb/api/rest/jobs";
+    
     Client client = ClientBuilder.newClient();
 
-    // TODO - Configure the RSB API URI
     WebTarget jobTarget = client.target(rsbEndpoint);
     org.ohdsi.webapi.rsb.Job rsbJob = new Job(this.functionName);
     rsbJob.parameters.putAll(parameters);
@@ -73,8 +98,11 @@ public class RSBTasklet implements Tasklet {
     WebTarget jobStatusTarget = client.target(jobResponse.getJobToken().getApplicationResultsUri())
             .path(jobResponse.getJobToken().getJobId());
 
+    ComparativeCohortAnalysisExecution ccae = ccaeRepository.findOne(executionId);
+    ccae.setExecutionStatus(ComparativeCohortAnalysisExecution.status.RUNNING);
+    ccaeRepository.save(ccae);
+    
     while (!jobCompleted) {
-
       jobStatusResponse = jobStatusTarget
               .request()
               .accept("application/vnd.rsb+json")
@@ -86,9 +114,12 @@ public class RSBTasklet implements Tasklet {
         jobCompleted = true;
       } else {
         // repeat polling delay
-        Thread.sleep(3000);
+        Thread.sleep(5000);
       }
     }
+    
+    ccae.setExecutionStatus(ComparativeCohortAnalysisExecution.status.COMPLETED);
+    ccaeRepository.save(ccae);
 
     if (jobStatusResponse == null) {
       return RepeatStatus.FINISHED;
@@ -96,5 +127,6 @@ public class RSBTasklet implements Tasklet {
       ResultResponse resultResponse = jobStatusResponse.readEntity(ResultResponse.class);
       return RepeatStatus.FINISHED;
     }
+        
   }
 };
