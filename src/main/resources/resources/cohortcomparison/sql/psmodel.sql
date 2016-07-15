@@ -1,2 +1,3 @@
-select [coefficient],[id],[covariateName] 
-from @resultsTableQualifier.cca_ps_model where executionId = @executionId
+SELECT [coefficient],[id],[covariate_name] 
+FROM @resultsTableQualifier.[cca_ps_model]
+WHERE execution_id = @executionId
