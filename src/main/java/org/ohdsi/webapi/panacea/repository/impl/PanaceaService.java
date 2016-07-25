@@ -211,14 +211,14 @@ public class PanaceaService extends AbstractDaoService {
         
         if (StringUtils.isEmpty(ps.getStudyResultFiltered())) {
             if (!StringUtils.isEmpty(ps.getStudyResultCollapsed())) {
-            	ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResultCollapsed()).toString());
+                ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResultCollapsed()).toString());
                 ps.setStudyResultCollapsed(PanaceaUtil.includeNone(ps.getStudyResultCollapsed()));
             } else if (!StringUtils.isEmpty(ps.getStudyResults())) {
-            	ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResults()).toString());
+                ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResults()).toString());
                 ps.setStudyResults(PanaceaUtil.includeNone(ps.getStudyResults()));
             }
         } else {
-        	ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResultFiltered()).toString());
+            ps.setStudyResultUniquePath(PanaceaUtil.mergeFromRootNode(ps.getStudyResultFiltered()).toString());
             ps.setStudyResultFiltered(PanaceaUtil.includeNone(ps.getStudyResultFiltered()));
         }
         
@@ -543,6 +543,30 @@ public class PanaceaService extends AbstractDaoService {
     @Produces(MediaType.APPLICATION_JSON)
     public void testPncJob() {
         runTestPanaceaJob(new Long(18), new Integer(1));
+    }
+    
+    /**
+     * Save and run study
+     * 
+     * @param sourceKey String
+     * @param panaceaStudy PancaceaStudy
+     * @return Map
+     */
+    @POST
+    @Path("/saveandrunstudy/{sourceKey}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Map saveAndRunStudy(@PathParam("sourceKey") final String sourceKey, final PanaceaStudy panaceaStudy) {
+        final PanaceaStudy ps = this.saveStudy(panaceaStudy);
+        
+        final JobExecutionResource jer = this.runPncTasklet(sourceKey, ps.getStudyId());
+        
+        final Map returnMap = new HashMap();
+        
+        returnMap.put("status", jer);
+        returnMap.put("savedStudyId", ps.getStudyId());
+        
+        return returnMap;
     }
     
     /**
