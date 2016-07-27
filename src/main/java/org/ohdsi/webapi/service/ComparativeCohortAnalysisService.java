@@ -104,6 +104,14 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
         return comparativeCohortAnalysis;
     }
 
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/model")
+    public ComparativeCohortAnalysis getModel() {
+        ComparativeCohortAnalysis cca = new ComparativeCohortAnalysis();
+        return cca;
+    }
+    
     /**
      * @param id - the comparative cohort analysis identifier
      * @param sourceKey - the source database to run this execution against
@@ -124,28 +132,29 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
         Date executed = new Date();
         ccae.setAnalysisId(id);
         ccae.setComparatorId(cca.getComparatorId());
-        ccae.setExclusionId(cca.getExclusionId());
         ccae.setOutcomeId(cca.getOutcomeId());
-        ccae.setTimeAtRisk(cca.getTimeAtRisk());
+        //ccae.setTimeAtRisk(cca.getTimeAtRisk());
         ccae.setTreatmentId(cca.getTreatmentId());
-        ccae.setSourceKey(sourceKey);
+        ccae.setSourceId(source.getSourceId());
         ccae.setExecuted(executed);
         ccae.setDuration(0);
         ccae.setExecutionStatus(ComparativeCohortAnalysisExecution.status.RUNNING);
         ccae.setUserId(0);
         getComparativeCohortAnalysisExecutionRepository().save(ccae);
 
+        /*
         ConceptSetExpression cse = conceptSetService.getConceptSetExpression(ccae.getExclusionId());
         Collection<Long> exclusions = vocabularyService.resolveConceptSetExpression(sourceKey, cse);
-
+        */
+        
         String functionName = "executeComparativeCohortAnalysis";
         HashMap<String, Object> parameters = new HashMap();
         parameters.put("treatment", ccae.getTreatmentId());
         parameters.put("comparator", ccae.getComparatorId());
         parameters.put("outcome", ccae.getOutcomeId());
-        parameters.put("timeAtRisk", ccae.getTimeAtRisk());
+        //parameters.put("timeAtRisk", ccae.getTimeAtRisk());
         parameters.put("executionId", ccae.getId());
-        parameters.put("exclusions", exclusions);
+        // parameters.put("exclusions", exclusions);
         parameters.put("connectionString", connectionString);
         parameters.put("dbms", dbms);
         parameters.put("cdmTableQualifier", cdmTableQualifier);
@@ -163,7 +172,7 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
                 .build();
 
         JobParametersBuilder builder = new JobParametersBuilder();
-        builder.addString("jobName", "executing cohort comparison on " + ccae.getSourceKey());
+        builder.addString("jobName", "executing cohort comparison on " + ccae.getSourceId());
         JobParameters jobParameters = builder.toJobParameters();
         Job executeRSBJob = jobFactory.get("executeRSB")
                 .start(executeRSBStep)
@@ -184,7 +193,6 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
         info.setCreated(analysis.getCreated());
         info.setModified(analysis.getModified());
         info.setUserId(analysis.getUserId());
-        info.setTimeAtRisk(analysis.getTimeAtRisk());
 
         info.setComparatorId(analysis.getComparatorId());
         info.setComparatorCaption(cohortDefinitionService.getCohortDefinition(analysis.getComparatorId()).name);
@@ -195,9 +203,11 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
         info.setOutcomeId(analysis.getOutcomeId());
         info.setOutcomeCaption(cohortDefinitionService.getCohortDefinition(analysis.getOutcomeId()).name);
 
+        /*
         info.setExclusionId(analysis.getExclusionId());
         info.setExclusionCaption(conceptSetService.getConceptSet(analysis.getExclusionId()).getName());
-
+        */
+        
         return info;
     }
 
@@ -297,7 +307,7 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
     @Produces(MediaType.APPLICATION_JSON)
     public Collection<AttritionResult> getAttritionResults(@PathParam("eid") int executionId) {
         ComparativeCohortAnalysisExecution ccae = getComparativeCohortAnalysisExecution(executionId);
-        Source source = getSourceRepository().findBySourceKey(ccae.getSourceKey());
+        Source source = getSourceRepository().findBySourceId(ccae.getSourceId());
         String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
 
         String sqlAttrition = ResourceHelper.GetResourceAsString("/resources/cohortcomparison/sql/attrition.sql");
@@ -312,7 +322,7 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
     @Produces(MediaType.APPLICATION_JSON)
     public Collection<BalanceResult> getBalanceResults(@PathParam("eid") int executionId) {
         ComparativeCohortAnalysisExecution ccae = getComparativeCohortAnalysisExecution(executionId);
-        Source source = getSourceRepository().findBySourceKey(ccae.getSourceKey());
+        Source source = getSourceRepository().findBySourceId(ccae.getSourceId());
         String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
 
         String sqlBalance = ResourceHelper.GetResourceAsString("/resources/cohortcomparison/sql/balance.sql");
@@ -327,7 +337,7 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
     @Produces(MediaType.APPLICATION_JSON)
     public Collection<PopDistributionValue> getPsModelDistribution(@PathParam("eid") int executionId) {
         ComparativeCohortAnalysisExecution ccae = getComparativeCohortAnalysisExecution(executionId);
-        Source source = getSourceRepository().findBySourceKey(ccae.getSourceKey());
+        Source source = getSourceRepository().findBySourceId(ccae.getSourceId());
         String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
 
         String sqlDist = ResourceHelper.GetResourceAsString("/resources/cohortcomparison/sql/ps_model_agg.sql");
@@ -342,7 +352,7 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
     @Produces(MediaType.APPLICATION_JSON)
     public Collection<PopDistributionValue> getMatchedPopDistribution(@PathParam("eid") int executionId) {
         ComparativeCohortAnalysisExecution ccae = getComparativeCohortAnalysisExecution(executionId);
-        Source source = getSourceRepository().findBySourceKey(ccae.getSourceKey());
+        Source source = getSourceRepository().findBySourceId(ccae.getSourceId());
         String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
 
         String sqlDist = ResourceHelper.GetResourceAsString("/resources/cohortcomparison/sql/matched_pop_agg.sql");
@@ -374,7 +384,7 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
     public PropensityScoreModelReport getPropensityScoreModelReport(@PathParam("eid") int executionId) {
         ComparativeCohortAnalysisExecution ccae = getComparativeCohortAnalysisExecution(executionId);
 
-        Source source = getSourceRepository().findBySourceKey(ccae.getSourceKey());
+        Source source = getSourceRepository().findBySourceId(ccae.getSourceId());
         String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
 
         String sqlAuc = ResourceHelper.GetResourceAsString("/resources/cohortcomparison/sql/auc.sql");
