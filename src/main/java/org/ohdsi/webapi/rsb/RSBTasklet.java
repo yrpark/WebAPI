@@ -13,6 +13,7 @@
  */
 package org.ohdsi.webapi.rsb;
 
+import java.util.Date;
 import java.util.HashMap;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -119,6 +120,10 @@ public class RSBTasklet implements Tasklet {
     }
     
     ccae.setExecutionStatus(ComparativeCohortAnalysisExecution.status.COMPLETED);
+    Date timestamp = new Date();
+    int seconds = (int) ((timestamp.getTime() - ccae.getExecuted().getTime()) / 1000);
+    ccae.setDuration(seconds);
+    
     ccaeRepository.save(ccae);
 
     if (jobStatusResponse == null) {

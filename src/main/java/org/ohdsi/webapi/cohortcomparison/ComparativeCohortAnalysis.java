@@ -32,7 +32,7 @@ public class ComparativeCohortAnalysis implements Serializable {
     @Id
     @GeneratedValue
     @Column(name = "cca_id")
-    private Integer id;
+    private Integer analysisId;
 
     @Column(name = "name")
     private String name;
@@ -427,12 +427,12 @@ public class ComparativeCohortAnalysis implements Serializable {
     @Column(name = "sec_user_id")
     private Integer userId = 0;
 
-    public Integer getId() {
-        return id;
+    public Integer getAnalysisId() {
+        return analysisId;
     }
 
-    public void setId(Integer id) {
-        this.id = id;
+    public void setAnalysisId(Integer id) {
+        this.analysisId = id;
     }
 
     public String getName() {

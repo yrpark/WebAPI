@@ -128,13 +128,8 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
         String dbms = source.getSourceDialect();
 
         ComparativeCohortAnalysis cca = getComparativeCohortAnalysisRepository().findOne(id);
-        ComparativeCohortAnalysisExecution ccae = new ComparativeCohortAnalysisExecution();
+        ComparativeCohortAnalysisExecution ccae = new ComparativeCohortAnalysisExecution(cca);
         Date executed = new Date();
-        ccae.setAnalysisId(id);
-        ccae.setComparatorId(cca.getComparatorId());
-        ccae.setOutcomeId(cca.getOutcomeId());
-        //ccae.setTimeAtRisk(cca.getTimeAtRisk());
-        ccae.setTreatmentId(cca.getTreatmentId());
         ccae.setSourceId(source.getSourceId());
         ccae.setExecuted(executed);
         ccae.setDuration(0);
@@ -142,19 +137,17 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
         ccae.setUserId(0);
         getComparativeCohortAnalysisExecutionRepository().save(ccae);
 
-        /*
-        ConceptSetExpression cse = conceptSetService.getConceptSetExpression(ccae.getExclusionId());
+        ConceptSetExpression cse = conceptSetService.getConceptSetExpression(ccae.getPsExclusionId());
         Collection<Long> exclusions = vocabularyService.resolveConceptSetExpression(sourceKey, cse);
-        */
         
         String functionName = "executeComparativeCohortAnalysis";
         HashMap<String, Object> parameters = new HashMap();
         parameters.put("treatment", ccae.getTreatmentId());
         parameters.put("comparator", ccae.getComparatorId());
         parameters.put("outcome", ccae.getOutcomeId());
-        //parameters.put("timeAtRisk", ccae.getTimeAtRisk());
-        parameters.put("executionId", ccae.getId());
-        // parameters.put("exclusions", exclusions);
+        parameters.put("timeAtRisk", ccae.getTimeAtRiskEnd());
+        parameters.put("executionId", ccae.getExecutionId());
+        parameters.put("exclusions", exclusions);
         parameters.put("connectionString", connectionString);
         parameters.put("dbms", dbms);
         parameters.put("cdmTableQualifier", cdmTableQualifier);
@@ -163,7 +156,7 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
         RSBTasklet t = new RSBTasklet(getComparativeCohortAnalysisExecutionRepository());
         t.setFunctionName(functionName);
         t.setParameters(parameters);
-        t.setExecutionId(ccae.getId());
+        t.setExecutionId(ccae.getExecutionId());
 
         String rServiceHost = env.getRequiredProperty("r.serviceHost");
         t.setRServiceHost(rServiceHost);
@@ -188,7 +181,7 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
         ComparativeCohortAnalysisInfo info = new ComparativeCohortAnalysisInfo();
         ComparativeCohortAnalysis analysis = this.getComparativeCohortAnalysisRepository().findOne(id);
 
-        info.setId(analysis.getId());
+        info.setAnalysisId(analysis.getAnalysisId());
         info.setName(analysis.getName());
         info.setCreated(analysis.getCreated());
         info.setModified(analysis.getModified());
@@ -222,7 +215,7 @@ public class ComparativeCohortAnalysisService extends AbstractDaoService {
     @Produces(MediaType.APPLICATION_JSON)
     @Path("execution/{eid}")
     public ComparativeCohortAnalysisExecution getComparativeCohortAnalysisExecution(@PathParam("eid") int executionId) {
-        return getComparativeCohortAnalysisExecutionRepository().findById(executionId);
+        return getComparativeCohortAnalysisExecutionRepository().findByExecutionId(executionId);
     }
 
     private final RowMapper<StratPopDistributionData> matchedDistributionMapper = new RowMapper<StratPopDistributionData>() {

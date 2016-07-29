@@ -28,16 +28,148 @@ import javax.persistence.Table;
 @Entity(name = "ComparativeCohortAnalysisExecution")
 @Table(name = "cca_execution")
 public class ComparativeCohortAnalysisExecution implements Serializable {
-
+    
+    public ComparativeCohortAnalysisExecution() {
+        
+    }
+    
+    public ComparativeCohortAnalysisExecution(ComparativeCohortAnalysis cca) {
+        this.addExposureDaysToEnd = cca.getAddExposureDaysToEnd();
+        this.analysisId = cca.getAnalysisId();
+        this.comparatorId = cca.getComparatorId();
+        this.delCovariatesSmallCount = cca.getDelCovariatesSmallCount();
+        this.minimumDaysAtRisk = cca.getMinimumDaysAtRisk();
+        this.minimumWashoutPeriod = cca.getMinimumWashoutPeriod();
+        this.modelType = cca.getModelType();
+        this.negativeControlId = cca.getNegativeControlId();
+        this.omConceptCounts = cca.getOmConceptCounts();
+        this.omConditionEra = cca.getOmConditionEra();
+        this.omConditionEraEver = cca.getOmConditionEraEver();
+        this.omConditionEraOverlap = cca.getOmConditionEraOverlap();
+        this.omConditionGroup = cca.getOmConditionGroup();
+        this.omConditionGroupMeddra = cca.getOmConditionGroupMeddra();
+        this.omConditionGroupSnomed = cca.getOmConditionGroupSnomed();
+        this.omConditionOcc = cca.getOmConditionOcc();
+        this.omConditionOcc30d = cca.getOmConditionOcc30d();
+        this.omConditionOcc365d = cca.getOmConditionOcc365d();
+        this.omConditionOccInpt180d = cca.getOmConditionOccInpt180d();
+        this.omCovariates = cca.getOmCovariates();
+        this.omDemographics = cca.getOmDemographics();
+        this.omDemographicsAge = cca.getOmDemographics();
+        this.omDemographicsEthnicity = cca.getOmDemographicsEthnicity();
+        this.omDemographicsGender = cca.getOmDemographicsGender();
+        this.omDemographicsMonth = cca.getOmDemographicsMonth();
+        this.omDemographicsRace = cca.getOmDemographicsRace();
+        this.omDemographicsYear = cca.getOmDemographicsYear();
+        this.omDrugEra = cca.getOmDrugEra();
+        this.omDrugEra30d = cca.getOmDrugEra30d();
+        this.omDrugEra365d = cca.getOmDrugEra365d();
+        this.omDrugEraEver = cca.getOmDrugEraEver();
+        this.omDrugEraOverlap = cca.getOmDrugEraOverlap();
+        this.omDrugExposure = cca.getOmDrugExposure();
+        this.omDrugExposure30d = cca.getOmDrugExposure30d();
+        this.omDrugExposure365d = cca.getOmDrugExposure365d();
+        this.omDrugGroup = cca.getOmDrugGroup();
+        this.omExclusionId = cca.getOmExclusionId();
+        this.omInclusionId = cca.getOmInclusionId();
+        this.omInteractionMonth = cca.getOmInteractionMonth();
+        this.omInteractionYear = cca.getOmInteractionYear();
+        this.omMatch = cca.getOmMatch();
+        this.omMatchMaxRatio = cca.getOmMatchMaxRatio();
+        this.omMeasurement = cca.getOmMeasurement();
+        this.omMeasurement30d = cca.getOmMeasurement30d();
+        this.omMeasurement365d = cca.getOmMeasurement365d();
+        this.omMeasurementAbove = cca.getOmMeasurementAbove();
+        this.omMeasurementBelow = cca.getOmMeasurementBelow();
+        this.omMeasurementCount365d = cca.getOmMeasurementCount365d();
+        this.omObservation = cca.getOmObservation();
+        this.omObservation30d = cca.getOmObservation30d();
+        this.omObservation365d = cca.getOmObservation365d();
+        this.omProcedureGroup = cca.getOmProcedureGroup();
+        this.omProcedureOcc = cca.getOmProcedureOcc();
+        this.omProcedureOcc30d = cca.getOmProcedureOcc30d();
+        this.omProcedureOcc365d = cca.getOmProcedureOcc365d();
+        this.omRiskScores = cca.getOmRiskScores();
+        this.omRiskScoresChads2 = cca.getOmRiskScoresChads2();
+        this.omRiskScoresChads2vasc = cca.getOmRiskScoresChads2vasc();
+        this.omRiskScoresCharlson = cca.getOmRiskScoresCharlson();
+        this.omRiskScoresDcsi = cca.getOmRiskScoresDcsi();
+        this.omStrat = cca.getOmStrat();
+        this.omStratNumStrata = cca.getOmStratNumStrata();
+        this.omTrim = cca.getOmTrim();
+        this.omTrimFraction = cca.getOmTrimFraction();
+        this.psConceptCounts = cca.getPsConceptCounts();
+        this.psConditionEra = cca.getPsConditionEra();
+        this.psConditionEraEver = cca.getPsConditionEraEver();
+        this.psConditionEraOverlap = cca.getPsConditionEraOverlap();
+        this.psConditionGroup = cca.getPsConditionGroup();
+        this.psConditionGroupMeddra = cca.getPsConditionGroupMeddra();
+        this.psConditionGroupSnomed = cca.getPsConditionGroupSnomed();
+        this.psConditionOcc = cca.getPsConditionOcc();
+        this.psConditionOcc30d = cca.getPsConditionOcc30d();
+        this.psConditionOcc365d = cca.getPsConditionOcc365d();
+        this.psConditionOccInpt180d = cca.getPsConditionOccInpt180d();
+        this.psAdjustment = cca.getPsAdjustment();
+        this.psDemographics = cca.getPsDemographics();
+        this.psDemographicsAge = cca.getPsDemographics();
+        this.psDemographicsEthnicity = cca.getPsDemographicsEthnicity();
+        this.psDemographicsGender = cca.getPsDemographicsGender();
+        this.psDemographicsMonth = cca.getPsDemographicsMonth();
+        this.psDemographicsRace = cca.getPsDemographicsRace();
+        this.psDemographicsYear = cca.getPsDemographicsYear();
+        this.psDrugEra = cca.getPsDrugEra();
+        this.psDrugEra30d = cca.getPsDrugEra30d();
+        this.psDrugEra365d = cca.getPsDrugEra365d();
+        this.psDrugEraEver = cca.getPsDrugEraEver();
+        this.psDrugEraOverlap = cca.getPsDrugEraOverlap();
+        this.psDrugExposure = cca.getPsDrugExposure();
+        this.psDrugExposure30d = cca.getPsDrugExposure30d();
+        this.psDrugExposure365d = cca.getPsDrugExposure365d();
+        this.psDrugGroup = cca.getPsDrugGroup();
+        this.psExclusionId = cca.getPsExclusionId();
+        this.psInclusionId = cca.getPsInclusionId();
+        this.psInteractionMonth = cca.getPsInteractionMonth();
+        this.psInteractionYear = cca.getPsInteractionYear();
+        this.psMatch = cca.getPsMatch();
+        this.psMatchMaxRatio = cca.getPsMatchMaxRatio();
+        this.psMeasurement = cca.getPsMeasurement();
+        this.psMeasurement30d = cca.getPsMeasurement30d();
+        this.psMeasurement365d = cca.getPsMeasurement365d();
+        this.psMeasurementAbove = cca.getPsMeasurementAbove();
+        this.psMeasurementBelow = cca.getPsMeasurementBelow();
+        this.psMeasurementCount365d = cca.getPsMeasurementCount365d();
+        this.psObservation = cca.getPsObservation();
+        this.psObservation30d = cca.getPsObservation30d();
+        this.psObservation365d = cca.getPsObservation365d();
+        this.psProcedureGroup = cca.getPsProcedureGroup();
+        this.psProcedureOcc = cca.getPsProcedureOcc();
+        this.psProcedureOcc30d = cca.getPsProcedureOcc30d();
+        this.psProcedureOcc365d = cca.getPsProcedureOcc365d();
+        this.psRiskScores = cca.getPsRiskScores();
+        this.psRiskScoresChads2 = cca.getPsRiskScoresChads2();
+        this.psRiskScoresChads2vasc = cca.getPsRiskScoresChads2vasc();
+        this.psRiskScoresCharlson = cca.getPsRiskScoresCharlson();
+        this.psRiskScoresDcsi = cca.getPsRiskScoresDcsi();
+        this.psStrat = cca.getPsStrat();
+        this.psStratNumStrata = cca.getPsStratNumStrata();
+        this.psTrim = cca.getPsTrim();
+        this.psTrimFraction = cca.getPsTrimFraction();        
+        this.outcomeId = cca.getOutcomeId();
+        this.treatmentId = cca.getTreatmentId();
+        this.rmPriorOutcomes = cca.getRmPriorOutcomes();
+        this.rmSubjectsInBothCohorts = cca.getRmSubjectsInBothCohorts();
+        this.timeAtRiskEnd = cca.getTimeAtRiskEnd();
+        this.timeAtRiskStart = cca.getTimeAtRiskStart();
+    }
+    
     public enum status {
-
         PENDING, STARTED, RUNNING, COMPLETED, FAILED
     };
 
     @Id
     @GeneratedValue
     @Column(name = "cca_execution_id")
-    private Integer id;
+    private Integer executionId;
 
     @Column(name = "source_id")
     private int sourceId;
@@ -438,12 +570,12 @@ public class ComparativeCohortAnalysisExecution implements Serializable {
     @Column(name = "execution_status")
     private status executionStatus;
 
-    public Integer getId() {
-        return id;
+    public Integer getExecutionId() {
+        return executionId;
     }
 
-    public void setId(Integer id) {
-        this.id = id;
+    public void setExecutionId(Integer id) {
+        this.executionId = id;
     }
 
     public int getSourceId() {
@@ -1509,7 +1641,4 @@ public class ComparativeCohortAnalysisExecution implements Serializable {
     public void setExecutionStatus(status executionStatus) {
         this.executionStatus = executionStatus;
     }
-    
-    
-
 }
