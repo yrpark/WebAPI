@@ -1,13 +1,13 @@
-CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_stdy
+--CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_stdy
 --CREATE SEQUENCE seq_pnc_stdy 
-START WITH 1
-INCREMENT BY 1
-MAXVALUE 9223372036854775807 NO CYCLE;
+--START WITH 1
+--INCREMENT BY 1
+--MAXVALUE 9223372036854775807 NO CYCLE;
 
 CREATE TABLE ${ohdsiSchema}.panacea_study
 (
---    study_id    BIGINT IDENTITY (1, 1) NOT NULL PRIMARY KEY,
-    study_id    BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_stdy PRIMARY KEY,
+    study_id    INT IDENTITY (1, 1) PRIMARY KEY,
+--    study_id    BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_stdy PRIMARY KEY,
     study_name  VARCHAR(255),
     study_desc  VARCHAR(255),
     concept_set_def TEXT,
@@ -24,27 +24,32 @@ CREATE TABLE ${ohdsiSchema}.panacea_study
     create_time datetime
 );
 
-CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_tx_stg_cmb
-START WITH 1
-INCREMENT BY 1
-MAXVALUE 9223372036854775807 NO CYCLE;
+--CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_tx_stg_cmb
+--START WITH 1
+--INCREMENT BY 1
+--MAXVALUE 9223372036854775807 NO CYCLE;
 
 CREATE TABLE ${ohdsiSchema}.pnc_tx_stage_combination
 (
---    pnc_tx_stg_cmb_id BIGINT IDENTITY (1, 1) NOT NULL PRIMARY KEY,
-    pnc_tx_stg_cmb_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_tx_stg_cmb PRIMARY KEY,
-    study_id    BIGINT,
+    pnc_tx_stg_cmb_id INT IDENTITY (1, 1) PRIMARY KEY,
+--    pnc_tx_stg_cmb_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_tx_stg_cmb PRIMARY KEY,
+    study_id    INT,
+-- quick workaround for removing sequence...
+    concept_id BIGINT,
+-- quick workaround for removing sequence...
+    concept_name VARCHAR(255),
     CONSTRAINT fk_pnctxcmb_pncstdy FOREIGN KEY (study_id) REFERENCES ${ohdsiSchema}.panacea_study (study_id)
 );
 
-CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_tx_stg_cmb_mp
-START WITH 1
-INCREMENT BY 1
-MAXVALUE 9223372036854775807 NO CYCLE;
+--CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_tx_stg_cmb_mp
+--START WITH 1
+--INCREMENT BY 1
+--MAXVALUE 9223372036854775807 NO CYCLE;
 
 CREATE TABLE ${ohdsiSchema}.pnc_tx_stage_combination_map
 (
-    pnc_tx_stg_cmb_mp_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_tx_stg_cmb_mp PRIMARY KEY,
+--    pnc_tx_stg_cmb_mp_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_tx_stg_cmb_mp PRIMARY KEY,
+    pnc_tx_stg_cmb_mp_id INT IDENTITY (1, 1) PRIMARY KEY,
     pnc_tx_stg_cmb_id BIGINT,
     concept_id BIGINT not null,
     concept_name VARCHAR(255)
@@ -52,7 +57,7 @@ CREATE TABLE ${ohdsiSchema}.pnc_tx_stage_combination_map
 
 CREATE TABLE ${ohdsiSchema}.pnc_study_summary
 (
-    study_id BIGINT  NOT NULL,
+    study_id INT  NOT NULL,
     source_id INT,
     study_results TEXT,
     study_results_2 TEXT,
@@ -60,15 +65,16 @@ CREATE TABLE ${ohdsiSchema}.pnc_study_summary
     last_update_time datetime
 );
 
-CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_stdy_smry
-START WITH 1
-INCREMENT BY 1
-MAXVALUE 9223372036854775807 NO CYCLE;
+--CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_stdy_smry
+--START WITH 1
+--INCREMENT BY 1
+--MAXVALUE 9223372036854775807 NO CYCLE;
 
 CREATE TABLE ${ohdsiSchema}.pnc_study_summary_path
 (
-    pnc_stdy_smry_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_stdy_smry PRIMARY KEY,
-    study_id BIGINT,
+--    pnc_stdy_smry_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_stdy_smry PRIMARY KEY,
+		pnc_stdy_smry_id INT IDENTITY (1, 1) PRIMARY KEY,
+    study_id INT,
     source_id INT,
     tx_path_parent_key BIGINT,
     tx_stg_cmb    VARCHAR(255),
@@ -181,7 +187,7 @@ CREATE TABLE ${ohdsiSchema}.pnc_tmp_unq_trtmt
 (
     job_execution_id BIGINT,
     rnum float,
-    pnc_stdy_smry_id BIGINT,
+    pnc_stdy_smry_id INT,
   	rslt_version int,
     path_cmb_ids varchar(800),
     path_unique_treatment varchar(4000)
@@ -202,7 +208,7 @@ CREATE TABLE ${ohdsiSchema}.pnc_tmp_unq_pth_id
 CREATE TABLE ${ohdsiSchema}.pnc_tmp_smrypth_fltr
 (
     job_execution_id BIGINT,
-    pnc_stdy_smry_id BIGINT,
+    pnc_stdy_smry_id INT,
     study_id    BIGINT,
     source_id int,
     tx_path_parent_key  BIGINT,

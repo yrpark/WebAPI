@@ -86,17 +86,18 @@ WHEN MATCHED THEN UPDATE SET ptsq.tx_seq = ptsq1.real_tx_seq;
 
 @insertIntoComboMapString
 
-MERGE INTO @results_schema.pnc_tx_stage_combination comb
-USING
-  (
-    SELECT combo_map.pnc_tx_stg_cmb_id pnc_tx_stg_cmb_id FROM @results_schema.pnc_tx_stage_combination_map combo_map
-  ) adding_combo
-  ON
-  (
-    comb.pnc_tx_stg_cmb_id = adding_combo.pnc_tx_stg_cmb_id
-  )
-WHEN NOT MATCHED THEN INSERT (PNC_TX_STG_CMB_ID,STUDY_ID)
-VALUES (adding_combo.pnc_tx_stg_cmb_id, @studyId);
+--move into specific db script with @insertIntoComboMapString
+--MERGE INTO @results_schema.pnc_tx_stage_combination comb
+--USING
+--  (
+--    SELECT combo_map.pnc_tx_stg_cmb_id pnc_tx_stg_cmb_id FROM @results_schema.pnc_tx_stage_combination_map combo_map
+--  ) adding_combo
+--  ON
+--  (
+--    comb.pnc_tx_stg_cmb_id = adding_combo.pnc_tx_stg_cmb_id
+--  )
+--WHEN NOT MATCHED THEN INSERT (PNC_TX_STG_CMB_ID,STUDY_ID)
+--VALUES (adding_combo.pnc_tx_stg_cmb_id, @studyId);
 
 
 -- insert from #_pnc_ptsq_ct ptsq into #_pnc_ptstg_ct (remove same patient/same drug small time window inside large time window. EX: 1/2/2015 ~ 1/31/2015 inside 1/1/2015 ~ 3/1/2015)
