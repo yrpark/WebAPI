@@ -30,3 +30,15 @@ USING
   )
 WHEN NOT MATCHED THEN INSERT (PNC_TX_STG_CMB_MP_ID, PNC_TX_STG_CMB_ID, CONCEPT_ID, CONCEPT_NAME)
 VALUES (@results_schema.seq_pnc_tx_stg_cmb_mp.NEXTVAL, @results_schema.seq_pnc_tx_stg_cmb.NEXTVAL, adding_concept.concept_id, adding_concept.concept_name);
+
+MERGE INTO @results_schema.pnc_tx_stage_combination comb
+USING
+  (
+    SELECT combo_map.pnc_tx_stg_cmb_id pnc_tx_stg_cmb_id FROM @results_schema.pnc_tx_stage_combination_map combo_map
+  ) adding_combo
+  ON
+  (
+    comb.pnc_tx_stg_cmb_id = adding_combo.pnc_tx_stg_cmb_id
+  )
+WHEN NOT MATCHED THEN INSERT (PNC_TX_STG_CMB_ID,STUDY_ID)
+VALUES (adding_combo.pnc_tx_stg_cmb_id, @studyId);
