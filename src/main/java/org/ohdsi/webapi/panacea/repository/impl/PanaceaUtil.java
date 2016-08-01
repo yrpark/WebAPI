@@ -13,6 +13,7 @@
 package org.ohdsi.webapi.panacea.repository.impl;
 
 import java.util.ArrayList;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -20,13 +21,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.ws.rs.PathParam;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.ohdsi.sql.SqlRender;
+import org.ohdsi.sql.SqlTranslate;
 import org.ohdsi.webapi.panacea.pojo.PanaceaSummary;
+import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryLight;
+import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryLightMapper;
+import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryMapper;
+
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * A util class mainly for JSON manipulation after calculation (introduced for unique pathway)
@@ -240,7 +250,8 @@ public class PanaceaUtil {
                 child.put("simpleUniqueConceptId", entry.getKey().intValue());
                 child.put("simpleUniqueConceptName", entry.getValue());
                 
-                final double percentage = (((double) child.getInt("patientCount")) / ((double) parent.getInt("patientCount"))) * (100);
+                final double percentage = (((double) child.getInt("patientCount"))
+                        / ((double) parent.getInt("patientCount"))) * (100);
                 
                 final double rounded = (double) Math.round(percentage * 100) / 100;
                 
@@ -313,8 +324,7 @@ public class PanaceaUtil {
     public static JSONObject mergeSameRingSameParentDuplicates(final JSONObject inputNode) {
         try {
             if (inputNode != null) {
-            	
-              
+                
                 //                for (int i = 0; i < nodes.length(); i++) {
                 //final JSONObject node = inputNodes.getJSONObject(i);
                 if (inputNode.has("children")) {
@@ -324,7 +334,7 @@ public class PanaceaUtil {
                     
                     // add the none child
                     if (inputNode.has("patientCount")) {
-                    	int directChildTotalCount = 0;
+                        int directChildTotalCount = 0;
                         
                         for (int i = 0; i < childJsonArray.length(); i++) {
                             final JSONObject child = childJsonArray.getJSONObject(i);
@@ -596,12 +606,12 @@ public class PanaceaUtil {
                     
                     if ((!inputNode.has("children")) && inputNode.has("patientCount")) {
                         //leaf
-//                        if (descendantMap.containsKey("None")) {
-//                            final int count = descendantMap.get("None") + inputNode.getInt("patientCount");
-//                            descendantMap.put("None", new Integer(count));
-//                        } else {
-//                            descendantMap.put("None", inputNode.getInt("patientCount"));
-//                        }
+                        //                        if (descendantMap.containsKey("None")) {
+                        //                            final int count = descendantMap.get("None") + inputNode.getInt("patientCount");
+                        //                            descendantMap.put("None", new Integer(count));
+                        //                        } else {
+                        //                            descendantMap.put("None", inputNode.getInt("patientCount"));
+                        //                        }
                     } else {
                         getNodeAllDescendantsDrug(inputNode, descendantMap);
                     }
@@ -620,7 +630,7 @@ public class PanaceaUtil {
                         }
                         
                         final int currentNodeNoneAfterCount = inputNode.getInt("patientCount") - directChildTotalCount;
-//                        descendantMap.put("None", currentNodeNoneAfterCount);
+                        //                        descendantMap.put("None", currentNodeNoneAfterCount);
                     }
                     
                     final Map<String, Map<String, Integer>> ancestorAndDescendantMap = new HashMap<String, Map<String, Integer>>();
@@ -689,8 +699,7 @@ public class PanaceaUtil {
         }
     }
     
-    public static void calculateSingleIngredientBeforeAllNodes(final JSONObject parentNode,
-                                                               final JSONObject childNode,
+    public static void calculateSingleIngredientBeforeAllNodes(final JSONObject parentNode, final JSONObject childNode,
                                                                final List<Map<String, Map<String, Map<String, Integer>>>> allNodes,
                                                                final Map<String, Integer> parentMap) {
         try {
@@ -810,7 +819,8 @@ public class PanaceaUtil {
                                 parentCount = parent.getInt("patientCount");
                             }
                             
-                            final double percentage = (((double) (existedNodePatientCount + currentNodePatientCount)) / ((double) parentCount)) * (100);
+                            final double percentage = (((double) (existedNodePatientCount + currentNodePatientCount))
+                                    / ((double) parentCount)) * (100);
                             final double rounded = (double) Math.round(percentage * 100) / 100;
                             
                             existedNode.put("simpleUniqueConceptPercentage", rounded);
@@ -934,21 +944,18 @@ public class PanaceaUtil {
         return node;
     }
     
-
     public static JSONObject addNoneToChildren(final JSONObject inputNode) {
         try {
             if (inputNode != null) {
-            	
-              
+                
                 //                for (int i = 0; i < nodes.length(); i++) {
                 //final JSONObject node = inputNodes.getJSONObject(i);
                 if (inputNode.has("children")) {
                     final JSONArray childJsonArray = inputNode.getJSONArray("children");
                     
-                    
                     // add the none child
                     if (inputNode.has("patientCount")) {
-                    	int directChildTotalCount = 0;
+                        int directChildTotalCount = 0;
                         
                         for (int i = 0; i < childJsonArray.length(); i++) {
                             final JSONObject child = childJsonArray.getJSONObject(i);
@@ -975,7 +982,7 @@ public class PanaceaUtil {
                     for (int i = 0; i < childJsonArray.length(); i++) {
                         final JSONObject child = childJsonArray.getJSONObject(i);
                         if (child != null) {
-                        	addNoneToChildren(child);
+                            addNoneToChildren(child);
                         }
                     }
                 }
@@ -991,9 +998,9 @@ public class PanaceaUtil {
         
         return null;
     }
-
+    
     private static JSONObject createNoneObject(int noneCount) throws JSONException {
-    	final JSONObject noneObject = new JSONObject();
+        final JSONObject noneObject = new JSONObject();
         noneObject.put("patientCount", noneCount);
         noneObject.put("conceptName", "None");
         noneObject.put("simpleUniqueConceptName", "None");
@@ -1001,20 +1008,63 @@ public class PanaceaUtil {
         return noneObject;
     }
     
-	public static String includeNone(final String res) {
-		try {
-			final JSONObject root = new JSONObject(res);
-			if (root.has("children")) {
-				final JSONObject rootWithNone = addNoneToChildren(root);
-				if (root != null) {
-					return rootWithNone.toString();
-				}
-			}
-		} catch (Exception e) {
-			log.error("unable to include none", e);
-		}
-		return res;
-	}
-
-
+    public static String includeNone(final String res) {
+        try {
+            final JSONObject root = new JSONObject(res);
+            if (root.has("children")) {
+                final JSONObject rootWithNone = addNoneToChildren(root);
+                if (root != null) {
+                    return rootWithNone.toString();
+                }
+            }
+        } catch (Exception e) {
+            log.error("unable to include none", e);
+        }
+        return res;
+    }
+    
+    public static PanaceaSummary getStudySummary(JdbcTemplate template, final String resultsTableQualifier,
+                                                 final String sourceDialect, final Long studyId) {
+        String sql = "select study_id, source_id, last_update_time, STUDY_RESULTS, STUDY_RESULTS_2, STUDY_RESULTS_FILTERED \n"
+                + "from @results_schema.pnc_study_summary \n" + "where study_id = @studyId";
+        
+        final String[] params = new String[] { "results_schema", "studyId" };
+        final String[] values = new String[] { resultsTableQualifier, studyId.toString() };
+        
+        sql = SqlRender.renderSql(sql, params, values);
+        sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
+        
+        PanaceaSummary ps = null;
+        
+        if (sql != null) {
+            ps = template.queryForObject(sql, new PanaceaSummaryMapper());
+        }
+        
+        return ps;
+    }
+    
+    public static PanaceaSummaryLight getStudySummaryLight(JdbcTemplate template, final String resultsTableQualifier,
+                                                           final String sourceDialect, final Long studyId) {
+        
+        String sql = "select study_id, source_id, last_update_time \n" + "from @results_schema.pnc_study_summary \n"
+                + "where study_id = @studyId";
+        
+        final String[] params = new String[] { "results_schema", "studyId" };
+        final String[] values = new String[] { resultsTableQualifier, studyId.toString() };
+        
+        sql = SqlRender.renderSql(sql, params, values);
+        sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
+        
+        PanaceaSummaryLight psl = null;
+        
+        if (sql != null) {
+            try {
+                psl = template.queryForObject(sql, new PanaceaSummaryLightMapper());
+            } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+                log.info("PanaceaUtil.getStudySummaryLight return 0 study summary");
+            }
+        }
+        
+        return psl;
+    }
 }

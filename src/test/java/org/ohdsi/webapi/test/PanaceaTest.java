@@ -48,7 +48,6 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
  *  curl -X POST -H "Content-Type: application/json" -d '{"studyId":2,"studyName":"Chen test study","studyDesc":"test study","concepSetDef":"{\"items\" :[{\"concept\":{\"CONCEPT_ID\":1301025,\"CONCEPT_NAME\":\"Enoxaparin\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"67108\",\"DOMAIN_ID\":\"Drug\",\"VOCABULARY_ID\":\"RxNorm\",\"CONCEPT_CLASS_ID\":\"Ingredient\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"17\",\"DESCENDANT_RECORD_COUNT\":\"17\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false},{\"concept\":{\"CONCEPT_ID\":1328165,\"CONCEPT_NAME\":\"Diltiazem\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"3443\",\"DOMAIN_ID\":\"Drug\",\"VOCABULARY_ID\":\"RxNorm\",\"CONCEPT_CLASS_ID\":\"Ingredient\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"473\",\"DESCENDANT_RECORD_COUNT\":\"984\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false},{\"concept\":{\"CONCEPT_ID\":1771162,\"CONCEPT_NAME\":\"Cefazolin\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"2180\",\"DOMAIN_ID\":\"Drug\",\"VOCABULARY_ID\":\"RxNorm\",\"CONCEPT_CLASS_ID\":\"Ingredient\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"86\",\"DESCENDANT_RECORD_COUNT\":\"172\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false},{\"concept\":{\"CONCEPT_ID\":19058274,\"CONCEPT_NAME\":\"Purified Protein Derivative of Tuberculin\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"8948\",\"DOMAIN_ID\":\"Drug\",\"VOCABULARY_ID\":\"RxNorm\",\"CONCEPT_CLASS_ID\":\"Ingredient\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"0\",\"DESCENDANT_RECORD_COUNT\":\"0\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false},{\"concept\":{\"CONCEPT_ID\":918906,\"CONCEPT_NAME\":\"oxybutynin\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"32675\",\"DOMAIN_ID\":\"Drug\",\"VOCABULARY_ID\":\"RxNorm\",\"CONCEPT_CLASS_ID\":\"Ingredient\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"117\",\"DESCENDANT_RECORD_COUNT\":\"241\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false},{\"concept\":{\"CONCEPT_ID\":923645,\"CONCEPT_NAME\":\"Omeprazole\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"7646\",\"DOMAIN_ID\":\"Drug\",\"VOCABULARY_ID\":\"RxNorm\",\"CONCEPT_CLASS_ID\":\"Ingredient\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"419\",\"DESCENDANT_RECORD_COUNT\":\"886\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false},{\"concept\":{\"CONCEPT_ID\":933724,\"CONCEPT_NAME\":\"Phenazopyridine\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"8120\",\"DOMAIN_ID\":\"Drug\",\"VOCABULARY_ID\":\"RxNorm\",\"CONCEPT_CLASS_ID\":\"Ingredient\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"28\",\"DESCENDANT_RECORD_COUNT\":\"56\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false},{\"concept\":{\"CONCEPT_ID\":1310149,\"CONCEPT_NAME\":\"Warfarin\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"11289\",\"DOMAIN_ID\":\"Drug\",\"VOCABULARY_ID\":\"RxNorm\",\"CONCEPT_CLASS_ID\":\"Ingredient\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"350\",\"DESCENDANT_RECORD_COUNT\":\"757\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false},{\"concept\":{\"CONCEPT_ID\":1125315,\"CONCEPT_NAME\":\"Acetaminophen\",\"STANDARD_CONCEPT\":\"S\",\"INVALID_REASON\":\"V\",\"CONCEPT_CODE\":\"161\",\"DOMAIN_ID\":\"Drug\",\"VOCABULARY_ID\":\"RxNorm\",\"CONCEPT_CLASS_ID\":\"Ingredient\",\"INVALID_REASON_CAPTION\":\"Valid\",\"STANDARD_CONCEPT_CAPTION\":\"Standard\",\"RECORD_COUNT\":\"1,258\",\"DESCENDANT_RECORD_COUNT\":\"2,821\"},\"isExcluded\":false,\"includeDescendants\":false,\"includeMapped\":false}]}","cohortDefId":915,"studyDetail":"testing","switchWindow":30,"studyDuration":1095,"startDate":"2010-02-01","endDate":"2013-01-01"}' http://localhost:8080/WebAPI/panacea/savestudy
  *  
  *  curl -X POST -H "Content-Type: application/json" -d http://localhost:8080/WebAPI/panacea/newstudystagecombination
- * 
  * </pre>
  */
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -76,8 +75,8 @@ public class PanaceaTest extends TestCase {
              * Use browser test too:
              * http://localhost:8080/WebAPI/panacea/pncstudycombinationforstudy/RIV5/2
              */
-            List<PanaceaStageCombination> pncStgCmbs = this.pncService.getPanaceaStageCombinationByStudyId("RIV5", new Long(
-                    2));
+            List<PanaceaStageCombination> pncStgCmbs = this.pncService.getPanaceaStageCombinationByStudyId("RIV5",
+                new Long(2));
             log.info("testGetCombination: " + pncStgCmbs.toString());
             
             /**
@@ -192,40 +191,46 @@ public class PanaceaTest extends TestCase {
         }
     }
     
-    @Ignore
+    @Test
     public void testGetStudySummary() {
         try {
-            final PanaceaSummary summary = this.pncService.getStudySummary(new Long(31), new Integer(1));
+            //final PanaceaSummary summary = this.pncService.getStudySummary(new Long(31), new Integer(1));
+            final PanaceaSummary summary = this.pncService.getStudySummary(new Long(2), new Integer(1));
             
             log.info("testGetStudySummary: " + summary);
+            
+            List<PanaceaStudy> psl = this.pncService.getAllStudyWithLastRunTime();
+            
+            log.info("testGetStudySummary list with last updated time: " + psl);
+            
         } catch (final Exception e) {
             e.printStackTrace();
         }
     }
+    
+    //    @Ignore
+    //    public void testGetStudySummaryList() {
+    //        try {
+    //            final List<PanaceaSummary> summaryList = this.pncService.getStudySummary(new Long(31));
+    //            
+    //            log.info("testGetStudySummaryList: " + summaryList);
+    //        } catch (final Exception e) {
+    //            e.printStackTrace();
+    //        }
+    //    }
+    //    
+    //    @Ignore
+    //    public void testGetStudySummaryLightList() {
+    //        try {
+    //            final List<PanaceaSummaryLight> summaryList = this.pncService.getStudySummaryLight(new Long(31));
+    //            
+    //            log.info("testGetStudySummaryLightList: " + summaryList);
+    //        } catch (final Exception e) {
+    //            e.printStackTrace();
+    //        }
+    //    }
     
     @Ignore
-    public void testGetStudySummaryList() {
-        try {
-            final List<PanaceaSummary> summaryList = this.pncService.getStudySummary(new Long(31));
-            
-            log.info("testGetStudySummaryList: " + summaryList);
-        } catch (final Exception e) {
-            e.printStackTrace();
-        }
-    }
-    
-    @Ignore
-    public void testGetStudySummaryLightList() {
-        try {
-            final List<PanaceaSummaryLight> summaryList = this.pncService.getStudySummaryLight(new Long(31));
-            
-            log.info("testGetStudySummaryLightList: " + summaryList);
-        } catch (final Exception e) {
-            e.printStackTrace();
-        }
-    }
-    
-    @Test
     public void testGetStudySummaryAndJSON() {
         try {
             //final PanaceaSummary summary = this.pncService.getStudySummary(new Long(31), new Integer(1));

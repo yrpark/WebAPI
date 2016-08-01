@@ -32,12 +32,12 @@ public interface PanaceaStudyRepository extends PagingAndSortingRepository<Panac
     @Query("from PanaceaStudy where study_id = ?")
     public PanaceaStudy getPanaceaStudyWithId(Long studyId);
     
-    @Query("from PanaceaSummary where study_id = ? and source_id = ?")
-    public PanaceaSummary getPanaceaSummaryByStudyIdSourceId(Long studyId, Integer sourceId);
-    
-    @Query("from PanaceaSummary where study_id = ? order by last_update_time")
-    public List<PanaceaSummary> getPanaceaSummaryByStudyId(Long studyId);
-    
-    @Query("from PanaceaSummaryLight where study_id = ? order by last_update_time desc")
-    public List<PanaceaSummaryLight> getPanaceaSummaryLightByStudyId(Long studyId);
+//    @Query("from PanaceaSummary where study_id = ? and source_id = ?")
+//    public PanaceaSummary getPanaceaSummaryByStudyIdSourceId(Long studyId, Integer sourceId);
+//    
+//    @Query("from PanaceaSummary where study_id = ? order by last_update_time")
+//    public List<PanaceaSummary> getPanaceaSummaryByStudyId(Long studyId);
+//    
+//    @Query("from PanaceaSummaryLight where study_id = ? order by last_update_time desc")
+//    public List<PanaceaSummaryLight> getPanaceaSummaryLightByStudyId(Long studyId);
 }

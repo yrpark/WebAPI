@@ -16,6 +16,9 @@ import java.io.IOException;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,9 +54,11 @@ import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationMapRepository;
 import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationRepository;
 import org.ohdsi.webapi.panacea.repository.PanaceaStudyRepository;
 import org.ohdsi.webapi.service.AbstractDaoService;
+import org.ohdsi.webapi.service.SourceService;
 import org.ohdsi.webapi.service.VocabularyService;
 import org.ohdsi.webapi.source.Source;
 import org.ohdsi.webapi.source.SourceDaimon;
+import org.ohdsi.webapi.source.SourceInfo;
 import org.ohdsi.webapi.vocabulary.Concept;
 import org.ohdsi.webapi.vocabulary.ConceptSetExpression;
 import org.ohdsi.webapi.vocabulary.ConceptSetExpression.ConceptSetItem;
@@ -66,6 +71,7 @@ import org.springframework.batch.core.configuration.annotation.StepBuilderFactor
 import org.springframework.batch.item.ItemStreamException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -110,6 +116,9 @@ public class PanaceaService extends AbstractDaoService {
     
     @Autowired
     private VocabularyService vocabService;
+    
+    @Autowired
+    private SourceService sourceService;
     
     /**
      * Get PanaceaStudy by id
@@ -190,14 +199,54 @@ public class PanaceaService extends AbstractDaoService {
         
         if (psList != null) {
             for (final PanaceaStudy ps : psList) {
-                final List<PanaceaSummaryLight> psSumList = this.panaceaStudyRepository.getPanaceaSummaryLightByStudyId(ps
-                        .getStudyId());
+                //OHDSI-75
+                //                                final List<PanaceaSummaryLight> psSumList = this.panaceaStudyRepository
+                //                                        .getPanaceaSummaryLightByStudyId(ps.getStudyId());
                 
-                if ((psSumList != null) && (psSumList.size() > 0)) {
-                    ps.setLastRunTime(psSumList.get(0).getLastUpdateTime());
+                Collection<SourceInfo> sourceCol = sourceService.getSources();
+                List<PanaceaSummaryLight> psll = new ArrayList<PanaceaSummaryLight>();
+                
+                for (SourceInfo si : sourceCol) {
+                    final Source source = getSourceRepository().findOne(si.sourceId);
+                    JdbcTemplate template = this.getSourceJdbcTemplate(source);
+                    final PanaceaSummaryLight psl = PanaceaUtil.getStudySummaryLight(template,
+                        source.getTableQualifier(SourceDaimon.DaimonType.Results), getSourceDialect(), ps.getStudyId());
+                    if (psl != null)
+                        psll.add(psl);
+                }
+                
+                if (psll.size() > 0) {
+                    Collections.sort(psll, new Comparator<PanaceaSummaryLight>() {
+                        
+                        
+                        @Override
+                        public int compare(PanaceaSummaryLight o1, PanaceaSummaryLight o2) {
+                            if (o1.getLastUpdateTime() != null && o2.getLastUpdateTime() != null) {
+                                return o1.getLastUpdateTime().compareTo(o2.getLastUpdateTime());
+                            }
+                            
+                            return 0;
+                        }
+                        
+                    });
+                    
+                    ps.setLastRunTime(psll.get(0).getLastUpdateTime());
                 }
             }
+            
         }
+        
+        //OHDSI-75
+        //        if (psList != null) {
+        //            for (final PanaceaStudy ps : psList) {
+        //                final List<PanaceaSummaryLight> psSumList = this.panaceaStudyRepository.getPanaceaSummaryLightByStudyId(ps
+        //                        .getStudyId());
+        //                
+        //                if ((psSumList != null) && (psSumList.size() > 0)) {
+        //                    ps.setLastRunTime(psSumList.get(0).getLastUpdateTime());
+        //                }
+        //            }
+        //        }
         
         return psList;
     }
@@ -207,7 +256,12 @@ public class PanaceaService extends AbstractDaoService {
     @Produces(MediaType.APPLICATION_JSON)
     public PanaceaSummary getStudySummary(@PathParam("studyId") final Long studyId,
                                           @PathParam("sourceId") final Integer sourceId) {
-        final PanaceaSummary ps = this.panaceaStudyRepository.getPanaceaSummaryByStudyIdSourceId(studyId, sourceId);
+        //OHDSI-75
+        //final PanaceaSummary ps = this.panaceaStudyRepository.getPanaceaSummaryByStudyIdSourceId(studyId, sourceId);
+        final Source source = getSourceRepository().findOne(sourceId);
+        JdbcTemplate template = this.getSourceJdbcTemplate(source);
+        final PanaceaSummary ps = PanaceaUtil.getStudySummary(template,
+            source.getTableQualifier(SourceDaimon.DaimonType.Results), getSourceDialect(), studyId);
         
         if (StringUtils.isEmpty(ps.getStudyResultFiltered())) {
             if (!StringUtils.isEmpty(ps.getStudyResultCollapsed())) {
@@ -228,14 +282,16 @@ public class PanaceaService extends AbstractDaoService {
     }
     
     //TODO -- note: heavy load Clob. Be carefule to use: add WS annotation
-    public List<PanaceaSummary> getStudySummary(final Long studyId) {
-        return this.panaceaStudyRepository.getPanaceaSummaryByStudyId(studyId);
-    }
+    //OHDSI-75
+    //    public List<PanaceaSummary> getStudySummary(final Long studyId) {
+    //        return this.panaceaStudyRepository.getPanaceaSummaryByStudyId(studyId);
+    //    }
     
     //TODO -- note: lazy load Clob.
-    public List<PanaceaSummaryLight> getStudySummaryLight(final Long studyId) {
-        return this.panaceaStudyRepository.getPanaceaSummaryLightByStudyId(studyId);
-    }
+    //OHDSI-75
+    //    public List<PanaceaSummaryLight> getStudySummaryLight(final Long studyId) {
+    //        return this.panaceaStudyRepository.getPanaceaSummaryLightByStudyId(studyId);
+    //    }
     
     /**
      * Save a study.
@@ -336,8 +392,8 @@ public class PanaceaService extends AbstractDaoService {
     @Produces(MediaType.APPLICATION_JSON)
     public PanaceaStageCombination getPanaceaStageCombinationById(@PathParam("id") final Long pncStageCombId) {
         
-        final PanaceaStageCombination pncStgCmb = this.getPncStageCombinationRepository().getPanaceaStageCombinationById(
-            pncStageCombId);
+        final PanaceaStageCombination pncStgCmb = this.getPncStageCombinationRepository()
+                .getPanaceaStageCombinationById(pncStageCombId);
         
         return pncStgCmb;
     }
@@ -353,8 +409,8 @@ public class PanaceaService extends AbstractDaoService {
     @Produces(MediaType.APPLICATION_JSON)
     public List<PanaceaStageCombination> getPanaceaStageCombinationByStudyId(@PathParam("id") final Long studyId) {
         String sql = "select PNC_TX_STG_CMB_ID, STUDY_ID from @panacea_schema.pnc_tx_stage_combination where STUDY_ID = @studyId ";
-        sql = SqlRender.renderSql(sql, new String[] { "panacea_schema", "studyId" }, new String[] { getOhdsiSchema(),
-                studyId.toString() });
+        sql = SqlRender.renderSql(sql, new String[] { "panacea_schema", "studyId" },
+            new String[] { getOhdsiSchema(), studyId.toString() });
         sql = SqlTranslate.translateSql(sql, getSourceDialect(), getDialect());
         return this.getJdbcTemplate().query(sql, new PanaceaStageCombinationMapper());
     }
@@ -612,8 +668,8 @@ public class PanaceaService extends AbstractDaoService {
                     
                     final String drugConceptIdsStr = this.getConceptIdsString(cMap, "drug");
                     final String procedureConceptIdsStr = this.getConceptIdsString(cMap, "procedure");
-                    final String allConceptIdsStr = StringUtils.isEmpty(procedureConceptIdsStr) ? drugConceptIdsStr
-                            .toString() : drugConceptIdsStr.concat(", " + procedureConceptIdsStr);
+                    final String allConceptIdsStr = StringUtils.isEmpty(procedureConceptIdsStr)
+                            ? drugConceptIdsStr.toString() : drugConceptIdsStr.concat(", " + procedureConceptIdsStr);
                     
                     builder.addString("drugConceptId", drugConceptIdsStr);
                     builder.addString("procedureConceptId", procedureConceptIdsStr);
@@ -631,22 +687,22 @@ public class PanaceaService extends AbstractDaoService {
                     
                     String drugEraStudyOptionalDateConstraint = "";
                     if (pncStudy.getStartDate() != null) {
-                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                                .concat("AND (era.DRUG_ERA_START_DATE > study.START_DATE OR era.DRUG_ERA_START_DATE = study.START_DATE) \n");
+                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint.concat(
+                            "AND (era.DRUG_ERA_START_DATE > study.START_DATE OR era.DRUG_ERA_START_DATE = study.START_DATE) \n");
                     }
                     if (pncStudy.getEndDate() != null) {
-                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                                .concat("AND (era.DRUG_ERA_START_DATE < study.END_DATE OR era.DRUG_ERA_START_DATE = study.END_DATE) \n");
+                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint.concat(
+                            "AND (era.DRUG_ERA_START_DATE < study.END_DATE OR era.DRUG_ERA_START_DATE = study.END_DATE) \n");
                     }
                     
                     String procedureStudyOptionalDateConstraint = "";
                     if (pncStudy.getStartDate() != null) {
-                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                                .concat("AND (proc.PROCEDURE_DATE > study.START_DATE OR proc.PROCEDURE_DATE = study.START_DATE) \n");
+                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint.concat(
+                            "AND (proc.PROCEDURE_DATE > study.START_DATE OR proc.PROCEDURE_DATE = study.START_DATE) \n");
                     }
                     if (pncStudy.getEndDate() != null) {
-                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                                .concat("AND (proc.PROCEDURE_DATE < study.END_DATE OR proc.PROCEDURE_DATE = study.END_DATE) \n");
+                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint.concat(
+                            "AND (proc.PROCEDURE_DATE < study.END_DATE OR proc.PROCEDURE_DATE = study.END_DATE) \n");
                     }
                     
                     builder.addString("drugEraStudyOptionalDateConstraint", drugEraStudyOptionalDateConstraint);
@@ -935,8 +991,9 @@ public class PanaceaService extends AbstractDaoService {
                 if ((entry.getKey() != null) && (entry.getValue() != null)) {
                     if (entry.getValue().domainId != null) {
                         if (entry.getValue().domainId.toLowerCase().equals(domainId.toLowerCase())) {
-                            conceptIdsStr = StringUtils.isEmpty(conceptIdsStr) ? conceptIdsStr.concat(entry.getKey()
-                                    .toString().toString()) : conceptIdsStr.concat("," + entry.getKey().toString());
+                            conceptIdsStr = StringUtils.isEmpty(conceptIdsStr)
+                                    ? conceptIdsStr.concat(entry.getKey().toString().toString())
+                                    : conceptIdsStr.concat("," + entry.getKey().toString());
                         }
                     }
                 }
