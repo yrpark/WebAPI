@@ -27,9 +27,9 @@ import javax.xml.bind.annotation.XmlRootElement;
 /**
  *
  */
-@Entity(name = "PanaceaSummaryLight")
-@Table(name = "pnc_study_summary")
-@IdClass(PanaceaSummaryId.class)
+//@Entity(name = "PanaceaSummaryLight")
+//@Table(name = "pnc_study_summary")
+//@IdClass(PanaceaSummaryId.class)
 @XmlRootElement(name = "PanaceaSummaryLight")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class PanaceaSummaryLight implements Serializable {
@@ -39,15 +39,15 @@ public class PanaceaSummaryLight implements Serializable {
      */
     private static final long serialVersionUID = 1L;
     
-    @Id
-    @Column(name = "study_id")
+    //@Id
+    //@Column(name = "study_id")
     private Long studyId;
     
-    @Id
-    @Column(name = "source_id")
+    //@Id
+    //@Column(name = "source_id")
     private Integer sourceId;
     
-    @Column(name = "last_update_time")
+    //@Column(name = "last_update_time")
     private Timestamp lastUpdateTime;
     
     //    @Column(name = "STUDY_RESULTS")
