@@ -57,7 +57,7 @@ CACHE 10;
 CREATE TABLE ${ohdsiSchema}.pnc_study_summary
 (
     study_id    NUMBER(*,0),
-    source_id NUMBER(*,0),
+--    source_id NUMBER(*,0),
     study_results clob,
     study_results_2 clob,
     study_results_filtered clob,
@@ -68,7 +68,7 @@ CREATE TABLE ${ohdsiSchema}.pnc_study_summary_path
 (
     pnc_stdy_smry_id    NUMBER(*,0),
     study_id    NUMBER(*,0),
-    source_id NUMBER(*,0),
+--    source_id NUMBER(*,0),
     tx_path_parent_key  NUMBER(*,0),
     tx_stg_cmb    VARCHAR2(255 BYTE),
     tx_stg_cmb_pth VARCHAR2(4000 BYTE),
@@ -155,5 +155,6 @@ CACHE 10;
 
 
 CREATE INDEX pnc_smry_pth_idx ON pnc_study_summary_path (tx_stg_cmb_pth);
-CREATE INDEX pnc_smry_pth_qry_idx ON pnc_study_summary_path (study_id, source_id, tx_rslt_version);
+--CREATE INDEX pnc_smry_pth_qry_idx ON pnc_study_summary_path (study_id, source_id, tx_rslt_version);
+CREATE INDEX pnc_smry_pth_qry_idx ON pnc_study_summary_path (study_id, tx_rslt_version);
 CREATE INDEX pnc_smry_pth_prnt_idx ON pnc_study_summary_path (tx_path_parent_key, tx_rslt_version);

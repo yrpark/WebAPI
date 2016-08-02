@@ -15,12 +15,6 @@ package org.ohdsi.webapi.panacea.pojo;
 import java.io.Serializable;
 import java.sql.Timestamp;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.IdClass;
-import javax.persistence.Table;
-import javax.persistence.Transient;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -46,7 +40,7 @@ public class PanaceaSummary implements Serializable {
     
     //@Id
     //@Column(name = "source_id")
-    private Integer sourceId;
+    //    private Integer sourceId;
     
     //@Column(name = "last_update_time")
     private Timestamp lastUpdateTime;
@@ -77,19 +71,19 @@ public class PanaceaSummary implements Serializable {
         this.studyId = studyId;
     }
     
-    /**
-     * @return the sourceId
-     */
-    public Integer getSourceId() {
-        return this.sourceId;
-    }
-    
-    /**
-     * @param sourceId the sourceId to set
-     */
-    public void setSourceId(final Integer sourceId) {
-        this.sourceId = sourceId;
-    }
+    //    /**
+    //     * @return the sourceId
+    //     */
+    //    public Integer getSourceId() {
+    //        return this.sourceId;
+    //    }
+    //    
+    //    /**
+    //     * @param sourceId the sourceId to set
+    //     */
+    //    public void setSourceId(final Integer sourceId) {
+    //        this.sourceId = sourceId;
+    //    }
     
     /**
      * @return the lastUpdateTime
@@ -164,12 +158,10 @@ public class PanaceaSummary implements Serializable {
     /**
      * @see java.lang.Object#toString()
      */
-    
     @Override
     public String toString() {
-        return "PanaceaSummary [studyId=" + this.studyId + ", sourceId=" + this.sourceId + ", lastUpdateTime="
-                + this.lastUpdateTime + ", studyResults=" + this.studyResults + ", studyResultCollapsed="
-                + this.studyResultCollapsed + ", studyResultFiltered=" + this.studyResultFiltered
-                + ", studyResultUniquePath=" + this.studyResultUniquePath + "]";
+        return "PanaceaSummary [studyId=" + this.studyId + ", lastUpdateTime=" + this.lastUpdateTime + ", studyResults="
+                + this.studyResults + ", studyResultCollapsed=" + this.studyResultCollapsed + ", studyResultFiltered="
+                + this.studyResultFiltered + ", studyResultUniquePath=" + this.studyResultUniquePath + "]";
     }
 }

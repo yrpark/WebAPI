@@ -1020,7 +1020,7 @@ public class PanaceaUtil {
     
     public static PanaceaSummary getStudySummary(final JdbcTemplate template, final String resultsTableQualifier,
                                                  final String sourceDialect, final Long studyId) {
-        String sql = "select study_id, source_id, last_update_time, STUDY_RESULTS, STUDY_RESULTS_2, STUDY_RESULTS_FILTERED \n"
+        String sql = "select study_id, last_update_time, STUDY_RESULTS, STUDY_RESULTS_2, STUDY_RESULTS_FILTERED \n"
                 + "from @results_schema.pnc_study_summary \n" + "where study_id = @studyId";
         
         final String[] params = new String[] { "results_schema", "studyId" };
@@ -1046,7 +1046,7 @@ public class PanaceaUtil {
     public static PanaceaSummaryLight getStudySummaryLight(final JdbcTemplate template, final String resultsTableQualifier,
                                                            final String sourceDialect, final Long studyId) {
         
-        String sql = "select study_id, source_id, last_update_time \n" + "from @results_schema.pnc_study_summary \n"
+        String sql = "select study_id, last_update_time \n" + "from @results_schema.pnc_study_summary \n"
                 + "where study_id = @studyId";
         
         final String[] params = new String[] { "results_schema", "studyId" };

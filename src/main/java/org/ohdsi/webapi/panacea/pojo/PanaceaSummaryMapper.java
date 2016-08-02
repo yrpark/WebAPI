@@ -22,16 +22,15 @@ import org.springframework.jdbc.core.RowMapper;
  */
 public class PanaceaSummaryMapper implements RowMapper<PanaceaSummary> {
     
-    
     /**
      * @see org.springframework.jdbc.core.RowMapper#mapRow(java.sql.ResultSet, int)
      */
     @Override
-    public PanaceaSummary mapRow(ResultSet rs, int rowNum) throws SQLException {
-        PanaceaSummary ps = new PanaceaSummary();
+    public PanaceaSummary mapRow(final ResultSet rs, final int rowNum) throws SQLException {
+        final PanaceaSummary ps = new PanaceaSummary();
         
         ps.setStudyId(rs.getLong("study_id"));
-        ps.setSourceId(rs.getInt("source_id"));
+        //        ps.setSourceId(rs.getInt("source_id"));
         ps.setLastUpdateTime(rs.getTimestamp("last_update_time"));
         ps.setStudyResults(rs.getString("study_results"));
         ps.setStudyResultCollapsed(rs.getString("study_results_2"));

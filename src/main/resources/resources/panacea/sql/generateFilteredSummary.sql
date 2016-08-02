@@ -22,7 +22,7 @@ from
 -----------------generate rows of JSON (based on hierarchical data, each path is a row) insert into temp table----------------------
 -------------------------filtering based on filter out conditions -----------------------
 insert into @pnc_smrypth_fltr 
-select @jobExecId, pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth,
+select @jobExecId, pnc_stdy_smry_id, study_id, @sourceId, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth,
     tx_seq,
     tx_stg_cnt,
     tx_stg_percentage,
@@ -33,7 +33,6 @@ select @jobExecId, pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx
     from @results_schema.pnc_study_summary_path
         where 
         study_id = @studyId
-        and source_id = @sourceId
         and tx_rslt_version = 2;
 
 ----------- delete rows that do not qualify the conditions for fitlering out-----------
@@ -69,7 +68,6 @@ from (
         FROM @results_schema.pnc_study_summary_path
         where 
         study_id = @studyId
-        and source_id = @sourceId
         and tx_rslt_version = 2
       	CONNECT BY PRIOR pnc_stdy_smry_id = tx_path_parent_key
       ) t
@@ -486,7 +484,7 @@ update @results_schema.pnc_study_summary set study_results_filtered =
 	group by individualResult.table_row_id
 ) mergeJsonRowsTable ),
 last_update_time = CURRENT_TIMESTAMP 
-where study_id = @studyId and source_id = @sourceId;
+where study_id = @studyId ;
 
 
 IF OBJECT_ID('tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL
