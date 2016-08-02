@@ -58,7 +58,7 @@ CREATE TABLE ${ohdsiSchema}.pnc_tx_stage_combination_map
 CREATE TABLE ${ohdsiSchema}.pnc_study_summary
 (
     study_id INT  NOT NULL,
-    source_id INT,
+--    source_id INT,
     study_results TEXT,
     study_results_2 TEXT,
     study_results_filtered TEXT,
@@ -75,7 +75,7 @@ CREATE TABLE ${ohdsiSchema}.pnc_study_summary_path
 --    pnc_stdy_smry_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_stdy_smry PRIMARY KEY,
 		pnc_stdy_smry_id INT IDENTITY (1, 1) PRIMARY KEY,
     study_id INT,
-    source_id INT,
+--    source_id INT,
     tx_path_parent_key BIGINT,
     tx_stg_cmb    VARCHAR(255),
     tx_stg_cmb_pth VARCHAR(4000),
@@ -116,7 +116,8 @@ CREATE TABLE ${ohdsiSchema}.pnc_study_summary_path
 --);
 
 --todo: CREATE INDEX pnc_smry_pth_idx ON WebAPI.dbo.pnc_study_summary_path (tx_stg_cmb_pth);
-CREATE INDEX pnc_smry_pth_qry_idx ON ${ohdsiSchema}.pnc_study_summary_path (study_id, source_id, tx_rslt_version);
+--CREATE INDEX pnc_smry_pth_qry_idx ON ${ohdsiSchema}.pnc_study_summary_path (study_id, source_id, tx_rslt_version);
+CREATE INDEX pnc_smry_pth_qry_idx ON ${ohdsiSchema}.pnc_study_summary_path (study_id, tx_rslt_version);
 CREATE INDEX pnc_smry_pth_prnt_idx ON ${ohdsiSchema}.pnc_study_summary_path (tx_path_parent_key, tx_rslt_version);
 
 ---------following are sql server temp table workaround------------
