@@ -1,9 +1,9 @@
 @tempTableCreationSummary_oracle
 
-delete from @results_schema.pnc_study_summary_path where study_id = @studyId and source_id = @sourceId;
+delete from @results_schema.pnc_study_summary_path where study_id = @studyId;
 
-insert into @results_schema.pnc_study_summary_path (pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_cnt, tx_stg_avg_dr, tx_stg_avg_gap, tx_rslt_version, tx_avg_frm_strt)
-select @results_schema.seq_pnc_stdy_smry.nextval, @studyId, @sourceId, null, aggregatePath.combo_ids, aggregatePath.combo_seq, aggregatePath.tx_seq, aggregatePath.patientCount, aggregatePath.averageDurationDays, aggregatePath.averageGapDays, aggregatePath.result_version, aggregatePath.avgFrmCohortStart 
+insert into @results_schema.pnc_study_summary_path (pnc_stdy_smry_id, study_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_cnt, tx_stg_avg_dr, tx_stg_avg_gap, tx_rslt_version, tx_avg_frm_strt)
+select @results_schema.seq_pnc_stdy_smry.nextval, @studyId, null, aggregatePath.combo_ids, aggregatePath.combo_seq, aggregatePath.tx_seq, aggregatePath.patientCount, aggregatePath.averageDurationDays, aggregatePath.averageGapDays, aggregatePath.result_version, aggregatePath.avgFrmCohortStart 
 from
 --  (select combo_ids combo_ids, combo_seq combo_seq, tx_seq tx_seq, count(*) patientCount, avg(combo_duration) averageDurationDays, avg(gap_days) averageGapDays, result_version result_version from #_PNC_TMP_CMB_SQ_CT ptTxPath
    (select ptTxPath.combo_ids combo_ids, ptTxPath.combo_seq combo_seq, ptTxPath.tx_seq tx_seq, count(*) patientCount, avg(ptTxPath.combo_duration) averageDurationDays, avg(ptTxPath.gap_days) averageGapDays, ptTxPath.result_version result_version,
@@ -26,15 +26,14 @@ using
     from @results_schema.pnc_study_summary_path pathSum
     join (select rowid, SUBSTR(tx_stg_cmb_pth , 0 , length(tx_stg_cmb_pth) - length(tx_stg_cmb) - 1 ) as parentPath
     from @results_schema.pnc_study_summary_path
-    where study_id = @studyId and source_id = @sourceId and tx_rslt_version = 1 
+    where study_id = @studyId and tx_rslt_version = 1 
     ) updateParentPath
     on updateParentPath.rowid = pathSum.rowid
     join @results_schema.pnc_study_summary_path parentPath
     on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
     and parentPath.study_id = @studyId
     and parentPath.tx_rslt_version = 1
-    and parentPath.source_id = @sourceId
-    where pathSum.study_id = @studyId and pathSum.source_id = @sourceId
+    where pathSum.study_id = @studyId 
     and pathSum.tx_rslt_version = 1 
     and parentPath.tx_rslt_version = 1 
     group by pathsum.rowid, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
@@ -53,10 +52,10 @@ using
     rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, NVL(ROUND(pathSum.tx_stg_cnt/rootCount.totalRootCount * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
     where tx_path_parent_key is null and tx_rslt_version = 1
-      and study_id = @studyId and source_id = @sourceId
+      and study_id = @studyId 
       ) rootCount
     where tx_path_parent_key is null
-    and pathSum.study_id = @studyId and pathSum.source_id = @sourceId
+    and pathSum.study_id = @studyId 
     and pathsum.tx_rslt_version = 1
   ) m1
   on
@@ -74,15 +73,14 @@ using
     from @results_schema.pnc_study_summary_path pathSum
     join (select rowid, SUBSTR(tx_stg_cmb_pth , 0 , length(tx_stg_cmb_pth) - length(tx_stg_cmb) - 1 ) as parentPath
     from @results_schema.pnc_study_summary_path
-    where study_id = @studyId and source_id = @sourceId and tx_rslt_version = 2 
+    where study_id = @studyId and tx_rslt_version = 2 
     ) updateParentPath
     on updateParentPath.rowid = pathSum.rowid
     join @results_schema.pnc_study_summary_path parentPath
     on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
     and parentPath.study_id = @studyId
     and parentPath.tx_rslt_version = 2
-    and parentPath.source_id = @sourceId
-    where pathSum.study_id = @studyId and pathSum.source_id = @sourceId
+    where pathSum.study_id = @studyId 
     and pathSum.tx_rslt_version = 2 
     and parentPath.tx_rslt_version = 2 
     group by pathsum.rowid, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
@@ -100,10 +98,10 @@ using
     rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, NVL(ROUND(pathSum.tx_stg_cnt/rootCount.totalRootCount * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
     where tx_path_parent_key is null and tx_rslt_version = 2
-      and study_id = @studyId and source_id = @sourceId
+      and study_id = @studyId 
       ) rootCount
     where tx_path_parent_key is null
-    and pathSum.study_id = @studyId and pathSum.source_id = @sourceId
+    and pathSum.study_id = @studyId 
     and pathsum.tx_rslt_version = 2
   ) m1
   on
@@ -112,7 +110,7 @@ using
   )
   WHEN MATCHED then update set m.tx_stg_percentage = m1.percentage;
 
-delete from @results_schema.pnc_study_summary where study_id = @studyId and source_id = @sourceId;
+delete from @results_schema.pnc_study_summary where study_id = @studyId ;
 
 ---------------collapse/merge multiple rows to concatenate strings (JSON string for conceptsArrary and conceptsName) ------
 
@@ -183,7 +181,6 @@ from
   START WITH pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
         where 
         study_id = @studyId
-        and source_id = @sourceId
         and tx_rslt_version = 1
         and tx_path_parent_key is null)
   CONNECT BY PRIOR pnc_stdy_smry_id = tx_path_parent_key
@@ -227,8 +224,8 @@ select rnum as rnum, table_row_id as table_row_id, 1 rslt_version, ']}' as JSON 
 ) individualJsonRows;
 
 -------------------------------------version 1 into summary table-------------------------------------
-insert into @results_schema.pnc_study_summary (study_id, source_id, study_results)
-select @studyId, @sourceId, JSON from (
+insert into @results_schema.pnc_study_summary (study_id, study_results)
+select @studyId, JSON from (
 	select individualResult.table_row_id,
 		DBMS_XMLGEN.CONVERT (
      	EXTRACT(
@@ -262,7 +259,6 @@ WITH t1(combo_id, current_path, pnc_stdy_smry_id, parent_key, modified_path, Lvl
   		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
         where 
 	        study_id = @studyId
-    	    and source_id = @sourceId
         	and tx_rslt_version = 2
 	        and tx_path_parent_key is null)
         UNION ALL
@@ -303,7 +299,6 @@ WITH t1(combo_id, current_path, pnc_stdy_smry_id, parent_key, modified_path, mod
   		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
         where 
 	        study_id = @studyId
-    	    and source_id = @sourceId
         	and tx_rslt_version = 2
 	        and tx_path_parent_key is null)
         UNION ALL
@@ -444,7 +439,6 @@ CASE
     || ',"totalCountFirstTherapy":'
     || (select sum(tx_stg_cnt) from @results_schema.pnc_study_summary_path 
     	where study_id = @studyId 
-    	and source_id = @sourceId
         and tx_path_parent_key is null
         and tx_seq = 1
         and tx_rslt_version = 2)
@@ -457,7 +451,6 @@ CASE
     || (select NVL(ROUND(firstCount.firstCount/cohortTotal.cohortTotal * 100,2),0) firstTherrapyPercentage from 
         (select sum(tx_stg_cnt) as firstCount from @results_schema.pnc_study_summary_path 
         where study_id = @studyId 
-        and source_id = @sourceId
         and tx_path_parent_key is null
         and tx_seq = 1
         and tx_rslt_version = 2) firstCount,  
@@ -522,7 +515,6 @@ select
   START WITH pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
         where 
         study_id = @studyId
-        and source_id = @sourceId
         and tx_rslt_version = 2
         and tx_path_parent_key is null)
   CONNECT BY PRIOR pnc_stdy_smry_id = tx_path_parent_key
@@ -588,4 +580,4 @@ update @results_schema.pnc_study_summary set study_results_2 =
 	group by individualResult.table_row_id
 ) mergeJsonRowsTable), 
 last_update_time = CURRENT_TIMESTAMP 
-where study_id = @studyId and source_id = @sourceId;
+where study_id = @studyId ;
