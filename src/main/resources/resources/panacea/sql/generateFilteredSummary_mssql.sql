@@ -88,7 +88,7 @@ where job_execution_id = @jobExecId;
 -----------------generate rows of JSON (based on hierarchical data, without using oracle connect/level, each path is a row) insert into temp table----------------------
 -------------------------filtering based on filter out conditions -----------------------
 insert into @pnc_smrypth_fltr 
-select @jobExecId, pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth,
+select @jobExecId, pnc_stdy_smry_id, study_id, @sourceId, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth,
     tx_seq,
     tx_stg_cnt,
     tx_stg_percentage,
@@ -99,7 +99,6 @@ select @jobExecId, pnc_stdy_smry_id, study_id, source_id, tx_path_parent_key, tx
     from @results_schema.pnc_study_summary_path
         where 
         study_id = @studyId
-        and source_id = @sourceId
         and tx_rslt_version = 2;
 
 ----------- delete rows that do not qualify the conditions for fitlering out-----------
@@ -122,7 +121,6 @@ with AncestryTree (pnc_stdy_smry_id, ancestor, lvl) as (
 	  	  	  FROM @results_schema.pnc_study_summary_path
   			  where
 				study_id = @studyId
-        		and source_id = @sourceId
         		and tx_rslt_version = 2
     			and tx_path_parent_key is not null
   			union all
@@ -243,7 +241,6 @@ WITH t1(combo_id, current_path1, pnc_stdy_smry_id, parent_key, modified_path, Lv
   		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @pnc_smrypth_fltr
         where 
 	        study_id = @studyId
-    	    and source_id = @sourceId
         	and tx_rslt_version = 2
         	and job_execution_id = @jobExecId
 	        and tx_path_parent_key is null)
@@ -285,7 +282,6 @@ WITH t1(combo_id, current_path1, pnc_stdy_smry_id, parent_key, modified_path, mo
   		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @pnc_smrypth_fltr
         where 
 	        study_id = @studyId
-    	    and source_id = @sourceId
         	and tx_rslt_version = 2
         	and job_execution_id = @jobExecId
 	        and tx_path_parent_key is null)
@@ -500,7 +496,6 @@ WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl,
         WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id FROM @pnc_smrypth_fltr
               where 
               study_id = @studyId
-              and source_id = @sourceId
               and tx_rslt_version = 2
               and tx_path_parent_key is null
               and job_execution_id = @jobExecId)
@@ -643,4 +638,4 @@ FROM
 		and tab1.table_row_id = 1
 		group by table_row_id
 	) m1
-WHERE study_id = @studyId and source_id = @sourceId;
+WHERE study_id = @studyId ;
