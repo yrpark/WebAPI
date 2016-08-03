@@ -15,13 +15,6 @@ package org.ohdsi.webapi.panacea.pojo;
 import java.io.Serializable;
 import java.sql.Date;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -29,8 +22,8 @@ import javax.xml.bind.annotation.XmlRootElement;
 /**
  *
  */
-@Entity(name = "PanaceaPatientSequenceCount")
-@Table(name = "pnc_tmp_pt_sq_ct")
+//@Entity(name = "PanaceaPatientSequenceCount")
+//@Table(name = "pnc_tmp_pt_sq_ct")
 @XmlRootElement(name = "PanaceaPatientSequenceCount")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class PanaceaPatientSequenceCount implements Serializable {
@@ -40,38 +33,38 @@ public class PanaceaPatientSequenceCount implements Serializable {
      */
     private static final long serialVersionUID = 1L;
     
-    @SequenceGenerator(name = "PANACEA_PT_SQ_CT_SEQUENCE_GENERATOR", sequenceName = "seq_pnc_tmp_pt_sq_ct", allocationSize = 1)
-    @Id
+    //@SequenceGenerator(name = "PANACEA_PT_SQ_CT_SEQUENCE_GENERATOR", sequenceName = "seq_pnc_tmp_pt_sq_ct", allocationSize = 1)
+    //@Id
     //@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "PANACEA_PT_SQ_CT_SEQUENCE_GENERATOR")
-    @GeneratedValue(strategy = GenerationType.AUTO, generator = "PANACEA_PT_SQ_CT_SEQUENCE_GENERATOR")
-    @Column(name = "pnc_pt_sq_ct_id")
+    //@GeneratedValue(strategy = GenerationType.AUTO, generator = "PANACEA_PT_SQ_CT_SEQUENCE_GENERATOR")
+    //@Column(name = "pnc_pt_sq_ct_id")
     private Long patientSequenceCountId;
     
-    @Column(name = "study_id")
+    //@Column(name = "study_id")
     private Long studyId;
     
-    @Column(name = "source_id")
+    //@Column(name = "source_id")
     private Integer sourceId;
     
-    @Column(name = "person_id")
+    //@Column(name = "person_id")
     private Long personId;
     
-    @Column(name = "tx_seq")
+    //@Column(name = "tx_seq")
     private Long txSequence;
     
-    @Column(name = "concept_id")
+    //@Column(name = "concept_id")
     private Long conceptId;
     
-    @Column(name = "concept_name")
+    //@Column(name = "concept_name")
     private String conceptName;
     
-    @Column(name = "idx_start_date")
+    //@Column(name = "idx_start_date")
     private Date startDate;
     
-    @Column(name = "idx_end_date")
+    //@Column(name = "idx_end_date")
     private Date endDate;
     
-    @Column(name = "duration_days ")
+    //@Column(name = "duration_days ")
     private Integer durationDay;
     
     /**

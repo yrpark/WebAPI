@@ -12,19 +12,16 @@
  */
 package org.ohdsi.webapi.panacea.repository;
 
-import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
 
 /**
  *
  */
-public interface PanaceaStageCombinationMapRepository extends CrudRepository<PanaceaStageCombinationMap, Long> {
-    
+public interface PanaceaStageCombinationMapRepository {//extends CrudRepository<PanaceaStageCombinationMap, Long> {
+
     /**
      * @param cmbId Long
      * @return PanaceaStageCombinationMap
      */
-    @Query("from PanaceaStageCombinationMap where pnc_tx_stg_cmb_mp_id = ?")
-    public PanaceaStageCombinationMap getPanaceaStageCombinationMapById(Long cmbId);
+    //    @Query("from PanaceaStageCombinationMap where pnc_tx_stg_cmb_mp_id = ?")
+    //    public PanaceaStageCombinationMap getPanaceaStageCombinationMapById(Long cmbId);
 }

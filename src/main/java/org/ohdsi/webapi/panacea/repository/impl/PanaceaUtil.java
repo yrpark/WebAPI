@@ -12,6 +12,8 @@
  */
 package org.ohdsi.webapi.panacea.repository.impl;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,11 +30,14 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.ohdsi.sql.SqlRender;
 import org.ohdsi.sql.SqlTranslate;
+import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
+import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
 import org.ohdsi.webapi.panacea.pojo.PanaceaSummary;
 import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryLight;
 import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryLightMapper;
 import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 
 /**
  * A util class mainly for JSON manipulation after calculation (introduced for unique pathway)
@@ -1067,5 +1072,85 @@ public class PanaceaUtil {
         }
         
         return psl;
+    }
+    
+    public static List<PanaceaStageCombination> loadStudyStageCombination(final Long studyId, final JdbcTemplate template,
+                                                                          final String resultsTableQualifier,
+                                                                          final String sourceDialect) {
+        String sql = "select comb.pnc_tx_stg_cmb_id as combo_id \n"
+                + "from @results_schema.pnc_tx_stage_combination comb \n" + "where comb.study_id = @studyId \n"
+                + "order by comb.pnc_tx_stg_cmb_id \n";
+        
+        final String[] params = new String[] { "results_schema", "studyId" };
+        final String[] values = new String[] { resultsTableQualifier, studyId.toString() };
+        
+        sql = SqlRender.renderSql(sql, params, values);
+        sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
+        
+        final List<PanaceaStageCombination> pncStgCombo = template.query(sql, new RowMapper<PanaceaStageCombination>() {
+            
+            @Override
+            public PanaceaStageCombination mapRow(final ResultSet rs, final int rowNum) throws SQLException {
+                final PanaceaStageCombination pncStgCombo = new PanaceaStageCombination();
+                pncStgCombo.setPncTxStgCmbId(rs.getLong("combo_id"));
+                pncStgCombo.setStudyId(studyId);
+                
+                return pncStgCombo;
+            }
+        });
+        
+        if ((pncStgCombo != null) && (pncStgCombo.size() > 0)) {
+            String stgComboIds = "";
+            final Map<Long, PanaceaStageCombination> comboMap = new HashMap<Long, PanaceaStageCombination>();
+            
+            for (final PanaceaStageCombination combo : pncStgCombo) {
+                stgComboIds += stgComboIds.length() == 0 ? combo.getPncTxStgCmbId().toString() : ", "
+                        + combo.getPncTxStgCmbId().toString();
+                
+                final List<PanaceaStageCombinationMap> mapList = new ArrayList<PanaceaStageCombinationMap>();
+                combo.setCombMapList(mapList);
+                
+                comboMap.put(combo.getPncTxStgCmbId(), combo);
+            }
+            
+            String mapSql = "select combo_map.concept_id as concept_id, combo_map.concept_name concept_name, combo_map.pnc_tx_stg_cmb_id as combo_id, combo_map.pnc_tx_stg_cmb_mp_id as map_id \n"
+                    + "from @results_schema.pnc_tx_stage_combination_map combo_map \n"
+                    + "where combo_map.pnc_tx_stg_cmb_id in ("
+                    + stgComboIds
+                    + ") \n"
+                    + "order by combo_map.pnc_tx_stg_cmb_id, combo_map.pnc_tx_stg_cmb_mp_id \n";
+            
+            mapSql = SqlRender.renderSql(mapSql, params, values);
+            mapSql = SqlTranslate.translateSql(mapSql, "sql server", sourceDialect, null, resultsTableQualifier);
+            
+            final List<PanaceaStageCombinationMap> comboMapList = template.query(mapSql,
+                new RowMapper<PanaceaStageCombinationMap>() {
+                    
+                    @Override
+                    public PanaceaStageCombinationMap mapRow(final ResultSet rs, final int rowNum) throws SQLException {
+                        final PanaceaStageCombinationMap pncStgComboMap = new PanaceaStageCombinationMap();
+                        
+                        pncStgComboMap.setConceptId(rs.getLong("concept_id"));
+                        pncStgComboMap.setConceptName(rs.getString("concept_name"));
+                        pncStgComboMap.setPncTxStgCmbId(rs.getLong("combo_id"));
+                        pncStgComboMap.setPncTxStgCmbMpId(rs.getLong("map_id"));
+                        
+                        return pncStgComboMap;
+                    }
+                });
+            
+            if ((comboMapList != null) && (comboMapList.size() > 0)) {
+                for (final PanaceaStageCombinationMap oneComboMap : comboMapList) {
+                    final PanaceaStageCombination combo = comboMap.get(oneComboMap.getPncTxStgCmbId());
+                    
+                    if ((combo != null) && (combo.getCombMapList() != null)) {
+                        oneComboMap.setPncStgCmb(combo);
+                        combo.getCombMapList().add(oneComboMap);
+                    }
+                }
+            }
+        }
+        
+        return pncStgCombo;
     }
 }

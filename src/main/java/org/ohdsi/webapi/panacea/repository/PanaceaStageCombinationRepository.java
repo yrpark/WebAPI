@@ -15,25 +15,25 @@ package org.ohdsi.webapi.panacea.repository;
 import java.util.List;
 
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
 
 /**
  *
  */
-public interface PanaceaStageCombinationRepository extends CrudRepository<PanaceaStageCombination, Long> {
+public interface PanaceaStageCombinationRepository {
+    
+    //extends CrudRepository<PanaceaStageCombination, Long> {
     
     /**
      * @param cmbId Long
      * @return PanaceaStageCombination
      */
-    @Query("from PanaceaStageCombination where pnc_tx_stg_cmb_id = ?")
+    //@Query("from PanaceaStageCombination where pnc_tx_stg_cmb_id = ?")
     public PanaceaStageCombination getPanaceaStageCombinationById(Long cmbId);
     
     /**
      * @param studyId Long
      * @return List of PanaceaStageCombination
      */
-    @Query(value = "select cmb from PanaceaStageCombination cmb where cmb.studyId = ?")
+    //@Query(value = "select cmb from PanaceaStageCombination cmb where cmb.studyId = ?")
     List<PanaceaStageCombination> getAllStageCombination(Long studyId);
 }

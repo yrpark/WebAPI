@@ -505,3 +505,5 @@ IF OBJECT_ID('tempdb..#_pnc_unq_trtmt', 'U') IS NOT NULL
   DROP TABLE #_pnc_unq_trtmt;
 IF OBJECT_ID('tempdb..#_pnc_unq_pth_id', 'U') IS NOT NULL
   DROP TABLE #_pnc_unq_pth_id;
+IF OBJECT_ID('tempdb..#_pnc_tmp_mssql_seq_id', 'U') IS NOT NULL
+  DROP TABLE #_pnc_tmp_mssql_seq_id;

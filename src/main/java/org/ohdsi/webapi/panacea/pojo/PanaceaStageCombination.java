@@ -15,29 +15,15 @@ package org.ohdsi.webapi.panacea.pojo;
 import java.io.Serializable;
 import java.util.List;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.ElementCollection;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.OneToMany;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
-
 /**
  *
  */
-@Entity(name = "PanaceaStageCombination")
-@Table(name = "pnc_tx_stage_combination")
+//@Entity(name = "PanaceaStageCombination")
+//@Table(name = "pnc_tx_stage_combination")
 @XmlRootElement(name = "PanaceaStageCombination")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class PanaceaStageCombination implements Serializable {
@@ -47,20 +33,20 @@ public class PanaceaStageCombination implements Serializable {
      */
     private static final long serialVersionUID = 1L;
     
-    @SequenceGenerator(name = "PNC_TX_STG_CMB_SEQUENCE_GENERATOR", sequenceName = "seq_pnc_tx_stg_cmb", allocationSize = 1)
-    @Id
+    //@SequenceGenerator(name = "PNC_TX_STG_CMB_SEQUENCE_GENERATOR", sequenceName = "seq_pnc_tx_stg_cmb", allocationSize = 1)
+    //@Id
     //@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "PNC_TX_STG_CMB_SEQUENCE_GENERATOR")
-    @GeneratedValue(strategy = GenerationType.AUTO, generator = "PNC_TX_STG_CMB_SEQUENCE_GENERATOR")
-    @Column(name = "pnc_tx_stg_cmb_id")
+    //@GeneratedValue(strategy = GenerationType.AUTO, generator = "PNC_TX_STG_CMB_SEQUENCE_GENERATOR")
+    //@Column(name = "pnc_tx_stg_cmb_id")
     private Long pncTxStgCmbId;
     
-    @Column(name = "study_id")
+    //@Column(name = "study_id")
     private Long studyId;
     
-    @OneToMany(targetEntity = PanaceaStageCombinationMap.class, fetch = FetchType.EAGER, cascade = CascadeType.ALL)
-    @JoinColumn(name = "pnc_tx_stg_cmb_id", referencedColumnName = "pnc_tx_stg_cmb_id")
-    @ElementCollection(targetClass = PanaceaStageCombinationMap.class)
-    @JsonManagedReference
+    //@OneToMany(targetEntity = PanaceaStageCombinationMap.class, fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    //@JoinColumn(name = "pnc_tx_stg_cmb_id", referencedColumnName = "pnc_tx_stg_cmb_id")
+    //@ElementCollection(targetClass = PanaceaStageCombinationMap.class)
+    //@JsonManagedReference
     private List<PanaceaStageCombinationMap> combMapList;
     
     /**
