@@ -43,15 +43,10 @@ import org.ohdsi.webapi.helper.ResourceHelper;
 import org.ohdsi.webapi.job.JobExecutionResource;
 import org.ohdsi.webapi.job.JobTemplate;
 import org.ohdsi.webapi.panacea.mapper.PanaceaStageCombinationMapper;
-import org.ohdsi.webapi.panacea.pojo.PanaceaPatientSequenceCount;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
-import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
 import org.ohdsi.webapi.panacea.pojo.PanaceaSummary;
 import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryLight;
-import org.ohdsi.webapi.panacea.repository.PanaceaPatientSequenceCountRepository;
-import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationMapRepository;
-import org.ohdsi.webapi.panacea.repository.PanaceaStageCombinationRepository;
 import org.ohdsi.webapi.panacea.repository.PanaceaStudyRepository;
 import org.ohdsi.webapi.service.AbstractDaoService;
 import org.ohdsi.webapi.service.SourceService;
@@ -90,14 +85,14 @@ public class PanaceaService extends AbstractDaoService {
     @Autowired
     private PanaceaStudyRepository panaceaStudyRepository;
     
-    @Autowired
-    private PanaceaStageCombinationRepository pncStageCombinationRepository;
+    //@Autowired
+    //private PanaceaStageCombinationRepository pncStageCombinationRepository;
     
-    @Autowired
-    private PanaceaStageCombinationMapRepository pncStageCombinationMapRepository;
+    //@Autowired
+    //private PanaceaStageCombinationMapRepository pncStageCombinationMapRepository;
     
-    @Autowired
-    private PanaceaPatientSequenceCountRepository pncPatientSequenceCountRepository;
+    //@Autowired
+    //private PanaceaPatientSequenceCountRepository pncPatientSequenceCountRepository;
     
     @Autowired
     private EntityManager em;
@@ -203,25 +198,25 @@ public class PanaceaService extends AbstractDaoService {
                 //                                final List<PanaceaSummaryLight> psSumList = this.panaceaStudyRepository
                 //                                        .getPanaceaSummaryLightByStudyId(ps.getStudyId());
                 
-                Collection<SourceInfo> sourceCol = sourceService.getSources();
-                List<PanaceaSummaryLight> psll = new ArrayList<PanaceaSummaryLight>();
+                final Collection<SourceInfo> sourceCol = this.sourceService.getSources();
+                final List<PanaceaSummaryLight> psll = new ArrayList<PanaceaSummaryLight>();
                 
-                for (SourceInfo si : sourceCol) {
+                for (final SourceInfo si : sourceCol) {
                     final Source source = getSourceRepository().findOne(si.sourceId);
-                    JdbcTemplate template = this.getSourceJdbcTemplate(source);
+                    final JdbcTemplate template = this.getSourceJdbcTemplate(source);
                     final PanaceaSummaryLight psl = PanaceaUtil.getStudySummaryLight(template,
                         source.getTableQualifier(SourceDaimon.DaimonType.Results), getSourceDialect(), ps.getStudyId());
-                    if (psl != null)
+                    if (psl != null) {
                         psll.add(psl);
+                    }
                 }
                 
                 if (psll.size() > 0) {
                     Collections.sort(psll, new Comparator<PanaceaSummaryLight>() {
                         
-                        
                         @Override
-                        public int compare(PanaceaSummaryLight o1, PanaceaSummaryLight o2) {
-                            if (o1.getLastUpdateTime() != null && o2.getLastUpdateTime() != null) {
+                        public int compare(final PanaceaSummaryLight o1, final PanaceaSummaryLight o2) {
+                            if ((o1.getLastUpdateTime() != null) && (o2.getLastUpdateTime() != null)) {
                                 return o1.getLastUpdateTime().compareTo(o2.getLastUpdateTime());
                             }
                             
@@ -259,7 +254,7 @@ public class PanaceaService extends AbstractDaoService {
         //OHDSI-75
         //final PanaceaSummary ps = this.panaceaStudyRepository.getPanaceaSummaryByStudyIdSourceId(studyId, sourceId);
         final Source source = getSourceRepository().findOne(sourceId);
-        JdbcTemplate template = this.getSourceJdbcTemplate(source);
+        final JdbcTemplate template = this.getSourceJdbcTemplate(source);
         final PanaceaSummary ps = PanaceaUtil.getStudySummary(template,
             source.getTableQualifier(SourceDaimon.DaimonType.Results), getSourceDialect(), studyId);
         
@@ -387,16 +382,16 @@ public class PanaceaService extends AbstractDaoService {
      * @param pncStageCombId Long
      * @return PanaceaStageCombination
      */
-    @GET
-    @Path("/pncstudycombination/{id}")
-    @Produces(MediaType.APPLICATION_JSON)
-    public PanaceaStageCombination getPanaceaStageCombinationById(@PathParam("id") final Long pncStageCombId) {
-        
-        final PanaceaStageCombination pncStgCmb = this.getPncStageCombinationRepository()
-                .getPanaceaStageCombinationById(pncStageCombId);
-        
-        return pncStgCmb;
-    }
+    //    @GET
+    //    @Path("/pncstudycombination/{id}")
+    //    @Produces(MediaType.APPLICATION_JSON)
+    //    public PanaceaStageCombination getPanaceaStageCombinationById(@PathParam("id") final Long pncStageCombId) {
+    //        
+    //        final PanaceaStageCombination pncStgCmb = this.getPncStageCombinationRepository().getPanaceaStageCombinationById(
+    //            pncStageCombId);
+    //        
+    //        return pncStgCmb;
+    //    }
     
     /**
      * Get PanaceaStageCombination by studyId
@@ -409,8 +404,8 @@ public class PanaceaService extends AbstractDaoService {
     @Produces(MediaType.APPLICATION_JSON)
     public List<PanaceaStageCombination> getPanaceaStageCombinationByStudyId(@PathParam("id") final Long studyId) {
         String sql = "select PNC_TX_STG_CMB_ID, STUDY_ID from @panacea_schema.pnc_tx_stage_combination where STUDY_ID = @studyId ";
-        sql = SqlRender.renderSql(sql, new String[] { "panacea_schema", "studyId" },
-            new String[] { getOhdsiSchema(), studyId.toString() });
+        sql = SqlRender.renderSql(sql, new String[] { "panacea_schema", "studyId" }, new String[] { getOhdsiSchema(),
+                studyId.toString() });
         sql = SqlTranslate.translateSql(sql, getSourceDialect(), getDialect());
         return this.getJdbcTemplate().query(sql, new PanaceaStageCombinationMapper());
     }
@@ -422,12 +417,12 @@ public class PanaceaService extends AbstractDaoService {
      * @param studyId Long
      * @return List of PanaceaStageCombination
      */
-    @GET
-    @Path("/pncstudycombinationwithmapforstudy/{id}")
-    @Produces(MediaType.APPLICATION_JSON)
-    public List<PanaceaStageCombination> getPanaceaStageCombinationWithMapByStudyId(@PathParam("id") final Long studyId) {
-        return this.getPncStageCombinationRepository().getAllStageCombination(studyId);
-    }
+    //    @GET
+    //    @Path("/pncstudycombinationwithmapforstudy/{id}")
+    //    @Produces(MediaType.APPLICATION_JSON)
+    //    public List<PanaceaStageCombination> getPanaceaStageCombinationWithMapByStudyId(@PathParam("id") final Long studyId) {
+    //        return this.getPncStageCombinationRepository().getAllStageCombination(studyId);
+    //    }
     
     /**
      * Get PanaceaStageCombinationMap by id
@@ -435,19 +430,19 @@ public class PanaceaService extends AbstractDaoService {
      * @param pncStageCombMpId Long
      * @return PanaceaStageCombinationMap
      */
-    @GET
-    @Path("/pncstudycombinationmap/{id}")
-    @Produces(MediaType.APPLICATION_JSON)
-    public PanaceaStageCombinationMap getPanaceaStageCombinationMapById(@PathParam("id") final Long pncStageCombMpId) {
-        
-        final PanaceaStageCombinationMap pncStgCmbMp = this.getPncStageCombinationMapRepository()
-                .getPanaceaStageCombinationMapById(pncStageCombMpId);
-        return pncStgCmbMp;
-    }
+    //    @GET
+    //    @Path("/pncstudycombinationmap/{id}")
+    //    @Produces(MediaType.APPLICATION_JSON)
+    //    public PanaceaStageCombinationMap getPanaceaStageCombinationMapById(@PathParam("id") final Long pncStageCombMpId) {
+    //        
+    //        final PanaceaStageCombinationMap pncStgCmbMp = this.getPncStageCombinationMapRepository()
+    //                .getPanaceaStageCombinationMapById(pncStageCombMpId);
+    //        return pncStgCmbMp;
+    //    }
     
-    public PanaceaPatientSequenceCount getPanaceaPatientSequenceCountById(final Long ppscId) {
-        return this.pncPatientSequenceCountRepository.getPanaceaPatientSequenceCountById(ppscId);
-    }
+    //    public PanaceaPatientSequenceCount getPanaceaPatientSequenceCountById(final Long ppscId) {
+    //        return this.pncPatientSequenceCountRepository.getPanaceaPatientSequenceCountById(ppscId);
+    //    }
     
     /**
      * Get PanaceaStageCombination by studyId
@@ -495,10 +490,10 @@ public class PanaceaService extends AbstractDaoService {
     //        }
     //    }
     
-    public List<PanaceaStageCombination> savePanaceaStageCombinationById(final List<PanaceaStageCombination> pncStageCombinationList) {
-        
-        return (List<PanaceaStageCombination>) this.getPncStageCombinationRepository().save(pncStageCombinationList);
-    }
+    //    public List<PanaceaStageCombination> savePanaceaStageCombinationById(final List<PanaceaStageCombination> pncStageCombinationList) {
+    //        
+    //        return (List<PanaceaStageCombination>) this.getPncStageCombinationRepository().save(pncStageCombinationList);
+    //    }
     
     public String getPanaceaPatientSequenceCountSql(final Long studyId, final Integer sourceId) {
         final PanaceaStudy pncStudy = this.getPanaceaStudyWithId(studyId);
@@ -668,8 +663,8 @@ public class PanaceaService extends AbstractDaoService {
                     
                     final String drugConceptIdsStr = this.getConceptIdsString(cMap, "drug");
                     final String procedureConceptIdsStr = this.getConceptIdsString(cMap, "procedure");
-                    final String allConceptIdsStr = StringUtils.isEmpty(procedureConceptIdsStr)
-                            ? drugConceptIdsStr.toString() : drugConceptIdsStr.concat(", " + procedureConceptIdsStr);
+                    final String allConceptIdsStr = StringUtils.isEmpty(procedureConceptIdsStr) ? drugConceptIdsStr
+                            .toString() : drugConceptIdsStr.concat(", " + procedureConceptIdsStr);
                     
                     builder.addString("drugConceptId", drugConceptIdsStr);
                     builder.addString("procedureConceptId", procedureConceptIdsStr);
@@ -687,22 +682,22 @@ public class PanaceaService extends AbstractDaoService {
                     
                     String drugEraStudyOptionalDateConstraint = "";
                     if (pncStudy.getStartDate() != null) {
-                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint.concat(
-                            "AND (era.DRUG_ERA_START_DATE > study.START_DATE OR era.DRUG_ERA_START_DATE = study.START_DATE) \n");
+                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                                .concat("AND (era.DRUG_ERA_START_DATE > study.START_DATE OR era.DRUG_ERA_START_DATE = study.START_DATE) \n");
                     }
                     if (pncStudy.getEndDate() != null) {
-                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint.concat(
-                            "AND (era.DRUG_ERA_START_DATE < study.END_DATE OR era.DRUG_ERA_START_DATE = study.END_DATE) \n");
+                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                                .concat("AND (era.DRUG_ERA_START_DATE < study.END_DATE OR era.DRUG_ERA_START_DATE = study.END_DATE) \n");
                     }
                     
                     String procedureStudyOptionalDateConstraint = "";
                     if (pncStudy.getStartDate() != null) {
-                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint.concat(
-                            "AND (proc.PROCEDURE_DATE > study.START_DATE OR proc.PROCEDURE_DATE = study.START_DATE) \n");
+                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                                .concat("AND (proc.PROCEDURE_DATE > study.START_DATE OR proc.PROCEDURE_DATE = study.START_DATE) \n");
                     }
                     if (pncStudy.getEndDate() != null) {
-                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint.concat(
-                            "AND (proc.PROCEDURE_DATE < study.END_DATE OR proc.PROCEDURE_DATE = study.END_DATE) \n");
+                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                                .concat("AND (proc.PROCEDURE_DATE < study.END_DATE OR proc.PROCEDURE_DATE = study.END_DATE) \n");
                     }
                     
                     builder.addString("drugEraStudyOptionalDateConstraint", drugEraStudyOptionalDateConstraint);
@@ -735,9 +730,12 @@ public class PanaceaService extends AbstractDaoService {
                             .tasklet(pncGetPersonIdsTasklet).exceptionHandler(new TerminateJobStepExceptionHandler())
                             .build();
                     
+                    //                    final PanaceaPatientDrugComboTasklet pncPatientDrugComboTasklet = new PanaceaPatientDrugComboTasklet(
+                    //                            this.getSourceJdbcTemplate(source), this.getTransactionTemplate(), pncStudy,
+                    //                            this.pncStageCombinationRepository, this.pncStageCombinationMapRepository, this.em);
+                    
                     final PanaceaPatientDrugComboTasklet pncPatientDrugComboTasklet = new PanaceaPatientDrugComboTasklet(
-                            this.getSourceJdbcTemplate(source), this.getTransactionTemplate(), pncStudy,
-                            this.pncStageCombinationRepository, this.pncStageCombinationMapRepository, this.em);
+                            this.getSourceJdbcTemplate(source), this.getTransactionTemplate(), pncStudy, this.em);
                     
                     final Step pncPatientDrugComboTaskletStep = this.stepBuilders.get("pncPatientDrugComboTaskletStep")
                             .tasklet(pncPatientDrugComboTasklet).exceptionHandler(new TerminateJobStepExceptionHandler())
@@ -894,30 +892,30 @@ public class PanaceaService extends AbstractDaoService {
     /**
      * @return the pncStageCombinationRepository
      */
-    public PanaceaStageCombinationRepository getPncStageCombinationRepository() {
-        return this.pncStageCombinationRepository;
-    }
+    //    public PanaceaStageCombinationRepository getPncStageCombinationRepository() {
+    //        return this.pncStageCombinationRepository;
+    //    }
     
     /**
      * @param pncStageCombinationRepository the pncStageCombinationRepository to set
      */
-    public void setPncStageCombinationRepository(final PanaceaStageCombinationRepository pncStageCombinationRepository) {
-        this.pncStageCombinationRepository = pncStageCombinationRepository;
-    }
+    //    public void setPncStageCombinationRepository(final PanaceaStageCombinationRepository pncStageCombinationRepository) {
+    //        this.pncStageCombinationRepository = pncStageCombinationRepository;
+    //    }
     
     /**
      * @return the pncStageCombinationMapRepository
      */
-    public PanaceaStageCombinationMapRepository getPncStageCombinationMapRepository() {
-        return this.pncStageCombinationMapRepository;
-    }
+    //    public PanaceaStageCombinationMapRepository getPncStageCombinationMapRepository() {
+    //        return this.pncStageCombinationMapRepository;
+    //    }
     
     /**
      * @param pncStageCombinationMapRepository the pncStageCombinationMapRepository to set
      */
-    public void setPncStageCombinationMapRepository(final PanaceaStageCombinationMapRepository pncStageCombinationMapRepository) {
-        this.pncStageCombinationMapRepository = pncStageCombinationMapRepository;
-    }
+    //    public void setPncStageCombinationMapRepository(final PanaceaStageCombinationMapRepository pncStageCombinationMapRepository) {
+    //        this.pncStageCombinationMapRepository = pncStageCombinationMapRepository;
+    //    }
     
     /**
      * @return the em
@@ -991,9 +989,8 @@ public class PanaceaService extends AbstractDaoService {
                 if ((entry.getKey() != null) && (entry.getValue() != null)) {
                     if (entry.getValue().domainId != null) {
                         if (entry.getValue().domainId.toLowerCase().equals(domainId.toLowerCase())) {
-                            conceptIdsStr = StringUtils.isEmpty(conceptIdsStr)
-                                    ? conceptIdsStr.concat(entry.getKey().toString().toString())
-                                    : conceptIdsStr.concat("," + entry.getKey().toString());
+                            conceptIdsStr = StringUtils.isEmpty(conceptIdsStr) ? conceptIdsStr.concat(entry.getKey()
+                                    .toString().toString()) : conceptIdsStr.concat("," + entry.getKey().toString());
                         }
                     }
                 }
@@ -1004,5 +1001,13 @@ public class PanaceaService extends AbstractDaoService {
             //TODO - error logging...
             return null;
         }
+    }
+    
+    public List<PanaceaStageCombination> loadStudyStageCombination(final Long studyId, final String sourceKey) {
+        final Source source = getSourceRepository().findBySourceKey(sourceKey);
+        final String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
+        
+        return PanaceaUtil.loadStudyStageCombination(studyId, this.getSourceJdbcTemplate(source), tableQualifier,
+            source.getSourceDialect());
     }
 }

@@ -12,7 +12,6 @@
  */
 package org.ohdsi.webapi.test;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -24,12 +23,9 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.ohdsi.webapi.WebApi;
-import org.ohdsi.webapi.panacea.pojo.PanaceaPatientSequenceCount;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
-import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
 import org.ohdsi.webapi.panacea.pojo.PanaceaSummary;
-import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryLight;
 import org.ohdsi.webapi.panacea.repository.impl.PanaceaService;
 import org.ohdsi.webapi.service.VocabularyService;
 import org.ohdsi.webapi.vocabulary.Concept;
@@ -75,8 +71,8 @@ public class PanaceaTest extends TestCase {
              * Use browser test too:
              * http://localhost:8080/WebAPI/panacea/pncstudycombinationforstudy/RIV5/2
              */
-            List<PanaceaStageCombination> pncStgCmbs = this.pncService.getPanaceaStageCombinationByStudyId("RIV5",
-                new Long(2));
+            List<PanaceaStageCombination> pncStgCmbs = this.pncService.getPanaceaStageCombinationByStudyId("RIV5", new Long(
+                    2));
             log.info("testGetCombination: " + pncStgCmbs.toString());
             
             /**
@@ -89,39 +85,39 @@ public class PanaceaTest extends TestCase {
         }
     }
     
-    @Ignore
-    public void testLoadCombinationWithMap() {
-        try {
-            /**
-             * Use browser test too: http://localhost:8080/WebAPI/panacea/pncstudycombination/1
-             */
-            final PanaceaStageCombination pncStgCmb = this.pncService.getPanaceaStageCombinationById(new Long(2));
-            log.info("testLoadCombinationWithMap: " + pncStgCmb.toString());
-            
-            /**
-             * http://localhost:8080/WebAPI/panacea/pncstudycombinationmap/2
-             */
-            final PanaceaStageCombinationMap map = this.pncService.getPanaceaStageCombinationMapById(new Long(2));
-            log.info("testLoadCombinationWithMap map: " + map.toString());
-        } catch (final Exception e) {
-            e.printStackTrace();
-        }
-    }
-    
-    @Ignore
-    public void testGetAllCombForStudyWithMap() {
-        try {
-            /**
-             * http://localhost:8080/WebAPI/panacea/pncstudycombinationwithmapforstudy/2
-             */
-            final List<PanaceaStageCombination> combList = this.pncService
-                    .getPanaceaStageCombinationWithMapByStudyId(new Long(2));
-            log.info("testGetAllCombForStudyWithMap: " + combList.toString());
-        } catch (final Exception e) {
-            e.printStackTrace();
-        }
-    }
-    
+    //    @Ignore
+    //    public void testLoadCombinationWithMap() {
+    //        try {
+    //            /**
+    //             * Use browser test too: http://localhost:8080/WebAPI/panacea/pncstudycombination/1
+    //             */
+    //            final PanaceaStageCombination pncStgCmb = this.pncService.getPanaceaStageCombinationById(new Long(2));
+    //            log.info("testLoadCombinationWithMap: " + pncStgCmb.toString());
+    //            
+    //            /**
+    //             * http://localhost:8080/WebAPI/panacea/pncstudycombinationmap/2
+    //             */
+    //            final PanaceaStageCombinationMap map = this.pncService.getPanaceaStageCombinationMapById(new Long(2));
+    //            log.info("testLoadCombinationWithMap map: " + map.toString());
+    //        } catch (final Exception e) {
+    //            e.printStackTrace();
+    //        }
+    //    }
+    //    
+    //    @Ignore
+    //    public void testGetAllCombForStudyWithMap() {
+    //        try {
+    //            /**
+    //             * http://localhost:8080/WebAPI/panacea/pncstudycombinationwithmapforstudy/2
+    //             */
+    //            final List<PanaceaStageCombination> combList = this.pncService
+    //                    .getPanaceaStageCombinationWithMapByStudyId(new Long(2));
+    //            log.info("testGetAllCombForStudyWithMap: " + combList.toString());
+    //        } catch (final Exception e) {
+    //            e.printStackTrace();
+    //        }
+    //    }
+    //    
     //    @Test
     //    public void testTasklet() {
     //        try {
@@ -131,40 +127,40 @@ public class PanaceaTest extends TestCase {
     //            e.printStackTrace();
     //        }
     //    }
-    
-    @Ignore
-    public void testGetPanaceaPatientSequenceCountById() {
-        final PanaceaPatientSequenceCount ppsc = this.pncService.getPanaceaPatientSequenceCountById(new Long(777));
-        
-        log.info(ppsc);
-    }
-    
-    @Ignore
-    public void testInsertCombo() {
-        final PanaceaStageCombination pncCombo = new PanaceaStageCombination();
-        pncCombo.setStudyId(new Long(2));
-        
-        final PanaceaStageCombinationMap combMap1 = new PanaceaStageCombinationMap();
-        combMap1.setConceptId(new Long(1125315));
-        combMap1.setConceptName("Acetaminophen");
-        
-        final PanaceaStageCombinationMap combMap2 = new PanaceaStageCombinationMap();
-        combMap2.setConceptId(new Long(923645));
-        combMap2.setConceptName("Omeprazole");
-        
-        final List<PanaceaStageCombinationMap> mapList = new ArrayList<PanaceaStageCombinationMap>();
-        mapList.add(combMap1);
-        mapList.add(combMap2);
-        
-        pncCombo.setCombMapList(mapList);
-        
-        final List<PanaceaStageCombination> comboArrayList = new ArrayList<PanaceaStageCombination>();
-        comboArrayList.add(pncCombo);
-        
-        final List<PanaceaStageCombination> comboList = this.pncService.savePanaceaStageCombinationById(comboArrayList);
-        
-        log.info(comboList);
-    }
+    //    
+    //    @Ignore
+    //    public void testGetPanaceaPatientSequenceCountById() {
+    //        final PanaceaPatientSequenceCount ppsc = this.pncService.getPanaceaPatientSequenceCountById(new Long(777));
+    //        
+    //        log.info(ppsc);
+    //    }
+    //    
+    //    @Ignore
+    //    public void testInsertCombo() {
+    //        final PanaceaStageCombination pncCombo = new PanaceaStageCombination();
+    //        pncCombo.setStudyId(new Long(2));
+    //        
+    //        final PanaceaStageCombinationMap combMap1 = new PanaceaStageCombinationMap();
+    //        combMap1.setConceptId(new Long(1125315));
+    //        combMap1.setConceptName("Acetaminophen");
+    //        
+    //        final PanaceaStageCombinationMap combMap2 = new PanaceaStageCombinationMap();
+    //        combMap2.setConceptId(new Long(923645));
+    //        combMap2.setConceptName("Omeprazole");
+    //        
+    //        final List<PanaceaStageCombinationMap> mapList = new ArrayList<PanaceaStageCombinationMap>();
+    //        mapList.add(combMap1);
+    //        mapList.add(combMap2);
+    //        
+    //        pncCombo.setCombMapList(mapList);
+    //        
+    //        final List<PanaceaStageCombination> comboArrayList = new ArrayList<PanaceaStageCombination>();
+    //        comboArrayList.add(pncCombo);
+    //        
+    //        final List<PanaceaStageCombination> comboList = this.pncService.savePanaceaStageCombinationById(comboArrayList);
+    //        
+    //        log.info(comboList);
+    //    }
     
     @Ignore
     public void testExpressionResolver() {
@@ -191,7 +187,7 @@ public class PanaceaTest extends TestCase {
         }
     }
     
-    @Test
+    @Ignore
     public void testGetStudySummary() {
         try {
             //final PanaceaSummary summary = this.pncService.getStudySummary(new Long(31), new Integer(1));
@@ -199,9 +195,21 @@ public class PanaceaTest extends TestCase {
             
             log.info("testGetStudySummary: " + summary);
             
-            List<PanaceaStudy> psl = this.pncService.getAllStudyWithLastRunTime();
+            final List<PanaceaStudy> psl = this.pncService.getAllStudyWithLastRunTime();
             
             log.info("testGetStudySummary list with last updated time: " + psl);
+            
+        } catch (final Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    @Test
+    public void testLoadComboAndMap() {
+        try {
+            final List<PanaceaStageCombination> pscl = this.pncService.loadStudyStageCombination(new Long(191), "RIV5");
+            
+            log.info("testLoadComboAndMap: " + pscl.toString());
             
         } catch (final Exception e) {
             e.printStackTrace();

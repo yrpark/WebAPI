@@ -12,18 +12,12 @@
  */
 package org.ohdsi.webapi.panacea.repository;
 
-import org.ohdsi.webapi.panacea.pojo.PanaceaPatientSequenceCount;
-import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
-
-
 /**
  *
  */
-public interface PanaceaPatientSequenceCountRepository extends CrudRepository<PanaceaPatientSequenceCount, Long> {
+public interface PanaceaPatientSequenceCountRepository {//extends CrudRepository<PanaceaPatientSequenceCount, Long> {
 
-    @Query("from PanaceaPatientSequenceCount where PNC_PT_SQ_CT_ID = ?")
-    public PanaceaPatientSequenceCount getPanaceaPatientSequenceCountById(Long cmbId);
-  
+    //    @Query("from PanaceaPatientSequenceCount where PNC_PT_SQ_CT_ID = ?")
+    //    public PanaceaPatientSequenceCount getPanaceaPatientSequenceCountById(Long cmbId);
+    
 }
