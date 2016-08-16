@@ -78,32 +78,39 @@ public class VocabularyService extends AbstractDaoService {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
-  public Collection<Concept> executeIdentifierLookup(@PathParam("sourceKey") String sourceKey, String[] identifiers) {
+  public Collection<Concept> executeIdentifierLookup(@PathParam("sourceKey") String sourceKey, long[] identifiers) {
     if (identifiers.length == 0) {
       return new ArrayList<>();
     }
     
-    int[] intIdentifiers =new int[identifiers.length];
-    int i=0;
-    for(String identifier:identifiers){
-        try {
-            intIdentifiers[i]=Integer.parseInt(identifier);
-            i++;
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Not a number: " + identifier + " at index " + i, e);
-        }
-    }
-
     Source source = getSourceRepository().findBySourceKey(sourceKey);
     String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Vocabulary);
 
     String sql_statement = ResourceHelper.GetResourceAsString("/resources/vocabulary/sql/lookupIdentifiers.sql");
     sql_statement = SqlRender.renderSql(sql_statement, new String[]{"identifiers", "CDM_schema"}, new String[]{
-      JoinArray(intIdentifiers), tableQualifier});
+      JoinArray(identifiers), tableQualifier});
     sql_statement = SqlTranslate.translateSql(sql_statement, "sql server", source.getSourceDialect());
 
     return getSourceJdbcTemplate(source).query(sql_statement, this.rowMapper);
   }
+  
+  public Collection<Concept> executeIncludedConceptLookup(String sourceKey, ConceptSetExpression conceptSetExpression) {
+    Source source = getSourceRepository().findBySourceKey(sourceKey);
+    String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Vocabulary);
+
+    ConceptSetExpressionQueryBuilder builder = new ConceptSetExpressionQueryBuilder();
+    String query = builder.buildExpressionQuery(conceptSetExpression);
+
+    query = SqlRender.renderSql(query, new String[]{"cdm_database_schema"}, new String[]{tableQualifier});
+    
+    String sql_statement = ResourceHelper.GetResourceAsString("/resources/vocabulary/sql/lookupIdentifiers.sql");
+    sql_statement = SqlRender.renderSql(sql_statement, new String[]{"identifiers", "CDM_schema"}, new String[]{
+      query, tableQualifier});
+    sql_statement = SqlTranslate.translateSql(sql_statement, "sql server", source.getSourceDialect());
+
+    return getSourceJdbcTemplate(source).query(sql_statement, this.rowMapper);
+  }
+  
 
   /**
    * @summary Lookup source codes in the specified vocabulary
@@ -146,7 +153,7 @@ public class VocabularyService extends AbstractDaoService {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
-  public Collection<Concept> executeMappedLookup(@PathParam("sourceKey") String sourceKey, String[] identifiers) {
+  public Collection<Concept> executeMappedLookup(@PathParam("sourceKey") String sourceKey, long[] identifiers) {
     if (identifiers.length == 0) {
       return new ArrayList<>();
     }
@@ -157,6 +164,23 @@ public class VocabularyService extends AbstractDaoService {
     String sql_statement = ResourceHelper.GetResourceAsString("/resources/vocabulary/sql/getMappedSourcecodes.sql");
     sql_statement = SqlRender.renderSql(sql_statement, new String[]{"identifiers", "CDM_schema"}, new String[]{
       JoinArray(identifiers), tableQualifier});
+    sql_statement = SqlTranslate.translateSql(sql_statement, "sql server", source.getSourceDialect());
+
+    return getSourceJdbcTemplate(source).query(sql_statement, this.rowMapper);
+  }
+
+    public Collection<Concept> executeMappedLookup(String sourceKey, ConceptSetExpression conceptSetExpression) {
+    Source source = getSourceRepository().findBySourceKey(sourceKey);
+    String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Vocabulary);
+
+    ConceptSetExpressionQueryBuilder builder = new ConceptSetExpressionQueryBuilder();
+    String query = builder.buildExpressionQuery(conceptSetExpression);
+
+    query = SqlRender.renderSql(query, new String[]{"cdm_database_schema"}, new String[]{tableQualifier});
+
+    String sql_statement = ResourceHelper.GetResourceAsString("/resources/vocabulary/sql/getMappedSourcecodes.sql");
+    sql_statement = SqlRender.renderSql(sql_statement, new String[]{"identifiers", "CDM_schema"}, new String[]{
+      query, tableQualifier});
     sql_statement = SqlTranslate.translateSql(sql_statement, "sql server", source.getSourceDialect());
 
     return getSourceJdbcTemplate(source).query(sql_statement, this.rowMapper);
@@ -322,8 +346,6 @@ public class VocabularyService extends AbstractDaoService {
     return concepts.values();
   }
 
-  private ArrayList<Long> identifiers;
-
   @POST
   @Path("resolveConceptSetExpression")
   @Produces(MediaType.APPLICATION_JSON)
@@ -338,7 +360,7 @@ public class VocabularyService extends AbstractDaoService {
     query = SqlRender.renderSql(query, new String[]{"cdm_database_schema"}, new String[]{tableQualifier});
     query = SqlTranslate.translateSql(query, "sql server", source.getSourceDialect());
 
-    identifiers = new ArrayList<>();
+    final ArrayList<Long> identifiers = new ArrayList<>();
     getSourceJdbcTemplate(source).query(query, new RowCallbackHandler() {
       @Override
       public void processRow(ResultSet rs) throws SQLException {
@@ -348,7 +370,18 @@ public class VocabularyService extends AbstractDaoService {
 
     return identifiers;
   }
-
+  
+  @POST
+  @Path("conceptSetExpressionSQL")
+  @Produces(MediaType.TEXT_PLAIN)
+  @Consumes(MediaType.APPLICATION_JSON)
+  public String getConceptSetExpressionSQL(ConceptSetExpression conceptSetExpression) {
+    ConceptSetExpressionQueryBuilder builder = new ConceptSetExpressionQueryBuilder();
+    String query = builder.buildExpressionQuery(conceptSetExpression);
+    
+    return query;
+  }
+  
   @GET
   @Path("concept/{id}/descendants")
   @Produces(MediaType.APPLICATION_JSON)
@@ -511,16 +544,7 @@ public class VocabularyService extends AbstractDaoService {
     
     ArrayList<String> filterList = new ArrayList<String>();
     
-    int[] conceptIds =new int[search.conceptId.length];
-    int i=0;
-    for (String conceptId : search.conceptId) {
-      try {
-        conceptIds[i] = Integer.parseInt(conceptId);
-        i++;
-      } catch (NumberFormatException e) {
-        throw new IllegalArgumentException("Not a number: " + conceptId + " at index " + i, e);
-      }
-    } 
+    long[] conceptIds = search.conceptId;
     
     if (search.vocabularyId != null && search.vocabularyId.length > 0) {
       filterList.add("VOCABULARY_ID IN (" + JoinArray(search.vocabularyId) + ")");
@@ -565,7 +589,7 @@ public class VocabularyService extends AbstractDaoService {
     return concepts.values();
   }
 
-  private String JoinArray(final int[] array) {
+  private String JoinArray(final long[] array) {
     String result = "";
 
     for (int i = 0; i < array.length; i++) {
