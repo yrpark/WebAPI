@@ -561,9 +561,10 @@ CASE
         and job_execution_id = @jobExecId)
     + ',"totalCohortCount":'
     + (select cast(count( distinct subject_id) as varchar(max)) from @ohdsi_schema.cohort
-        where cohort_definition_id = (select cohort_definition_id from 
-        @results_schema.panacea_study 
-        where study_id = @studyId))
+    		where cohort_definition_id = @cohort_definition_id)
+--        where cohort_definition_id = (select cohort_definition_id from 
+--        @results_schema.panacea_study 
+--        where study_id = @studyId))
     + ',"firstTherapyPercentage":'
     + (select cast(isnull(ROUND(cast(firstCount.firstCount as float)/cast(cohortTotal.cohortTotal as float) * 100,2),0) as varchar(max)) firstTherrapyPercentage from 
         (select sum(tx_stg_cnt) as firstCount from @pnc_smrypth_fltr 
@@ -571,9 +572,11 @@ CASE
         and tx_seq = 1
         and job_execution_id = @jobExecId) firstCount,  
         (select count( distinct subject_id) as cohortTotal from @ohdsi_schema.cohort
-        where cohort_definition_id = (select cohort_definition_id from 
-        @results_schema.panacea_study 
-        where study_id = @studyId)) cohortTotal)
+--        where cohort_definition_id = (select cohort_definition_id from 
+--        @results_schema.panacea_study 
+--        where study_id = @studyId)
+				where cohort_definition_id = @cohort_definition_id) 
+			cohortTotal)
     +',"children": [' 
     + substring(JSON_SNIPPET, 2, len(JSON_SNIPPET))
     ELSE JSON_SNIPPET

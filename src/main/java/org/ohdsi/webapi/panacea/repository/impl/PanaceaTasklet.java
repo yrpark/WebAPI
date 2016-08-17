@@ -217,11 +217,11 @@ public class PanaceaTasklet implements Tasklet {
         if (!StringUtils.isEmpty(drugConceptId)) {
             final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
                     "drugConceptId", "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
-                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "jobExecId" };
+                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "jobExecId", "COHORT_DEFINITION_ID", "STUDY_DURATION" };
             final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
                     cohortDefId, this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
                     drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr,
-                    jobExecId.toString() };
+                    jobExecId.toString(), this.pncStudy.getCohortDefId().toString(), this.pncStudy.getStudyDuration().toString() };
             
             drugEraInsertString = SqlRender.renderSql(drugEraInsertString, params, values);
             drugEraInsertString = SqlTranslate.translateSql(drugEraInsertString, "sql server", sourceDialect, null,

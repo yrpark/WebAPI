@@ -12,8 +12,9 @@ from
   		from @pnc_tmp_cmb_sq_ct ptTxPath
   		join @ohdsi_schema.cohort co
   		on co.subject_id = ptTxPath.person_id
-  		and co.cohort_definition_id = (select cohort_definition_id
-    from @results_schema.panacea_study where study_id = @studyId)
+--  		and co.cohort_definition_id = (select cohort_definition_id
+--    from @results_schema.panacea_study where study_id = @studyId)
+    	and co.cohort_definition_id = @cohort_definition_id
     where ptTxPath.job_execution_id = @jobExecId
     group by ptTxPath.combo_ids, ptTxPath.combo_seq, ptTxPath.tx_seq, ptTxPath.result_version) aggregatePath;
 
@@ -444,9 +445,10 @@ CASE
         and tx_rslt_version = 2)
     || ',"totalCohortCount":'
     || (select count( distinct subject_id) from @ohdsi_schema.cohort
-        where cohort_definition_id = (select cohort_definition_id from 
-        @results_schema.panacea_study 
-        where study_id = @studyId))
+--        where cohort_definition_id = (select cohort_definition_id from 
+--        @results_schema.panacea_study 
+--        where study_id = @studyId)
+  			where cohort_definition_id = @cohort_definition_id )
     || ',"firstTherapyPercentage":'
     || (select NVL(ROUND(firstCount.firstCount/cohortTotal.cohortTotal * 100,2),0) firstTherrapyPercentage from 
         (select sum(tx_stg_cnt) as firstCount from @results_schema.pnc_study_summary_path 
@@ -455,9 +457,10 @@ CASE
         and tx_seq = 1
         and tx_rslt_version = 2) firstCount,  
         (select count( distinct subject_id) as cohortTotal from @ohdsi_schema.cohort
-        where cohort_definition_id = (select cohort_definition_id from 
-        @results_schema.panacea_study 
-        where study_id = @studyId)) cohortTotal)
+--        where cohort_definition_id = (select cohort_definition_id from 
+--        @results_schema.panacea_study 
+--        where study_id = @studyId)
+			  where cohort_definition_id = @cohort_definition_id ) cohortTotal)
     ||',"children": [' 
     || substr(JSON_SNIPPET, 2, length(JSON_SNIPPET))
     ELSE JSON_SNIPPET
