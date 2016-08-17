@@ -16,8 +16,9 @@ from
   		from @pnc_tmp_cmb_sq_ct ptTxPath
   		join @ohdsi_schema.cohort co
   		on co.subject_id = ptTxPath.person_id
-  		and co.cohort_definition_id = (select cohort_definition_id
-    from @results_schema.panacea_study where study_id = @studyId)
+--  		and co.cohort_definition_id = (select cohort_definition_id
+--    from @results_schema.panacea_study where study_id = @studyId)
+			and co.cohort_definition_id = @cohort_definition_id
     where ptTxPath.job_execution_id = @jobExecId
     group by ptTxPath.combo_ids, ptTxPath.combo_seq, ptTxPath.tx_seq, ptTxPath.result_version) aggregatePath;
 
@@ -673,9 +674,10 @@ CASE
         and tx_rslt_version = 2)
     + ',"totalCohortCount":'
     + (select cast(count( distinct subject_id) as varchar(max)) from @ohdsi_schema.cohort
-        where cohort_definition_id = (select cohort_definition_id from 
-        @results_schema.panacea_study 
-        where study_id = @studyId))
+--        where cohort_definition_id = (select cohort_definition_id from 
+--        @results_schema.panacea_study 
+--        where study_id = @studyId)
+  			where cohort_definition_id = @cohort_definition_id )
     + ',"firstTherapyPercentage":'
     + (select cast(isnull(ROUND(cast(firstCount.firstCount as float)/cast(cohortTotal.cohortTotal as float) * 100,2),0) as varchar(max)) firstTherrapyPercentage from 
         (select sum(tx_stg_cnt) as firstCount from @results_schema.pnc_study_summary_path 
@@ -684,9 +686,10 @@ CASE
         and tx_seq = 1
         and tx_rslt_version = 2) firstCount,  
         (select count( distinct subject_id) as cohortTotal from @ohdsi_schema.cohort
-        where cohort_definition_id = (select cohort_definition_id from 
-        @results_schema.panacea_study 
-        where study_id = @studyId)) cohortTotal)
+--        where cohort_definition_id = (select cohort_definition_id from 
+--        @results_schema.panacea_study 
+--        where study_id = @studyId)
+  			where cohort_definition_id = @cohort_definition_id ) cohortTotal)
     +',"children": [' 
     + substring(JSON_SNIPPET, 2, len(JSON_SNIPPET))
     ELSE JSON_SNIPPET

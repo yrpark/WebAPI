@@ -160,11 +160,11 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
         
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "cohortDefId", "studyId",
                 "drugConceptId", "sourceId", "pnc_smry_msql_cmb", "pnc_indv_jsn", "pnc_unq_trtmt", "pnc_unq_pth_id",
-                "pnc_smrypth_fltr", "pnc_smry_ancstr", "tempTableCreationSummary_oracle", "jobExecId", "pnc_tmp_cmb_sq_ct" };
+                "pnc_smrypth_fltr", "pnc_smry_ancstr", "tempTableCreationSummary_oracle", "jobExecId", "pnc_tmp_cmb_sq_ct", "cohort_definition_id" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
                 this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, pnc_smry_msql_cmb, pnc_indv_jsn,
                 pnc_unq_trtmt, pnc_unq_pth_id, pnc_smrypth_fltr, pnc_smry_ancstr, tempTableCreationSummary_oracle,
-                jobExecId.toString(), pnc_tmp_cmb_sq_ct };
+                jobExecId.toString(), pnc_tmp_cmb_sq_ct, this.pncStudy.getCohortDefId().toString() };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
