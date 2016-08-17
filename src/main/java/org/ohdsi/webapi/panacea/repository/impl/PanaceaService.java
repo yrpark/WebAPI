@@ -636,6 +636,8 @@ public class PanaceaService extends AbstractDaoService {
                     builder.addString("cohortDefId", cohortDefId);
                     builder.addString("studyId", studyId.toString());
                     builder.addString("switchWindow", pncStudy.getSwitchWindow().toString());
+                    builder.addDate("STUDY_START_DATE", pncStudy.getStartDate());
+                    builder.addDate("STUDY_END_DATE", pncStudy.getEndDate());
                     //TODO -- for testin only!!!
                     //builder.addString("drugConceptId",
                     //   "1301025,1328165,1771162,19058274,918906,923645,933724,1310149,1125315,4304178");
@@ -665,21 +667,25 @@ public class PanaceaService extends AbstractDaoService {
                     String drugEraStudyOptionalDateConstraint = "";
                     if (pncStudy.getStartDate() != null) {
                         drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                                .concat("AND (era.DRUG_ERA_START_DATE > study.START_DATE OR era.DRUG_ERA_START_DATE = study.START_DATE) \n");
+                                //.concat("AND (era.DRUG_ERA_START_DATE > study.START_DATE OR era.DRUG_ERA_START_DATE = study.START_DATE) \n");
+                                .concat("AND (era.DRUG_ERA_START_DATE > @STUDY_START_DATE OR era.DRUG_ERA_START_DATE = @STUDY_START_DATE) \n");
                     }
                     if (pncStudy.getEndDate() != null) {
                         drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                                .concat("AND (era.DRUG_ERA_START_DATE < study.END_DATE OR era.DRUG_ERA_START_DATE = study.END_DATE) \n");
+                                //.concat("AND (era.DRUG_ERA_START_DATE < study.END_DATE OR era.DRUG_ERA_START_DATE = study.END_DATE) \n");
+                                .concat("AND (era.DRUG_ERA_START_DATE < @STUDY_END_DATE OR era.DRUG_ERA_START_DATE = @STUDY_END_DATE) \n");
                     }
 
                     String procedureStudyOptionalDateConstraint = "";
                     if (pncStudy.getStartDate() != null) {
                         procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                                .concat("AND (proc.PROCEDURE_DATE > study.START_DATE OR proc.PROCEDURE_DATE = study.START_DATE) \n");
+                                //.concat("AND (proc.PROCEDURE_DATE > study.START_DATE OR proc.PROCEDURE_DATE = study.START_DATE) \n");
+                                .concat("AND (proc.PROCEDURE_DATE > @STUDY_START_DATE OR proc.PROCEDURE_DATE = @STUDY_START_DATE) \n");
                     }
                     if (pncStudy.getEndDate() != null) {
                         procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                                .concat("AND (proc.PROCEDURE_DATE < study.END_DATE OR proc.PROCEDURE_DATE = study.END_DATE) \n");
+                                //.concat("AND (proc.PROCEDURE_DATE < study.END_DATE OR proc.PROCEDURE_DATE = study.END_DATE) \n");
+                                .concat("AND (proc.PROCEDURE_DATE < @STUDY_END_DATE OR proc.PROCEDURE_DATE = @STUDY_END_DATE) \n");
                     }
 
                     builder.addString("drugEraStudyOptionalDateConstraint", drugEraStudyOptionalDateConstraint);
