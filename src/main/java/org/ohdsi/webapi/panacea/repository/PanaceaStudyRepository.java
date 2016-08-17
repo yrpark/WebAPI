@@ -12,11 +12,7 @@
  */
 package org.ohdsi.webapi.panacea.repository;
 
-import java.util.List;
-
 import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
-import org.ohdsi.webapi.panacea.pojo.PanaceaSummary;
-import org.ohdsi.webapi.panacea.pojo.PanaceaSummaryLight;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
