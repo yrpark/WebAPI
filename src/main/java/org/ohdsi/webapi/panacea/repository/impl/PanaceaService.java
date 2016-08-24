@@ -193,7 +193,7 @@ public class PanaceaService extends AbstractDaoService {
         // if we do and the source is on a different result schema version we throw exceptions when trying
         // to query non-existant tables.
         
-        /*
+        //This is needed for enabling the result icon!!! May be we can swallow the exceptions later...
         if (psList != null) {
             for (final PanaceaStudy ps : psList) {
 
@@ -229,7 +229,7 @@ public class PanaceaService extends AbstractDaoService {
             }
 
         }
-        */
+        
         
         return psList;
     }
@@ -659,6 +659,8 @@ public class PanaceaService extends AbstractDaoService {
 
                     if ("sql server".equalsIgnoreCase(source.getSourceDialect())) {
                         builder.addString("rowIdString", "%%physloc%%");
+                    } else if ("postgresql".equalsIgnoreCase(source.getSourceDialect())) {
+                        builder.addString("rowIdString", "CTID");
                     } else {
                         //Oracle as default (not considering postgres now...)
                         builder.addString("rowIdString", "rowid");
@@ -666,26 +668,42 @@ public class PanaceaService extends AbstractDaoService {
 
                     String drugEraStudyOptionalDateConstraint = "";
                     if (pncStudy.getStartDate() != null) {
-                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                                //.concat("AND (era.DRUG_ERA_START_DATE > study.START_DATE OR era.DRUG_ERA_START_DATE = study.START_DATE) \n");
-                                .concat("AND (era.DRUG_ERA_START_DATE > @STUDY_START_DATE OR era.DRUG_ERA_START_DATE = @STUDY_START_DATE) \n");
+                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
+                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                                    .concat("AND (era.DRUG_ERA_START_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "')) \n");
+                        }else{
+                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                                    .concat("AND (era.DRUG_ERA_START_DATE > to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd') OR era.DRUG_ERA_START_DATE = to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd')) \n");                            
+                        }
                     }
                     if (pncStudy.getEndDate() != null) {
-                        drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                                //.concat("AND (era.DRUG_ERA_START_DATE < study.END_DATE OR era.DRUG_ERA_START_DATE = study.END_DATE) \n");
-                                .concat("AND (era.DRUG_ERA_START_DATE < @STUDY_END_DATE OR era.DRUG_ERA_START_DATE = @STUDY_END_DATE) \n");
+                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
+                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                                    .concat("AND (era.DRUG_ERA_START_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "')) \n");                            
+                        }else{
+                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                                .concat("AND (era.DRUG_ERA_START_DATE < to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd') OR era.DRUG_ERA_START_DATE = to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd')) \n");
+                        }
                     }
 
                     String procedureStudyOptionalDateConstraint = "";
                     if (pncStudy.getStartDate() != null) {
-                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                                //.concat("AND (proc.PROCEDURE_DATE > study.START_DATE OR proc.PROCEDURE_DATE = study.START_DATE) \n");
-                                .concat("AND (proc.PROCEDURE_DATE > @STUDY_START_DATE OR proc.PROCEDURE_DATE = @STUDY_START_DATE) \n");
+                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
+                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                                    .concat("AND (proc.PROCEDURE_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "')) \n");                            
+                        }else{
+                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                                .concat("AND (proc.PROCEDURE_DATE > to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd') OR proc.PROCEDURE_DATE = to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd')) \n");
+                        }
                     }
                     if (pncStudy.getEndDate() != null) {
-                        procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                                //.concat("AND (proc.PROCEDURE_DATE < study.END_DATE OR proc.PROCEDURE_DATE = study.END_DATE) \n");
-                                .concat("AND (proc.PROCEDURE_DATE < @STUDY_END_DATE OR proc.PROCEDURE_DATE = @STUDY_END_DATE) \n");
+                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
+                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                                    .concat("AND (proc.PROCEDURE_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "')) \n");                            
+                        }else {
+                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                                .concat("AND (proc.PROCEDURE_DATE < to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd') OR proc.PROCEDURE_DATE = to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd')) \n");
+                        }
                     }
 
                     builder.addString("drugEraStudyOptionalDateConstraint", drugEraStudyOptionalDateConstraint);
@@ -796,6 +814,8 @@ public class PanaceaService extends AbstractDaoService {
 
                     if ("sql server".equalsIgnoreCase(source.getSourceDialect())) {
                         builder.addString("rowIdString", "%%physloc%%");
+                    } else if ("postgresql".equalsIgnoreCase(source.getSourceDialect())) {
+                        builder.addString("rowIdString", "CTID");
                     } else {
                         //Oracle as default (not considering postgres now...)
                         builder.addString("rowIdString", "rowid");
@@ -833,7 +853,7 @@ public class PanaceaService extends AbstractDaoService {
     //TODO - find a common/util place for this later...
     private void addTempTableNames(final JobParametersBuilder builder, final Source source,
             final String resultsTableQualifier) {
-        if ("sql server".equalsIgnoreCase(source.getSourceDialect())) {
+        if ("sql server".equalsIgnoreCase(source.getSourceDialect()) || "postgresql".equalsIgnoreCase(source.getSourceDialect())) {
             builder.addString("pnc_ptsq_ct", resultsTableQualifier + ".pnc_tmp_ptsq_ct");
             builder.addString("pnc_ptstg_ct", resultsTableQualifier + ".pnc_tmp_ptstg_ct");
             builder.addString("pnc_tmp_cmb_sq_ct", resultsTableQualifier + ".pnc_tmp_cmb_sq_ct");

@@ -1061,8 +1061,21 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                                 + "' from #_pnc_tmp_mssql_seq_id; \n";
                     }
                 }
-            } else if ("postgres".equalsIgnoreCase(sourceDialect)) {
-                //TODO
+            } else if ("postgresql".equalsIgnoreCase(sourceDialect)) {
+                for (final PanaceaStageCombination psc : newPSCombo) {
+                    sql += "delete from #_pnc_tmp_mssql_seq_id; \n "
+                            + "insert into #_pnc_tmp_mssql_seq_id select nextval('@results_schema.seq_pnc_tx_stg_cmb'); \n";
+                    
+                    for (final PanaceaStageCombinationMap pscm : psc.getCombMapList()) {
+                        sql += "insert into @results_schema.pnc_tx_stage_combination_map (pnc_tx_stg_cmb_mp_id, pnc_tx_stg_cmb_id, concept_id, concept_name) \n"
+                                + "select nextval('@results_schema.seq_pnc_tx_stg_cmb_mp'), nextcombid, \n"
+                                + pscm.getConceptId().toString() + ", '" + pscm.getConceptName()
+                                + "' from #_pnc_tmp_mssql_seq_id; \n";
+                    }
+                    
+                    sql += "insert INTO @results_schema.pnc_tx_stage_combination (PNC_TX_STG_CMB_ID,STUDY_ID) \n"
+                            + "select nextcombid, @studyId from #_pnc_tmp_mssql_seq_id; \n";
+                }
             } else {
                 //oracle as default
                 for (final PanaceaStageCombination psc : newPSCombo) {

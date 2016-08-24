@@ -183,7 +183,7 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
         String tempTableCreationOracle = ResourceHelper
                 .GetResourceAsString("/resources/panacea/sql/tempTableCreationSummary_oracle.sql");
         
-        if ("sql server".equalsIgnoreCase(sourceDialect)) {
+        if ("sql server".equalsIgnoreCase(sourceDialect) || "postgresql".equalsIgnoreCase(sourceDialect)) {
             tempTableCreationOracle = "\n";
         }
         

@@ -25,32 +25,19 @@
 --)
 --WHEN MATCHED THEN UPDATE SET ptsq.tx_seq = ptsq1.real_tx_seq;
 
--- OHDSI-75: refactor merge here. ahh...
---MERGE INTO @pnc_ptsq_ct ptsq
---USING
---(SELECT rank() OVER (PARTITION BY person_id
---  ORDER BY person_id, idx_start_date, idx_end_date, concept_id) real_tx_seq,
---  @rowIdString AS the_rowid
---  FROM @pnc_ptsq_ct
---  WHERE job_execution_id = @jobExecId
---) ptsq1
---ON
---(
---     ptsq.@rowIdString = ptsq1.the_rowid
---)
---WHEN MATCHED THEN UPDATE SET ptsq.tx_seq = ptsq1.real_tx_seq;
-with ptsq1 (real_tx_seq, the_rowid) as
+MERGE INTO @pnc_ptsq_ct ptsq
+USING
 (SELECT rank() OVER (PARTITION BY person_id
   ORDER BY person_id, idx_start_date, idx_end_date, concept_id) real_tx_seq,
   @rowIdString AS the_rowid
   FROM @pnc_ptsq_ct
   WHERE job_execution_id = @jobExecId
+) ptsq1
+ON
+(
+     ptsq.@rowIdString = ptsq1.the_rowid
 )
-update @pnc_ptsq_ct
-SET tx_seq = ptsq1.real_tx_seq
-from ptsq1
-where 
-@rowIdString = ptsq1.the_rowid;
+WHEN MATCHED THEN UPDATE SET ptsq.tx_seq = ptsq1.real_tx_seq;
 
 
 --IF OBJECT_ID('tempdb..#_pnc_sngl_cmb', 'U') IS NOT NULL
@@ -159,42 +146,12 @@ order by person_id, idx_start_date, idx_end_date;
 
 -- take care of expanded time window for same patient/same drug. 
 -- EX: 2/1/2015 ~ 4/1/2015 ptstg2, 1/1/2015 ~ 3/1/2015 ptstg1. Update ptstg1 with later end date and delete ptstg2   
---OHDSI-75 refactor merge...
---merge into @pnc_ptstg_ct ptstg
---using
---  (
---    select updateRowID updateRowID, max(realEndDate) as realEndDate from 
---    (
-------      select ptstg2.rowid deleteRowId, ptstg1.rowid updateRowID,
---      select ptstg2.@rowIdString deleteRowId, ptstg1.@rowIdString updateRowID,
---        case 
---          when ptstg1.stg_end_date > ptstg2.stg_end_date then ptstg1.stg_end_date
---          when ptstg2.stg_end_date > ptstg1.stg_end_date then ptstg2.stg_end_date
---          when ptstg2.stg_end_date = ptstg1.stg_end_date then ptstg2.stg_end_date
---        end as realEndDate
---      from @pnc_ptstg_ct ptstg1
---      join @pnc_ptstg_ct ptstg2
---      on ptstg1.person_id = ptstg2.person_id
---      and ptstg1.tx_stg_cmb_id = ptstg2.tx_stg_cmb_id
---      and ptstg2.job_execution_id = @jobExecId
---      where ptstg2.stg_start_date < ptstg1.stg_end_date
---        and ptstg2.stg_start_date > ptstg1.stg_start_date
---        and ptstg1.job_execution_id = @jobExecId
---    ) innerT group by updateRowID
---  ) ptstgExpandDate
---  on
---  (
-------     ptstg.rowid = ptstgExpandDate.updateRowID
---     ptstg.@rowIdString = ptstgExpandDate.updateRowID
---  )
---  WHEN MATCHED then update set ptstg.stg_end_date = ptstgExpandDate.realEndDate,
------- sqlserver:   ptstg.stg_duration_days = (ptstgExpandDate.realEndDate - ptstg.stg_start_date + 1);
---	ptstg.stg_duration_days = DATEDIFF(DAY, ptstg.stg_start_date, ptstgExpandDate.realEndDate) + 1;
-with ptstgExpandDate (updateRowID, realEndDate) as
+merge into @pnc_ptstg_ct ptstg
+using
   (
     select updateRowID updateRowID, max(realEndDate) as realEndDate from 
     (
-----      select ptstg2.rowid deleteRowId, ptstg1.rowid updateRowID,
+--      select ptstg2.rowid deleteRowId, ptstg1.rowid updateRowID,
       select ptstg2.@rowIdString deleteRowId, ptstg1.@rowIdString updateRowID,
         case 
           when ptstg1.stg_end_date > ptstg2.stg_end_date then ptstg1.stg_end_date
@@ -210,13 +167,16 @@ with ptstgExpandDate (updateRowID, realEndDate) as
         and ptstg2.stg_start_date > ptstg1.stg_start_date
         and ptstg1.job_execution_id = @jobExecId
     ) innerT group by updateRowID
+  ) ptstgExpandDate
+  on
+  (
+--     ptstg.rowid = ptstgExpandDate.updateRowID
+     ptstg.@rowIdString = ptstgExpandDate.updateRowID
   )
-  update @pnc_ptstg_ct
-  set stg_end_date = ptstgExpandDate.realEndDate,
----- sqlserver:   ptstg.stg_duration_days = (ptstgExpandDate.realEndDate - ptstg.stg_start_date + 1);
-	stg_duration_days = DATEDIFF(DAY, stg_start_date, ptstgExpandDate.realEndDate) + 1
-  from ptstgExpandDate
-  where @rowIdString = ptstgExpandDate.updateRowID;
+  WHEN MATCHED then update set ptstg.stg_end_date = ptstgExpandDate.realEndDate,
+-- sqlserver:   ptstg.stg_duration_days = (ptstgExpandDate.realEndDate - ptstg.stg_start_date + 1);
+	ptstg.stg_duration_days = DATEDIFF(DAY, ptstg.stg_start_date, ptstgExpandDate.realEndDate) + 1;
+
     
 delete from @pnc_ptstg_ct 
 --where ptstg.rowid in

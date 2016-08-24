@@ -179,7 +179,7 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
                         + "DROP TABLE #_pnc_smry_msql_cmb; \n"
                         + "IF OBJECT_ID('tempdb..#_pnc_unq_trtmt', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_unq_trtmt; \n"
                         + "IF OBJECT_ID('tempdb..#_pnc_unq_pth_id', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_unq_pth_id; \n";
-            } else if ("sql server".equalsIgnoreCase(sourceDialect)) {
+            } else if ("sql server".equalsIgnoreCase(sourceDialect) || "postgresql".equalsIgnoreCase(sourceDialect)) {
                 sql += "delete from @pnc_ptsq_ct where job_execution_id = @jobExecId \n"
                         + "delete from @pnc_ptstg_ct where job_execution_id = @jobExecId; \n"
                         + "delete from @pnc_tmp_cmb_sq_ct where job_execution_id = @jobExecId; \n"
@@ -227,7 +227,7 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
                                     + this.pncStudy.getGapThreshold()) : constraintSql
                             .concat("\n and NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
                                     + this.pncStudy.getGapThreshold());
-                } else if ("sql server".equalsIgnoreCase(sourceDialect)) {
+                } else if ("sql server".equalsIgnoreCase(sourceDialect) || "postgresql".equalsIgnoreCase(sourceDialect)) {
                     constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql
                             .concat("\n where isnull(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
                                     + this.pncStudy.getGapThreshold()) : constraintSql
@@ -273,7 +273,7 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
         tempTableCreationOracle += ResourceHelper
                 .GetResourceAsString("/resources/panacea/sql/tempTableCreationFilteredSummary_oracle.sql");
         
-        if ("sql server".equalsIgnoreCase(sourceDialect)) {
+        if ("sql server".equalsIgnoreCase(sourceDialect) || "postgresql".equalsIgnoreCase(sourceDialect)) {
             tempTableCreationOracle = "\n";
         }
         
