@@ -38,6 +38,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 public class PanaceaTasklet implements Tasklet {
     
+    
     private static final Log log = LogFactory.getLog(PanaceaTasklet.class);
     
     private JdbcTemplate jdbcTemplate;
@@ -78,6 +79,7 @@ public class PanaceaTasklet implements Tasklet {
             
             final int[] ret = this.transactionTemplate.execute(new TransactionCallback<int[]>() {
                 
+                
                 @Override
                 public int[] doInTransaction(final TransactionStatus status) {
                     
@@ -98,8 +100,8 @@ public class PanaceaTasklet implements Tasklet {
             //TODO
             final DefaultTransactionDefinition completeTx = new DefaultTransactionDefinition();
             completeTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            final TransactionStatus completeStatus = this.transactionTemplate.getTransactionManager().getTransaction(
-                completeTx);
+            final TransactionStatus completeStatus = this.transactionTemplate.getTransactionManager()
+                    .getTransaction(completeTx);
             this.transactionTemplate.getTransactionManager().commit(completeStatus);
         }
         
@@ -163,7 +165,6 @@ public class PanaceaTasklet implements Tasklet {
     
     private String getSql(final Map<String, Object> jobParams, final Long jobExecId) {
         
-        
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
         final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
         final String cohortDefId = (String) jobParams.get("cohortDefId");
@@ -172,8 +173,10 @@ public class PanaceaTasklet implements Tasklet {
         final String procedureConceptId = (String) jobParams.get("procedureConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
-        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
-        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
+        //        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
+        //        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
+        final String drugEraStudyOptionalDateConstraint = getDrugEraStudyOptionalDateConstraint(sourceDialect);
+        final String procedureStudyOptionalDateConstraint = getProcedureStudyOptionalDateConstraint(sourceDialect);
         final String rowIdString = (String) jobParams.get("rowIdString");
         final String pnc_ptsq_ct = (String) jobParams.get("pnc_ptsq_ct");
         final String pnc_ptstg_ct = (String) jobParams.get("pnc_ptstg_ct");
@@ -183,21 +186,23 @@ public class PanaceaTasklet implements Tasklet {
         final String insertFromProcedure = this.getProcedureInsertString(jobParams, jobExecId);
         final String insertIntoComboMapString = this.getInsertIntoComboMapString(jobParams);
         final String tempTableCreationOracle = getTempTableCreationOracle(jobParams);
-
-        String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/runPanaceaStudy.sql"); 
-        if("oracle".equalsIgnoreCase((String)jobParams.get("sourceDialect"))){
+        
+        String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/runPanaceaStudy.sql");
+        if ("oracle".equalsIgnoreCase((String) jobParams.get("sourceDialect"))) {
             sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/runPanaceaStudy_oracle.sql");
         }
         
         final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
                 "drugConceptId", "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
                 "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "insertFromDrugEra", "insertFromProcedure",
-                "rowIdString", "insertIntoComboMapString", "jobExecId", "tempTableCreationOracle", "pnc_ptsq_ct", "pnc_ptstg_ct", "pnc_tmp_cmb_sq_ct", "STUDY_DURATION" };
+                "rowIdString", "insertIntoComboMapString", "jobExecId", "tempTableCreationOracle", "pnc_ptsq_ct",
+                "pnc_ptstg_ct", "pnc_tmp_cmb_sq_ct", "STUDY_DURATION" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
                 this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
                 drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr,
                 insertFromDrugEra, insertFromProcedure, rowIdString, insertIntoComboMapString, jobExecId.toString(),
-                tempTableCreationOracle, pnc_ptsq_ct, pnc_ptstg_ct, pnc_tmp_cmb_sq_ct, this.pncStudy.getStudyDuration().toString() };
+                tempTableCreationOracle, pnc_ptsq_ct, pnc_ptstg_ct, pnc_tmp_cmb_sq_ct,
+                this.pncStudy.getStudyDuration().toString() };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
@@ -216,21 +221,24 @@ public class PanaceaTasklet implements Tasklet {
         final String procedureConceptId = (String) jobParams.get("procedureConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
-        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
-        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
-        
+        //        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
+        //        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
+        final String drugEraStudyOptionalDateConstraint = getDrugEraStudyOptionalDateConstraint(sourceDialect);
+        final String procedureStudyOptionalDateConstraint = getProcedureStudyOptionalDateConstraint(sourceDialect);
         if (!StringUtils.isEmpty(drugConceptId)) {
             final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
                     "drugConceptId", "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
-                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "jobExecId", "COHORT_DEFINITION_ID", "STUDY_DURATION" };
+                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "jobExecId", "COHORT_DEFINITION_ID",
+                    "STUDY_DURATION" };
             final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
                     cohortDefId, this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
                     drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr,
-                    jobExecId.toString(), this.pncStudy.getCohortDefId().toString(), this.pncStudy.getStudyDuration().toString() };
+                    jobExecId.toString(), this.pncStudy.getCohortDefId().toString(),
+                    this.pncStudy.getStudyDuration().toString() };
             
             drugEraInsertString = SqlRender.renderSql(drugEraInsertString, params, values);
-//            drugEraInsertString = SqlTranslate.translateSql(drugEraInsertString, "sql server", sourceDialect, null,
-//                resultsTableQualifier);
+            //            drugEraInsertString = SqlTranslate.translateSql(drugEraInsertString, "sql server", sourceDialect, null,
+            //                resultsTableQualifier);
         } else {
             return "\n";
         }
@@ -249,21 +257,25 @@ public class PanaceaTasklet implements Tasklet {
         final String procedureConceptId = (String) jobParams.get("procedureConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
-        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
-        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
+        //        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
+        //        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
+        final String drugEraStudyOptionalDateConstraint = getDrugEraStudyOptionalDateConstraint(sourceDialect);
+        final String procedureStudyOptionalDateConstraint = getProcedureStudyOptionalDateConstraint(sourceDialect);
         
         if (!StringUtils.isEmpty(procedureConceptId)) {
             final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
                     "drugConceptId", "sourceId", "procedureConceptId", "drugEraStudyOptionalDateConstraint",
-                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "jobExecId", "COHORT_DEFINITION_ID", "STUDY_DURATION" };
+                    "procedureStudyOptionalDateConstraint", "allConceptIdsStr", "jobExecId", "COHORT_DEFINITION_ID",
+                    "STUDY_DURATION" };
             final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
                     cohortDefId, this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, procedureConceptId,
                     drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr,
-                    jobExecId.toString(), this.pncStudy.getCohortDefId().toString(), this.pncStudy.getStudyDuration().toString() };
+                    jobExecId.toString(), this.pncStudy.getCohortDefId().toString(),
+                    this.pncStudy.getStudyDuration().toString() };
             
             procedureInsertString = SqlRender.renderSql(procedureInsertString, params, values);
-//            procedureInsertString = SqlTranslate.translateSql(procedureInsertString, "sql server", sourceDialect, null,
-//                resultsTableQualifier);
+            //            procedureInsertString = SqlTranslate.translateSql(procedureInsertString, "sql server", sourceDialect, null,
+            //                resultsTableQualifier);
         } else {
             return "\n";
         }
@@ -281,8 +293,10 @@ public class PanaceaTasklet implements Tasklet {
         final String procedureConceptId = (String) jobParams.get("procedureConceptId");
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String sourceId = (String) jobParams.get("sourceId");
-        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
-        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
+        //        final String drugEraStudyOptionalDateConstraint = (String) jobParams.get("drugEraStudyOptionalDateConstraint");
+        //        final String procedureStudyOptionalDateConstraint = (String) jobParams.get("procedureStudyOptionalDateConstraint");
+        final String drugEraStudyOptionalDateConstraint = getDrugEraStudyOptionalDateConstraint(sourceDialect);
+        final String procedureStudyOptionalDateConstraint = getProcedureStudyOptionalDateConstraint(sourceDialect);
         
         /**
          * default as "oracle"
@@ -292,8 +306,9 @@ public class PanaceaTasklet implements Tasklet {
         
         if ("sql server".equalsIgnoreCase(sourceDialect)) {
             insertIntoComboMapString = ResourceHelper.GetResourceAsString("/resources/panacea/sql/comboMapInsert_mssql.sql");
-        } else if("postgresql".equalsIgnoreCase(sourceDialect)){
-            insertIntoComboMapString = ResourceHelper.GetResourceAsString("/resources/panacea/sql/comboMapInsert_postgres.sql");
+        } else if ("postgresql".equalsIgnoreCase(sourceDialect)) {
+            insertIntoComboMapString = ResourceHelper
+                    .GetResourceAsString("/resources/panacea/sql/comboMapInsert_postgres.sql");
         }
         
         final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
@@ -304,8 +319,8 @@ public class PanaceaTasklet implements Tasklet {
                 drugEraStudyOptionalDateConstraint, procedureStudyOptionalDateConstraint, allConceptIdsStr };
         
         insertIntoComboMapString = SqlRender.renderSql(insertIntoComboMapString, params, values);
-//        insertIntoComboMapString = SqlTranslate.translateSql(insertIntoComboMapString, "sql server", sourceDialect, null,
-//            resultsTableQualifier);
+        //        insertIntoComboMapString = SqlTranslate.translateSql(insertIntoComboMapString, "sql server", sourceDialect, null,
+        //            resultsTableQualifier);
         
         return insertIntoComboMapString;
     }
@@ -329,9 +344,73 @@ public class PanaceaTasklet implements Tasklet {
         final String[] values = new String[] {};
         
         tempTableCreationOracle = SqlRender.renderSql(tempTableCreationOracle, params, values);
-//        tempTableCreationOracle = SqlTranslate.translateSql(tempTableCreationOracle, "sql server", sourceDialect, null,
-//            resultsTableQualifier);
+        //        tempTableCreationOracle = SqlTranslate.translateSql(tempTableCreationOracle, "sql server", sourceDialect, null,
+        //            resultsTableQualifier);
         
         return tempTableCreationOracle;
+    }
+    
+    private String getDrugEraStudyOptionalDateConstraint(String sourceDialect) {
+        String drugEraStudyOptionalDateConstraint = "";
+        if (pncStudy.getStartDate() != null) {
+            if ("sql server".equalsIgnoreCase(sourceDialect)) {
+                drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                        .concat("AND (era.DRUG_ERA_START_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString()
+                                + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString()
+                                + "')) \n");
+            } else {
+                drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                        .concat("AND (era.DRUG_ERA_START_DATE > to_date('" + pncStudy.getStartDate().toString()
+                                + "', 'yyyy-mm-dd') OR era.DRUG_ERA_START_DATE = to_date('"
+                                + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd')) \n");
+            }
+        }
+        if (pncStudy.getEndDate() != null) {
+            if ("sql server".equalsIgnoreCase(sourceDialect)) {
+                drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                        .concat("AND (era.DRUG_ERA_START_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString()
+                                + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString()
+                                + "')) \n");
+            } else {
+                drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                        .concat("AND (era.DRUG_ERA_START_DATE < to_date('" + pncStudy.getEndDate().toString()
+                                + "', 'yyyy-mm-dd') OR era.DRUG_ERA_START_DATE = to_date('"
+                                + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd')) \n");
+            }
+        }
+        
+        return drugEraStudyOptionalDateConstraint;
+    }
+    
+    private String getProcedureStudyOptionalDateConstraint(String sourceDialect) {
+        String procedureStudyOptionalDateConstraint = "";
+        if (pncStudy.getStartDate() != null) {
+            if ("sql server".equalsIgnoreCase(sourceDialect)) {
+                procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                        .concat("AND (proc.PROCEDURE_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString()
+                                + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString()
+                                + "')) \n");
+            } else {
+                procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                        .concat("AND (proc.PROCEDURE_DATE > to_date('" + pncStudy.getStartDate().toString()
+                                + "', 'yyyy-mm-dd') OR proc.PROCEDURE_DATE = to_date('" + pncStudy.getStartDate().toString()
+                                + "', 'yyyy-mm-dd')) \n");
+            }
+        }
+        if (pncStudy.getEndDate() != null) {
+            if ("sql server".equalsIgnoreCase(sourceDialect)) {
+                procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                        .concat("AND (proc.PROCEDURE_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString()
+                                + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString()
+                                + "')) \n");
+            } else {
+                procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                        .concat("AND (proc.PROCEDURE_DATE < to_date('" + pncStudy.getEndDate().toString()
+                                + "', 'yyyy-mm-dd') OR proc.PROCEDURE_DATE = to_date('" + pncStudy.getEndDate().toString()
+                                + "', 'yyyy-mm-dd')) \n");
+            }
+        }
+        
+        return procedureStudyOptionalDateConstraint;
     }
 }

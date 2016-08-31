@@ -666,48 +666,49 @@ public class PanaceaService extends AbstractDaoService {
                         builder.addString("rowIdString", "rowid");
                     }
 
-                    String drugEraStudyOptionalDateConstraint = "";
-                    if (pncStudy.getStartDate() != null) {
-                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
-                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                                    .concat("AND (era.DRUG_ERA_START_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "')) \n");
-                        }else{
-                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                                    .concat("AND (era.DRUG_ERA_START_DATE > to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd') OR era.DRUG_ERA_START_DATE = to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd')) \n");                            
-                        }
-                    }
-                    if (pncStudy.getEndDate() != null) {
-                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
-                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                                    .concat("AND (era.DRUG_ERA_START_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "')) \n");                            
-                        }else{
-                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                                .concat("AND (era.DRUG_ERA_START_DATE < to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd') OR era.DRUG_ERA_START_DATE = to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd')) \n");
-                        }
-                    }
-
-                    String procedureStudyOptionalDateConstraint = "";
-                    if (pncStudy.getStartDate() != null) {
-                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
-                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                                    .concat("AND (proc.PROCEDURE_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "')) \n");                            
-                        }else{
-                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                                .concat("AND (proc.PROCEDURE_DATE > to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd') OR proc.PROCEDURE_DATE = to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd')) \n");
-                        }
-                    }
-                    if (pncStudy.getEndDate() != null) {
-                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
-                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                                    .concat("AND (proc.PROCEDURE_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "')) \n");                            
-                        }else {
-                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                                .concat("AND (proc.PROCEDURE_DATE < to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd') OR proc.PROCEDURE_DATE = to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd')) \n");
-                        }
-                    }
-
-                    builder.addString("drugEraStudyOptionalDateConstraint", drugEraStudyOptionalDateConstraint);
-                    builder.addString("procedureStudyOptionalDateConstraint", procedureStudyOptionalDateConstraint);
+                    //move this out of param and stick into tasklet instead
+//                    String drugEraStudyOptionalDateConstraint = "";
+//                    if (pncStudy.getStartDate() != null) {
+//                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
+//                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+//                                    .concat("AND (era.DRUG_ERA_START_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "')) \n");
+//                        }else{
+//                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+//                                    .concat("AND (era.DRUG_ERA_START_DATE > to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd') OR era.DRUG_ERA_START_DATE = to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd')) \n");                            
+//                        }
+//                    }
+//                    if (pncStudy.getEndDate() != null) {
+//                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
+//                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+//                                    .concat("AND (era.DRUG_ERA_START_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "')) \n");                            
+//                        }else{
+//                            drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+//                                .concat("AND (era.DRUG_ERA_START_DATE < to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd') OR era.DRUG_ERA_START_DATE = to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd')) \n");
+//                        }
+//                    }
+//
+//                    String procedureStudyOptionalDateConstraint = "";
+//                    if (pncStudy.getStartDate() != null) {
+//                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
+//                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+//                                    .concat("AND (proc.PROCEDURE_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString() + "')) \n");                            
+//                        }else{
+//                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+//                                .concat("AND (proc.PROCEDURE_DATE > to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd') OR proc.PROCEDURE_DATE = to_date('" + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd')) \n");
+//                        }
+//                    }
+//                    if (pncStudy.getEndDate() != null) {
+//                        if("sql server".equalsIgnoreCase(source.getSourceDialect())){
+//                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+//                                    .concat("AND (proc.PROCEDURE_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString() + "')) \n");                            
+//                        }else {
+//                            procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+//                                .concat("AND (proc.PROCEDURE_DATE < to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd') OR proc.PROCEDURE_DATE = to_date('" + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd')) \n");
+//                        }
+//                    }
+//
+//                    builder.addString("drugEraStudyOptionalDateConstraint", drugEraStudyOptionalDateConstraint);
+//                    builder.addString("procedureStudyOptionalDateConstraint", procedureStudyOptionalDateConstraint);
 
                     addTempTableNames(builder, source, resultsTableQualifier);
 
