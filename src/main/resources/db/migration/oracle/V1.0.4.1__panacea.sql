@@ -28,8 +28,8 @@ CREATE TABLE ${ohdsiSchema}.pnc_tx_stage_combination
 (
     pnc_tx_stg_cmb_id    NUMBER(*,0),
     study_id    NUMBER(*,0),
-    CONSTRAINT pk_pnc_tx_stg_cmb PRIMARY KEY (pnc_tx_stg_cmb_id),
-    CONSTRAINT fk_pnctxcmb_pncstdy FOREIGN KEY (study_id) REFERENCES panacea_study (study_id)
+    CONSTRAINT pk_pnc_tx_stg_cmb PRIMARY KEY (pnc_tx_stg_cmb_id)
+--    CONSTRAINT fk_pnctxcmb_pncstdy FOREIGN KEY (study_id) REFERENCES panacea_study (study_id)
 );
 
 CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_tx_stg_cmb
