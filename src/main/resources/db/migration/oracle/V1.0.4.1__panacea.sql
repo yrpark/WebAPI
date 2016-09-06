@@ -77,7 +77,7 @@ CREATE TABLE ${ohdsiSchema}.pnc_study_summary_path
     tx_stg_percentage NUMBER(*,2),
     tx_stg_avg_dr   NUMBER(*,0),
     tx_stg_avg_gap   NUMBER(*,0),
-    tx_avg_frm_strt   NUMBER(*,0)    
+    tx_avg_frm_strt   NUMBER(*,0),    
     tx_rslt_version NUMBER(*, 0),
     CONSTRAINT pk_pnc_stdy_smry_pth PRIMARY KEY (pnc_stdy_smry_id)
 );
