@@ -37,8 +37,8 @@ CREATE TABLE ${ohdsiSchema}.pnc_tx_stage_combination
 -- quick workaround for removing sequence...
     concept_id BIGINT,
 -- quick workaround for removing sequence...
-    concept_name VARCHAR(255),
-    CONSTRAINT fk_pnctxcmb_pncstdy FOREIGN KEY (study_id) REFERENCES ${ohdsiSchema}.panacea_study (study_id)
+    concept_name VARCHAR(255)
+--    CONSTRAINT fk_pnctxcmb_pncstdy FOREIGN KEY (study_id) REFERENCES ${ohdsiSchema}.panacea_study (study_id)
 );
 
 --CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_tx_stg_cmb_mp
