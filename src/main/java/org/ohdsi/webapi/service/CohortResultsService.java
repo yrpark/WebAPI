@@ -1642,6 +1642,8 @@ public class CohortResultsService extends AbstractDaoService {
       List<CohortAttribute> attrs = new ArrayList<CohortAttribute>();
       Source source = getSourceRepository().findBySourceKey(sourceKey);
       final String key = CohortResultsAnalysisRunner.HERACLES_HEEL;
+      //JIRA: DIXON-3 => always refresh heel data
+      refresh = true;
       VisualizationData data = refresh ? null : this.visualizationDataRepository.findByCohortDefinitionIdAndSourceIdAndVisualizationKey(id, source.getSourceId(), key);
 
       if (refresh || data == null) {
