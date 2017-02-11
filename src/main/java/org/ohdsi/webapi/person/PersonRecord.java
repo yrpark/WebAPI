@@ -28,11 +28,9 @@ public class PersonRecord {
 	private Timestamp startDate;
 	private Timestamp endDate;
 	private String sourceConceptValue;
-	private String sourceConceptId;
 	private String sourceConceptName;
-	private Number valueAsNumber;
-	private String unitConceptId;
-	private String unitConceptName;
+	private String displayValue;
+
 	
 	public String getDomain() {
 		return domain;
@@ -70,36 +68,20 @@ public class PersonRecord {
 	public void setSourceConceptValue(String sourceConceptValue) {
 		this.sourceConceptValue = sourceConceptValue;
 	}
-	public String getSourceConceptId() {
-		return sourceConceptId;
-	}
-	public void setSourceConceptId(String sourceConceptId) {
-		this.sourceConceptId = sourceConceptId;
-	}
+
 	public String getSourceConceptName() {
 		return sourceConceptName;
 	}
 	public void setSourceConceptName(String sourceConceptName) {
 		this.sourceConceptName = sourceConceptName;
 	}
-	public Number getValueAsNumber() {
-		return valueAsNumber;
+	public String getDisplayValue() {
+		return displayValue;
 	}
-	public void setValueAsNumber(Number valueAsNumber) {
-		this.valueAsNumber = valueAsNumber;
+	public void setDisplayValue(String displayValue) {
+		this.displayValue = displayValue;
 	}
-	public String getUnitConceptId() {
-		return unitConceptId;
-	}
-	public void setUnitConceptId(String unitConceptId) {
-		this.unitConceptId = unitConceptId;
-	}
-	public String getUnitConceptName() {
-		return unitConceptName;
-	}
-	public void setUnitConceptName(String unitConceptName) {
-		this.unitConceptName = unitConceptName;
-	}
+
 
 
 
