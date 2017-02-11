@@ -17,27 +17,47 @@ package org.ohdsi.webapi.service;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
+
+import org.joda.time.LocalDate;
+import org.joda.time.Years;
 import org.ohdsi.sql.SqlRender;
 import org.ohdsi.sql.SqlTranslate;
-import org.ohdsi.webapi.person.ObservationPeriod;
 import org.ohdsi.webapi.helper.ResourceHelper;
-import org.ohdsi.webapi.person.PersonRecord;
 import org.ohdsi.webapi.person.CohortPerson;
+import org.ohdsi.webapi.person.ObservationPeriod;
+import org.ohdsi.webapi.person.PersonDemographics;
 import org.ohdsi.webapi.person.PersonProfile;
+import org.ohdsi.webapi.person.PersonRecord;
 import org.ohdsi.webapi.source.Source;
 import org.ohdsi.webapi.source.SourceDaimon;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Path("{sourceKey}/person/")
 @Component
 public class PersonService extends AbstractDaoService {
+	
+  public static enum VALID_RECORD_TYPES {
+	  CONDITION,
+	  CONDITIONERA,
+	  DRUG,
+	  DRUGERA,
+	  MEASUREMENT,
+	  OBSERVATION,
+	  PROCEDURE,
+	  VISIT
+  }
 
   @Autowired 
   private VocabularyService vocabService;
@@ -105,11 +125,11 @@ public class PersonService extends AbstractDaoService {
       public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
         PersonRecord item = new PersonRecord();
         
-        item.conceptId = resultSet.getLong("concept_id");
-        item.conceptName = resultSet.getString("concept_name");
-        item.domain = resultSet.getString("domain");
-        item.startDate = resultSet.getTimestamp("start_date");
-        item.endDate = resultSet.getTimestamp("end_date");
+        item.setConceptId(resultSet.getLong("concept_id"));
+        item.setConceptName(resultSet.getString("concept_name"));
+        item.setDomain(resultSet.getString("domain"));
+        item.setStartDate(resultSet.getTimestamp("start_date"));
+        item.setEndDate(resultSet.getTimestamp("end_date"));
         
         profile.records.add(item);
         return null;
@@ -136,4 +156,76 @@ public class PersonService extends AbstractDaoService {
     
     return profile;
   }
+  
+  @Path("{personKey}/demographics")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  public PersonDemographics getPersonDemographics(@PathParam("sourceKey") String sourceKey, 
+		  @PathParam("personKey") String personKey,  
+		  @RequestParam(value = "usePersonSourceValue", required = false, defaultValue = "false") Boolean usePersonSourceValue)  {
+	  
+	  final PersonDemographics demographics = new PersonDemographics();
+
+	  final Source source = getSourceRepository().findBySourceKey(sourceKey);
+	  final String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
+
+	  String sqlStatement = ResourceHelper.GetResourceAsString("/resources/person/sql/personInfo.sql");
+	  sqlStatement = SqlRender.renderSql(sqlStatement, new String[]{"personId", "tableQualifier", "usePersonSourceValue"}, 
+			  new String[]{personKey, tableQualifier, String.valueOf(usePersonSourceValue)});
+	  sqlStatement = SqlTranslate.translateSql(sqlStatement, "sql server", source.getSourceDialect());
+
+
+	  getSourceJdbcTemplate(source).query(sqlStatement, new RowMapper<Void>() {
+		  @Override
+		  public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
+			  demographics.setYearOfBirth(resultSet.getInt("year_of_birth"));
+			  final int birthMonth = resultSet.getInt("month_of_birth");
+			  final int birthDay = resultSet.getInt("day_of_birth");
+			  final LocalDate birthDate = new LocalDate (demographics.getYearOfBirth(), birthMonth, birthDay);
+			  final LocalDate now = new LocalDate();
+			  final Years age = Years.yearsBetween(birthDate, now);
+			  demographics.setAge(age.getYears());
+			  
+			  demographics.setGender(resultSet.getString("gender"));
+			  demographics.setRace(resultSet.getString("race"));
+			  demographics.setEthnicity(resultSet.getString("ethnicity"));
+			  
+			  demographics.setPersonId(resultSet.getInt("person_id"));
+			  demographics.setPersonSourceValue(resultSet.getString("person_source_value"));
+			  
+			  return null;
+		  }
+	  });
+
+	  return demographics;
+  }
+  
+//  /**
+//   * 
+//   * @param sourceKey
+//   * @param personKey the personId 
+//   * @param usePersonSourceValue whether the person source value should be looked up, vs. the CDM person id
+//   * @param recordTypes a comma separated list of record types to lookup
+//   */
+//  @Path("{personKey}/records/{recordTypes}")
+//  @GET
+//  @Produces(MediaType.APPLICATION_JSON)
+//  public Map<String,List<PersonRecord>> getPersonRecords(@PathParam("sourceKey") String sourceKey, 
+//		  @PathParam("personKey") String personKey,  
+//		  @PathParam("recordTypes") String[] recordTypes,
+//		  @RequestParam(value = "usePersonSourceValue", required = false, defaultValue = "false") Boolean usePersonSourceValue)  {
+//	  
+//	  final Map<String, List<PersonRecord>> records = new HashMap<String, List<PersonRecord>>();
+//	  final Source source = getSourceRepository().findBySourceKey(sourceKey);
+//	  final String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
+//	  
+//	  String personId = null;
+//	  if (usePersonSourceValue) {
+//		  
+//	  } else {
+//		  personId = personKey;
+//	  }
+//	  
+//	  return records;
+//  }
 }
