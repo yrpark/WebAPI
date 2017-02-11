@@ -15,6 +15,7 @@
     <spring.boot.version>1.2.1.RELEASE</spring.boot.version>
     <spring.batch.version>3.0.3.RELEASE</spring.batch.version>
     <flyway.version>3.1</flyway.version>
+    <flyway.enabled>true</flyway.enabled>
     <start-class>org.ohdsi.webapi.WebApi</start-class>
 
     <!-- Primary DataSource -->
