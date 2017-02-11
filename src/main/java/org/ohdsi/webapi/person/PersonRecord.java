@@ -22,9 +22,85 @@ import java.sql.Timestamp;
  * @author fdefalco
  */
 public class PersonRecord {
-  public String domain;
-  public Long conceptId;
-  public String conceptName;
-  public Timestamp startDate;
-  public Timestamp endDate;
+	private String domain;
+	private Long conceptId;
+	private String conceptName;
+	private Timestamp startDate;
+	private Timestamp endDate;
+	private String sourceConceptValue;
+	private String sourceConceptId;
+	private String sourceConceptName;
+	private Number valueAsNumber;
+	private String unitConceptId;
+	private String unitConceptName;
+	
+	public String getDomain() {
+		return domain;
+	}
+	public void setDomain(String domain) {
+		this.domain = domain;
+	}
+	public Long getConceptId() {
+		return conceptId;
+	}
+	public void setConceptId(Long conceptId) {
+		this.conceptId = conceptId;
+	}
+	public String getConceptName() {
+		return conceptName;
+	}
+	public void setConceptName(String conceptName) {
+		this.conceptName = conceptName;
+	}
+	public Timestamp getStartDate() {
+		return startDate;
+	}
+	public void setStartDate(Timestamp startDate) {
+		this.startDate = startDate;
+	}
+	public Timestamp getEndDate() {
+		return endDate;
+	}
+	public void setEndDate(Timestamp endDate) {
+		this.endDate = endDate;
+	}
+	public String getSourceConceptValue() {
+		return sourceConceptValue;
+	}
+	public void setSourceConceptValue(String sourceConceptValue) {
+		this.sourceConceptValue = sourceConceptValue;
+	}
+	public String getSourceConceptId() {
+		return sourceConceptId;
+	}
+	public void setSourceConceptId(String sourceConceptId) {
+		this.sourceConceptId = sourceConceptId;
+	}
+	public String getSourceConceptName() {
+		return sourceConceptName;
+	}
+	public void setSourceConceptName(String sourceConceptName) {
+		this.sourceConceptName = sourceConceptName;
+	}
+	public Number getValueAsNumber() {
+		return valueAsNumber;
+	}
+	public void setValueAsNumber(Number valueAsNumber) {
+		this.valueAsNumber = valueAsNumber;
+	}
+	public String getUnitConceptId() {
+		return unitConceptId;
+	}
+	public void setUnitConceptId(String unitConceptId) {
+		this.unitConceptId = unitConceptId;
+	}
+	public String getUnitConceptName() {
+		return unitConceptName;
+	}
+	public void setUnitConceptName(String unitConceptName) {
+		this.unitConceptName = unitConceptName;
+	}
+
+
+
 }
