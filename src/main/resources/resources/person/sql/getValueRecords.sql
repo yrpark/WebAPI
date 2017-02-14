@@ -3,8 +3,8 @@
 
 select 'drug' as "domain", drug_concept_id concept_id, c.concept_name, 
 drug_exposure_start_date start_date, drug_exposure_end_date end_date, 
-trim(concat(case when d.quantity is null then '' else concat('Quantity: ', d.quantity) end, 
-case when d.refills is null then '' else concat('Refills: ', d.refills) end)) as display_value, 
+trim(concat(case when d.quantity is null then '' else concat('#', d.quantity) end, 
+case when d.refills is null then '' else concat( ' Refills: ', d.refills) end)) as display_value, 
 s.concept_code as source_concept_value, s.concept_name as source_concept_name
 from @tableQualifier.drug_exposure d
 inner join @tableQualifier.concept c on d.drug_concept_id = c.concept_id
