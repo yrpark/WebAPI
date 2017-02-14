@@ -135,13 +135,20 @@ public class PersonService extends AbstractDaoService {
 	  getSourceJdbcTemplate(source).query(sqlStatement, new RowMapper<Void>() {
 		  @Override
 		  public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
-			  demographics.setYearOfBirth(resultSet.getInt("year_of_birth"));
-			  final int birthMonth = resultSet.getInt("month_of_birth");
-			  final int birthDay = resultSet.getInt("day_of_birth");
-			  final LocalDate birthDate = new LocalDate (demographics.getYearOfBirth(), birthMonth, birthDay);
-			  final LocalDate now = new LocalDate();
-			  final Years age = Years.yearsBetween(birthDate, now);
-			  demographics.setAge(age.getYears());
+			  
+			  final Integer birthYear = resultSet.getInt("year_of_birth");
+			  final Integer birthMonth = resultSet.getInt("month_of_birth");
+			  final Integer birthDay = resultSet.getInt("day_of_birth");
+			  demographics.setYearOfBirth(birthYear);
+			  
+			  if (birthYear != null && birthMonth != null && birthDay != null) {
+				  final LocalDate birthDate = new LocalDate (demographics.getYearOfBirth(), birthMonth, birthDay);
+				  final LocalDate now = new LocalDate();
+				  final Years age = Years.yearsBetween(birthDate, now);
+				  demographics.setAge(age.getYears());
+			  } else {
+				  demographics.setAge(-1);
+			  }
 			  
 			  demographics.setGender(resultSet.getString("gender"));
 			  demographics.setRace(resultSet.getString("race"));
