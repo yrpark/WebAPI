@@ -15,11 +15,11 @@ import javax.persistence.Table;
 public class CohortEntity implements Serializable {
 
 	private static final long serialVersionUID = 7736489323230370316L;
-	
+
 	@Id
 	@Column(name = "cohort_definition_id")
 	private Long cohortDefinitionId;
-	
+
 	@Id
 	@Column(name = "subject_id")
 	private Long subjectId;
@@ -34,25 +34,17 @@ public class CohortEntity implements Serializable {
 		return cohortDefinitionId;
 	}
 
-	
+	public void setCohortDefinitionId(Long cohortDefinitionId) {
+		this.cohortDefinitionId = cohortDefinitionId;
+	}
 
 	public Long getSubjectId() {
 		return subjectId;
 	}
 
-
-
 	public void setSubjectId(Long subjectId) {
 		this.subjectId = subjectId;
 	}
-
-
-
-	public void setCohortDefinitionId(Long cohortDefinitionId) {
-		this.cohortDefinitionId = cohortDefinitionId;
-	}
-
-
 
 	public Date getCohortStartDate() {
 		return cohortStartDate;
@@ -70,8 +62,6 @@ public class CohortEntity implements Serializable {
 		this.cohortEndDate = cohortEndDate;
 	}
 
-
-
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -79,13 +69,11 @@ public class CohortEntity implements Serializable {
 		result = prime
 				* result
 				+ ((cohortDefinitionId == null) ? 0 : cohortDefinitionId
-						.hashCode());
+				.hashCode());
 		result = prime * result
 				+ ((subjectId == null) ? 0 : subjectId.hashCode());
 		return result;
 	}
-
-
 
 	@Override
 	public boolean equals(Object obj) {
@@ -108,7 +96,7 @@ public class CohortEntity implements Serializable {
 			return false;
 		return true;
 	}
-	
-	
+
+
 
 }

@@ -12,3 +12,5 @@ sandbox/
 /nbactions-webapi-oracle.xml
 /nbactions-debug*
 *~
+/.idea
+WebAPI.iml
