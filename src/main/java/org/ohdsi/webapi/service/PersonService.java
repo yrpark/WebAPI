@@ -18,13 +18,10 @@ package org.ohdsi.webapi.service;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 
 import org.joda.time.LocalDate;
@@ -48,172 +45,206 @@ import org.springframework.stereotype.Component;
 public class PersonService extends AbstractDaoService {
 
 
-  @Autowired 
-  private VocabularyService vocabService;
-  
-  @Autowired
-  private ConceptSetService conceptSetService;
-  
-  @Path("{personId}")
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  public PersonProfile getPersonProfile(@PathParam("sourceKey") String sourceKey, @PathParam("personId") String personId)  
-  {
-    final PersonProfile profile = new PersonProfile();
-    
-    Source source = getSourceRepository().findBySourceKey(sourceKey);
-    String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
-    String resultsTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
+    @Autowired
+    private VocabularyService vocabService;
 
-    final PersonDemographics demographics = this.getPersonDemographics(sourceKey, personId, false);
-    profile.gender = demographics.getGender();
-    profile.yearOfBirth = demographics.getYearOfBirth();
+    @Autowired
+    private ConceptSetService conceptSetService;
 
-    // get observation periods
-    String sqlObservationPeriods = ResourceHelper.GetResourceAsString("/resources/person/sql/getObservationPeriods.sql");
-    sqlObservationPeriods = SqlRender.renderSql(sqlObservationPeriods, new String[]{"personId", "tableQualifier"}, new String[]{personId, tableQualifier});
-    sqlObservationPeriods = SqlTranslate.translateSql(sqlObservationPeriods, "sql server", source.getSourceDialect());    
-    
-    getSourceJdbcTemplate(source).query(sqlObservationPeriods, new RowMapper<Void>() {
-      @Override
-      public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
-        ObservationPeriod op = new ObservationPeriod();
-        
-        op.startDate = resultSet.getTimestamp("start_date");
-        op.endDate = resultSet.getTimestamp("end_date");
-        op.type = resultSet.getString("observation_period_type");
-        op.id = resultSet.getInt("observation_period_id");
-        
-        profile.observationPeriods.add(op);
-        return null;
-      }
-    });    
-    
-    // get simplified records
-    final ArrayList<PersonRecord> records = this.getPersonRecords(sourceKey, personId, false);
-    profile.records = records;
+    @Path("{personId}")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public PersonProfile getPersonProfile(@PathParam("sourceKey") String sourceKey, @PathParam("personId") String personId) {
+        final PersonProfile profile = new PersonProfile();
 
-    String sql_statement = ResourceHelper.GetResourceAsString("/resources/person/sql/getCohorts.sql");
-    sql_statement = SqlRender.renderSql(sql_statement, new String[]{"subjectId", "tableQualifier"}, new String[]{personId, resultsTableQualifier});
-    sql_statement = SqlTranslate.translateSql(sql_statement, "sql server", source.getSourceDialect());
+        Source source = getSourceRepository().findBySourceKey(sourceKey);
+        String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
+        String resultsTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
 
-    getSourceJdbcTemplate(source).query(sql_statement, new RowMapper<Void>() {
-      @Override
-      public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
-        CohortPerson item = new CohortPerson();
-        
-        item.startDate = resultSet.getTimestamp("cohort_start_date");
-        item.endDate = resultSet.getTimestamp("cohort_end_date");
-        item.cohortDefinitionId = resultSet.getLong("cohort_definition_id");
-        
-        profile.cohorts.add(item);
-        return null;
-      }
-    });
-    
-    return profile;
-  }
-  
-  @Path("{personKey}/demographics")
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  public PersonDemographics getPersonDemographics(@PathParam("sourceKey") final String sourceKey, 
-		  @PathParam("personKey") final String personKey,  
-		  @QueryParam(value = "usePersonSourceValue") final Boolean usePersonSourceValue)  {
-	  
-	  final PersonDemographics demographics = new PersonDemographics();
+        final PersonDemographics demographics = this.getPersonDemographics(sourceKey, personId, false);
+        profile.gender = demographics.getGender();
+        profile.yearOfBirth = demographics.getYearOfBirth();
 
-	  final Source source = getSourceRepository().findBySourceKey(sourceKey);
-	  final String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
+        // get observation periods
+        String sqlObservationPeriods = ResourceHelper.GetResourceAsString("/resources/person/sql/getObservationPeriods.sql");
+        sqlObservationPeriods = SqlRender.renderSql(sqlObservationPeriods, new String[]{"personId", "tableQualifier"}, new String[]{personId, tableQualifier});
+        sqlObservationPeriods = SqlTranslate.translateSql(sqlObservationPeriods, "sql server", source.getSourceDialect());
 
-	  String sqlStatement = ResourceHelper.GetResourceAsString("/resources/person/sql/personInfo.sql");
-	  sqlStatement = SqlRender.renderSql(sqlStatement, new String[]{"personId", "tableQualifier", "usePersonSourceValue"}, 
-			  new String[]{personKey, tableQualifier, String.valueOf(usePersonSourceValue)});
-	  sqlStatement = SqlTranslate.translateSql(sqlStatement, "sql server", source.getSourceDialect());
+        getSourceJdbcTemplate(source).query(sqlObservationPeriods, new RowMapper<Void>() {
+            @Override
+            public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
+                ObservationPeriod op = new ObservationPeriod();
+
+                op.startDate = resultSet.getTimestamp("start_date");
+                op.endDate = resultSet.getTimestamp("end_date");
+                op.type = resultSet.getString("observation_period_type");
+                op.id = resultSet.getInt("observation_period_id");
+
+                profile.observationPeriods.add(op);
+                return null;
+            }
+        });
+
+        // get simplified records
+        final ArrayList<PersonRecord> records = this.getPersonRecords(sourceKey, personId, false);
+        profile.records = records;
+
+        String sql_statement = ResourceHelper.GetResourceAsString("/resources/person/sql/getCohorts.sql");
+        sql_statement = SqlRender.renderSql(sql_statement, new String[]{"subjectId", "tableQualifier"}, new String[]{personId, resultsTableQualifier});
+        sql_statement = SqlTranslate.translateSql(sql_statement, "sql server", source.getSourceDialect());
+
+        getSourceJdbcTemplate(source).query(sql_statement, new RowMapper<Void>() {
+            @Override
+            public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
+                CohortPerson item = new CohortPerson();
+
+                item.startDate = resultSet.getTimestamp("cohort_start_date");
+                item.endDate = resultSet.getTimestamp("cohort_end_date");
+                item.cohortDefinitionId = resultSet.getLong("cohort_definition_id");
+
+                profile.cohorts.add(item);
+                return null;
+            }
+        });
+
+        return profile;
+    }
+
+    private void mapPatientDemographics(final ResultSet resultSet, final PersonDemographics demographics)
+            throws SQLException {
+        final Integer birthYear = resultSet.getInt("year_of_birth");
+        final Integer birthMonth = resultSet.getInt("month_of_birth");
+        final Integer birthDay = resultSet.getInt("day_of_birth");
+        demographics.setYearOfBirth(birthYear);
+
+        if (birthYear != null && birthMonth != null && birthDay != null) {
+            final LocalDate birthDate = new LocalDate(demographics.getYearOfBirth(), birthMonth, birthDay);
+            final LocalDate now = new LocalDate();
+            final Years age = Years.yearsBetween(birthDate, now);
+            demographics.setAge(age.getYears());
+        } else {
+            demographics.setAge(-1);
+        }
+
+        demographics.setGender(resultSet.getString("gender"));
+        demographics.setRace(resultSet.getString("race"));
+        demographics.setEthnicity(resultSet.getString("ethnicity"));
+
+        demographics.setPersonId(resultSet.getInt("person_id"));
+        demographics.setPersonSourceValue(resultSet.getString("person_source_value"));
+
+    }
+
+    @Path("{personKeys}/demographicsmap")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, PersonDemographics> getMultiplePersonDemographics(@PathParam("sourceKey") final String sourceKey,
+                                                                         @PathParam(value = "personKeys") final String personKeys,
+                                                                         @QueryParam(value = "usePersonSourceValue") @DefaultValue("false") final Boolean usePersonSourceValue) {
+        final Map<String, PersonDemographics> demographicsMap = new HashMap<>();
+        if (personKeys != null) {
+            final Source source = getSourceRepository().findBySourceKey(sourceKey);
+            final String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
+
+            String sqlStatement = ResourceHelper.GetResourceAsString("/resources/person/sql/multiplePersonInfo.sql");
+            sqlStatement = SqlRender.renderSql(sqlStatement, new String[]{"personIds", "tableQualifier", "usePersonSourceValue"},
+                    new String[]{personKeys, tableQualifier, String.valueOf(usePersonSourceValue)});
+            sqlStatement = SqlTranslate.translateSql(sqlStatement, "sql server", source.getSourceDialect());
+
+            getSourceJdbcTemplate(source).query(sqlStatement, new RowMapper<Void>() {
+                @Override
+                public Void mapRow(final ResultSet resultSet, int arg1) throws SQLException {
+
+                    final PersonDemographics demographics = new PersonDemographics();
+                    mapPatientDemographics(resultSet, demographics);
+                    final String key = usePersonSourceValue ? demographics.getPersonSourceValue() :
+                            String.valueOf(demographics.getPersonId());
+                    demographicsMap.put(key, demographics);
+                    return null;
+                }
+            });
+        }
+
+        return demographicsMap;
+    }
+
+    @Path("{personKey}/demographics")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public PersonDemographics getPersonDemographics(@PathParam("sourceKey") final String sourceKey,
+                                                    @PathParam("personKey") final String personKey,
+                                                    @QueryParam(value = "usePersonSourceValue") final Boolean usePersonSourceValue) {
+
+        final PersonDemographics demographics = new PersonDemographics();
+
+        final Source source = getSourceRepository().findBySourceKey(sourceKey);
+        final String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
+
+        String sqlStatement = ResourceHelper.GetResourceAsString("/resources/person/sql/personInfo.sql");
+        sqlStatement = SqlRender.renderSql(sqlStatement, new String[]{"personId", "tableQualifier", "usePersonSourceValue"},
+                new String[]{personKey, tableQualifier, String.valueOf(usePersonSourceValue)});
+        sqlStatement = SqlTranslate.translateSql(sqlStatement, "sql server", source.getSourceDialect());
 
 
-	  getSourceJdbcTemplate(source).query(sqlStatement, new RowMapper<Void>() {
-		  @Override
-		  public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
-			  
-			  final Integer birthYear = resultSet.getInt("year_of_birth");
-			  final Integer birthMonth = resultSet.getInt("month_of_birth");
-			  final Integer birthDay = resultSet.getInt("day_of_birth");
-			  demographics.setYearOfBirth(birthYear);
-			  
-			  if (birthYear != null && birthMonth != null && birthDay != null) {
-				  final LocalDate birthDate = new LocalDate (demographics.getYearOfBirth(), birthMonth, birthDay);
-				  final LocalDate now = new LocalDate();
-				  final Years age = Years.yearsBetween(birthDate, now);
-				  demographics.setAge(age.getYears());
-			  } else {
-				  demographics.setAge(-1);
-			  }
-			  
-			  demographics.setGender(resultSet.getString("gender"));
-			  demographics.setRace(resultSet.getString("race"));
-			  demographics.setEthnicity(resultSet.getString("ethnicity"));
-			  
-			  demographics.setPersonId(resultSet.getInt("person_id"));
-			  demographics.setPersonSourceValue(resultSet.getString("person_source_value"));
-			  
-			  return null;
-		  }
-	  });
+        getSourceJdbcTemplate(source).query(sqlStatement, new RowMapper<Void>() {
+            @Override
+            public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
+                mapPatientDemographics(resultSet, demographics);
+                return null;
+            }
+        });
 
-	  return demographics;
-  }
-  
-  /**
-   * 
-   * @param sourceKey
-   * @param personKey the personId 
-   * @param usePersonSourceValue whether the person source value should be looked up, vs. the CDM person id
-   * @param recordTypes a comma separated list of record types to lookup
-   */
-  @Path("{personKey}/records")
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  public ArrayList<PersonRecord> getPersonRecords(@PathParam("sourceKey") String sourceKey, 
-		  @PathParam("personKey") String personKey,  
-		  @QueryParam(value = "usePersonSourceValue") final Boolean usePersonSourceValue)  {
-	  
-	  final ArrayList<PersonRecord> records = new ArrayList<PersonRecord>();
-	  final Source source = getSourceRepository().findBySourceKey(sourceKey);
-	  final String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
+        return demographics;
+    }
 
-	  String personId = null;
-	  if (usePersonSourceValue) {
-		  final PersonDemographics demographics = getPersonDemographics(sourceKey, personKey, usePersonSourceValue);
-		  personId = String.valueOf(demographics.getPersonId());
-	  } else {
-		  personId = personKey;
-	  }
+    /**
+     * @param sourceKey
+     * @param personKey            the personId
+     * @param usePersonSourceValue whether the person source value should be looked up, vs. the CDM person id
+     */
+    @Path("{personKey}/records")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public ArrayList<PersonRecord> getPersonRecords(@PathParam("sourceKey") String sourceKey,
+                                                    @PathParam("personKey") String personKey,
+                                                    @QueryParam(value = "usePersonSourceValue") final Boolean usePersonSourceValue) {
 
-	  String sqlStatement = ResourceHelper.GetResourceAsString("/resources/person/sql/getValueRecords.sql");
-	  sqlStatement = SqlRender.renderSql(sqlStatement, new String[]{"personId", "tableQualifier"}, 
-			  new String[]{personId, tableQualifier});
-	  sqlStatement = SqlTranslate.translateSql(sqlStatement, "sql server", source.getSourceDialect());
+        final ArrayList<PersonRecord> records = new ArrayList<PersonRecord>();
+        final Source source = getSourceRepository().findBySourceKey(sourceKey);
+        final String tableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.CDM);
 
-	  getSourceJdbcTemplate(source).query(sqlStatement, new RowMapper<Void>() {
-		  @Override
-		  public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
-			  final PersonRecord record = new PersonRecord();
+        String personId = null;
+        if (usePersonSourceValue) {
+            final PersonDemographics demographics = getPersonDemographics(sourceKey, personKey, usePersonSourceValue);
+            personId = String.valueOf(demographics.getPersonId());
+        } else {
+            personId = personKey;
+        }
 
-			  record.setConceptId(resultSet.getLong("concept_id"));
-			  record.setConceptName(resultSet.getString("concept_name"));
-			  record.setDomain(resultSet.getString("domain"));
-			  record.setStartDate(resultSet.getTimestamp("start_date"));
-			  record.setEndDate(resultSet.getTimestamp("end_date"));
-			  record.setDisplayValue(resultSet.getString("display_value"));
-			  record.setSourceConceptName(resultSet.getString("source_concept_name"));
-			  record.setSourceConceptValue(resultSet.getString("source_concept_value"));
+        String sqlStatement = ResourceHelper.GetResourceAsString("/resources/person/sql/getValueRecords.sql");
+        sqlStatement = SqlRender.renderSql(sqlStatement, new String[]{"personId", "tableQualifier"},
+                new String[]{personId, tableQualifier});
+        sqlStatement = SqlTranslate.translateSql(sqlStatement, "sql server", source.getSourceDialect());
 
-			  records.add(record);
-			  return null;
-		  }
-	  });
+        getSourceJdbcTemplate(source).query(sqlStatement, new RowMapper<Void>() {
+            @Override
+            public Void mapRow(ResultSet resultSet, int arg1) throws SQLException {
+                final PersonRecord record = new PersonRecord();
 
-	  return records;
-  }
+                record.setConceptId(resultSet.getLong("concept_id"));
+                record.setConceptName(resultSet.getString("concept_name"));
+                record.setDomain(resultSet.getString("domain"));
+                record.setStartDate(resultSet.getTimestamp("start_date"));
+                record.setEndDate(resultSet.getTimestamp("end_date"));
+                record.setDisplayValue(resultSet.getString("display_value"));
+                record.setSourceConceptName(resultSet.getString("source_concept_name"));
+                record.setSourceConceptValue(resultSet.getString("source_concept_value"));
+
+                records.add(record);
+                return null;
+            }
+        });
+
+        return records;
+    }
 }
