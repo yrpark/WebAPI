@@ -157,8 +157,7 @@ public class PersonService extends AbstractDaoService {
 
                     final PersonDemographics demographics = new PersonDemographics();
                     mapPatientDemographics(resultSet, demographics);
-                    final String key = usePersonSourceValue ? demographics.getPersonSourceValue() :
-                            String.valueOf(demographics.getPersonId());
+                    final String key = String.valueOf(demographics.getPersonId());
                     demographicsMap.put(key, demographics);
                     return null;
                 }
