@@ -1723,6 +1723,43 @@ public class CohortResultsService extends AbstractDaoService {
         
         return el;
     }
+
+    public List<AnalysisResults> getCohortAnalysesTimeliness(final int id, String sourceKey) {
+        
+        String sql = null;
+        sql = ResourceHelper
+                .GetResourceAsString("/resources/cohortresults/sql/timeliness/getTimeliness.sql");
+        
+        Source source = getSourceRepository().findBySourceKey(sourceKey);
+        String resultsTableQualifier = source.getTableQualifier(SourceDaimon.DaimonType.Results);
+        
+        sql = SqlRender.renderSql(sql, new String[] { "tableQualifier", "cohortDefinitionId" },
+            new String[] { resultsTableQualifier, String.valueOf(id) });
+        sql = SqlTranslate.translateSql(sql, getSourceDialect(), source.getSourceDialect());
+        
+        AnalysisResultsMapper arm = new AnalysisResultsMapper();
+        
+        return getSourceJdbcTemplate(source).query(sql, arm);
+    }
+
+    @GET
+    @Path("{sourceKey}/{id}/timeliness")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<EntropyAttr> getTimeliness(@PathParam("id") final int id,
+            @PathParam("sourceKey") String sourceKey) {
+        List<AnalysisResults> arl = this.getCohortAnalysesTimeliness(id, sourceKey);
+        
+        List<EntropyAttr> el = new ArrayList<EntropyAttr>();
+        
+        for(AnalysisResults ar : arl){
+            EntropyAttr ea = new EntropyAttr();
+            ea.setDate(ar.getStratum1());
+            ea.setEntropy(Float.parseFloat(ar.getStratum2()));
+            el.add(ea);
+        }
+        
+        return el;
+   }
     
    private String JoinArray(final String[] array) {
     String result = "";
