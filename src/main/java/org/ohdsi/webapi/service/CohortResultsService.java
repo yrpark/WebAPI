@@ -1586,8 +1586,6 @@ public class CohortResultsService extends AbstractDaoService {
       List<CohortAttribute> attrs = new ArrayList<CohortAttribute>();
       Source source = getSourceRepository().findBySourceKey(sourceKey);
       final String key = CohortResultsAnalysisRunner.HERACLES_HEEL;
-      //JIRA: DIXON-3 => always refresh heel data
-      refresh = true;
       VisualizationData data = refresh ? null : this.visualizationDataRepository.findByCohortDefinitionIdAndSourceIdAndVisualizationKey(id, source.getSourceId(), key);
 
       if (refresh || data == null) {
@@ -1816,36 +1814,4 @@ public class CohortResultsService extends AbstractDaoService {
     analysis.setStratum5Name(rs.getString(Analysis.STRATUM_5_NAME));
     analysis.setAnalysisType(rs.getString(Analysis.ANALYSIS_TYPE));
   }
-  
-  /**
-   * Returns heracles heel results (data quality issues) for the given cohort
-   * definition id
-   *
-   * @param id cohort definition id
-   * @return List<CohortAttribute>
-   */
-  @GET
-  @Path("/{id}/heraclesheel")
-  @Produces(MediaType.APPLICATION_JSON)
-  public List<CohortAttribute> getHeraclesHeel(@PathParam("id") final int id, 
-          @PathParam("sourceKey") final String sourceKey,
-          @DefaultValue("false") @QueryParam("refresh") boolean refresh) {
-      List<CohortAttribute> attrs = new ArrayList<CohortAttribute>();
-      Source source = getSourceRepository().findBySourceKey(sourceKey);
-      final String key = CohortResultsAnalysisRunner.HERACLES_HEEL;
-      VisualizationData data = refresh ? null : this.visualizationDataRepository.findByCohortDefinitionIdAndSourceIdAndVisualizationKey(id, source.getSourceId(), key);
-
-      if (refresh || data == null) {
-          attrs = this.queryRunner.getHeraclesHeel(this.getSourceJdbcTemplate(source), id, source, true);
-      } else {
-          try {
-              attrs = mapper.readValue(data.getData(), new TypeReference<List<CohortAttribute>>(){});
-          } catch (Exception e) {
-              log.error(e);
-          }
-      }
-
-      return attrs;
-  }
-
 };

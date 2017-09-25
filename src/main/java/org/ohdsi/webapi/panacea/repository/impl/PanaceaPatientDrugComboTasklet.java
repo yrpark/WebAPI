@@ -36,7 +36,7 @@ import org.joda.time.Days;
 import org.ohdsi.sql.SqlRender;
 import org.ohdsi.sql.SqlSplit;
 import org.ohdsi.sql.SqlTranslate;
-import org.ohdsi.webapi.helper.ResourceHelper;
+import org.ohdsi.circe.helper.ResourceHelper;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombination;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStageCombinationMap;
 import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;

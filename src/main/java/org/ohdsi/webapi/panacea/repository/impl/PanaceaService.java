@@ -39,7 +39,7 @@ import org.apache.commons.logging.LogFactory;
 import org.ohdsi.sql.SqlRender;
 import org.ohdsi.sql.SqlTranslate;
 import org.ohdsi.webapi.TerminateJobStepExceptionHandler;
-import org.ohdsi.webapi.helper.ResourceHelper;
+import org.ohdsi.circe.helper.ResourceHelper;
 import org.ohdsi.webapi.job.JobExecutionResource;
 import org.ohdsi.webapi.job.JobTemplate;
 import org.ohdsi.webapi.panacea.mapper.PanaceaStageCombinationMapper;
