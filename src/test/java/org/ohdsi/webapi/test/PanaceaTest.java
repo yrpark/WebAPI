@@ -28,9 +28,9 @@ import org.ohdsi.webapi.panacea.pojo.PanaceaStudy;
 import org.ohdsi.webapi.panacea.pojo.PanaceaSummary;
 import org.ohdsi.webapi.panacea.repository.impl.PanaceaService;
 import org.ohdsi.webapi.service.VocabularyService;
-import org.ohdsi.webapi.vocabulary.Concept;
+import org.ohdsi.circe.vocabulary.Concept;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 /**
@@ -47,7 +47,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
  * </pre>
  */
 @RunWith(SpringJUnit4ClassRunner.class)
-@SpringApplicationConfiguration(classes = WebApi.class)
+@SpringBootTest(classes = WebApi.class)
 @Ignore
 public class PanaceaTest extends TestCase {
     

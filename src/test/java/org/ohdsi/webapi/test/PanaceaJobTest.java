@@ -22,13 +22,13 @@ import org.junit.runner.RunWith;
 import org.ohdsi.webapi.WebApi;
 import org.ohdsi.webapi.panacea.repository.impl.PanaceaService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 /**
  */
 @RunWith(SpringJUnit4ClassRunner.class)
-@SpringApplicationConfiguration(classes = WebApi.class)
+@SpringBootTest(classes = WebApi.class)
 @Ignore
 public class PanaceaJobTest extends TestCase {
     
