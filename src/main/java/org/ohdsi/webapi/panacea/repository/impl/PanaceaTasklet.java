@@ -298,17 +298,18 @@ public class PanaceaTasklet implements Tasklet {
         final String drugEraStudyOptionalDateConstraint = getDrugEraStudyOptionalDateConstraint(sourceDialect);
         final String procedureStudyOptionalDateConstraint = getProcedureStudyOptionalDateConstraint(sourceDialect);
         
-        /**
-         * default as "oracle"
-         */
-        String insertIntoComboMapString = ResourceHelper
-                .GetResourceAsString("/resources/panacea/sql/comboMapInsert_oracle.sql");
-        
-        if ("sql server".equalsIgnoreCase(sourceDialect)) {
-            insertIntoComboMapString = ResourceHelper.GetResourceAsString("/resources/panacea/sql/comboMapInsert_mssql.sql");
+        String insertIntoComboMapString;
+        if ("oracle".equalsIgnoreCase((String) jobParams.get("sourceDialect"))) {
+            insertIntoComboMapString = ResourceHelper
+                    .GetResourceAsString("/resources/panacea/sql/comboMapInsert_oracle.sql");
         } else if ("postgresql".equalsIgnoreCase(sourceDialect)) {
             insertIntoComboMapString = ResourceHelper
                     .GetResourceAsString("/resources/panacea/sql/comboMapInsert_postgres.sql");
+        } else {
+            /**
+             * default to use mssql version
+             */
+            insertIntoComboMapString = ResourceHelper.GetResourceAsString("/resources/panacea/sql/comboMapInsert_mssql.sql");
         }
         
         final String[] params = new String[] { "cdm_schema", "results_schema", "ohdsi_schema", "cohortDefId", "studyId",
@@ -330,13 +331,14 @@ public class PanaceaTasklet implements Tasklet {
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
         
-        /**
-         * default as "oracle"
-         */
-        String tempTableCreationOracle = ResourceHelper
-                .GetResourceAsString("/resources/panacea/sql/tempTableCreation_oracle.sql");
-        
-        if ("sql server".equalsIgnoreCase(sourceDialect) || "postgresql".equalsIgnoreCase(sourceDialect)) {
+        String tempTableCreationOracle;
+        if ("oracle".equalsIgnoreCase(sourceDialect)) {
+            tempTableCreationOracle = ResourceHelper
+                    .GetResourceAsString("/resources/panacea/sql/tempTableCreation_oracle.sql");
+        } else {
+            /**
+             * default
+             */
             tempTableCreationOracle = "\n";
         }
         
@@ -352,62 +354,81 @@ public class PanaceaTasklet implements Tasklet {
     
     private String getDrugEraStudyOptionalDateConstraint(String sourceDialect) {
         String drugEraStudyOptionalDateConstraint = "";
+        //refactor here: make mssql default
         if (pncStudy.getStartDate() != null) {
-            if ("sql server".equalsIgnoreCase(sourceDialect)) {
-                drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                        .concat("AND (era.DRUG_ERA_START_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString()
-                                + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString()
-                                + "')) \n");
-            } else {
+            if ("oracle".equalsIgnoreCase(sourceDialect)) {
                 drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
                         .concat("AND (era.DRUG_ERA_START_DATE > to_date('" + pncStudy.getStartDate().toString()
                                 + "', 'yyyy-mm-dd') OR era.DRUG_ERA_START_DATE = to_date('"
                                 + pncStudy.getStartDate().toString() + "', 'yyyy-mm-dd')) \n");
+            } else {
+                //TODO -- double check this
+                //                drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                //                        .concat("AND (era.DRUG_ERA_START_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString()
+                //                                + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString()
+                //                                + "')) \n");
+                drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                        .concat("AND (era.DRUG_ERA_START_DATE > '" + pncStudy.getStartDate().toString()
+                                + "' OR era.DRUG_ERA_START_DATE = '" + pncStudy.getStartDate().toString() + "') \n");
             }
         }
         if (pncStudy.getEndDate() != null) {
-            if ("sql server".equalsIgnoreCase(sourceDialect)) {
-                drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
-                        .concat("AND (era.DRUG_ERA_START_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString()
-                                + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString()
-                                + "')) \n");
-            } else {
+            if ("oracle".equalsIgnoreCase(sourceDialect)) {
                 drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
                         .concat("AND (era.DRUG_ERA_START_DATE < to_date('" + pncStudy.getEndDate().toString()
                                 + "', 'yyyy-mm-dd') OR era.DRUG_ERA_START_DATE = to_date('"
                                 + pncStudy.getEndDate().toString() + "', 'yyyy-mm-dd')) \n");
+            } else {
+                //TODO -- double check this
+                //                drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                //                        .concat("AND (era.DRUG_ERA_START_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString()
+                //                                + "') OR era.DRUG_ERA_START_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString()
+                //                                + "')) \n");
+                drugEraStudyOptionalDateConstraint = drugEraStudyOptionalDateConstraint
+                        .concat("AND (era.DRUG_ERA_START_DATE < '" + pncStudy.getEndDate().toString()
+                                + "' OR era.DRUG_ERA_START_DATE = '" + pncStudy.getEndDate().toString() + "') \n");
             }
         }
         
         return drugEraStudyOptionalDateConstraint;
     }
     
+    //TODO -- double check this
     private String getProcedureStudyOptionalDateConstraint(String sourceDialect) {
         String procedureStudyOptionalDateConstraint = "";
+        //refactor here: make mssql default
         if (pncStudy.getStartDate() != null) {
-            if ("sql server".equalsIgnoreCase(sourceDialect)) {
-                procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                        .concat("AND (proc.PROCEDURE_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString()
-                                + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString()
-                                + "')) \n");
-            } else {
+            if ("oracle".equalsIgnoreCase(sourceDialect)) {
                 procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
                         .concat("AND (proc.PROCEDURE_DATE > to_date('" + pncStudy.getStartDate().toString()
                                 + "', 'yyyy-mm-dd') OR proc.PROCEDURE_DATE = to_date('" + pncStudy.getStartDate().toString()
                                 + "', 'yyyy-mm-dd')) \n");
+            } else {
+                //TODO -- double check this
+                //                procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                //                        .concat("AND (proc.PROCEDURE_DATE > CONVERT(datetime, '" + pncStudy.getStartDate().toString()
+                //                                + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getStartDate().toString()
+                //                                + "')) \n");
+                procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                        .concat("AND (proc.PROCEDURE_DATE > '" + pncStudy.getStartDate().toString()
+                                + "' OR proc.PROCEDURE_DATE = '" + pncStudy.getStartDate().toString() + "') \n");
             }
         }
         if (pncStudy.getEndDate() != null) {
-            if ("sql server".equalsIgnoreCase(sourceDialect)) {
-                procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
-                        .concat("AND (proc.PROCEDURE_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString()
-                                + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString()
-                                + "')) \n");
-            } else {
+            if ("oracle".equalsIgnoreCase(sourceDialect)) {
                 procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
                         .concat("AND (proc.PROCEDURE_DATE < to_date('" + pncStudy.getEndDate().toString()
                                 + "', 'yyyy-mm-dd') OR proc.PROCEDURE_DATE = to_date('" + pncStudy.getEndDate().toString()
                                 + "', 'yyyy-mm-dd')) \n");
+            } else {
+                //TODO -- double check this
+                //                procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                //                        .concat("AND (proc.PROCEDURE_DATE < CONVERT(datetime, '" + pncStudy.getEndDate().toString()
+                //                                + "') OR proc.PROCEDURE_DATE = CONVERT(datetime, '" + pncStudy.getEndDate().toString()
+                //                                + "')) \n");
+                procedureStudyOptionalDateConstraint = procedureStudyOptionalDateConstraint
+                        .concat("AND (proc.PROCEDURE_DATE < '" + pncStudy.getEndDate().toString()
+                                + "' OR proc.PROCEDURE_DATE = '" + pncStudy.getEndDate().toString() + "') \n");
             }
         }
         

@@ -63,6 +63,7 @@ public class PanaceaJobTest extends TestCase {
     public void testTasklet() {
         /**
          * test: localhost:8080/WebAPI/panacea/runPncTasklet/CCAE/18
+         * test on aws sql server: http://localhost:8080/WebAPI/panacea/runPncTasklet/amazon_ohdsi/3
          */
         /**
          * set break point in JobTemplate.launchJob() at line of

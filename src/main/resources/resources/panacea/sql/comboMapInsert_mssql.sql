@@ -45,17 +45,24 @@ select @studyId, concept_id, concept_name from
       )
   ) adding_concept;
 
-MERGE INTO @results_schema.pnc_tx_stage_combination_map comb_map
-USING
-  (
-    SELECT combo.pnc_tx_stg_cmb_id pnc_tx_stg_cmb_id, combo.concept_id concept_id, combo.concept_name concept_name FROM @results_schema.pnc_tx_stage_combination combo
-  ) adding_map
-  ON
-  (
-    comb_map.pnc_tx_stg_cmb_id = adding_map.pnc_tx_stg_cmb_id
-  )
-WHEN NOT MATCHED THEN INSERT (pnc_tx_stg_cmb_id, concept_id, concept_name)
-VALUES (adding_map.pnc_tx_stg_cmb_id, adding_map.concept_id, adding_map.concept_name);
+--MERGE INTO @results_schema.pnc_tx_stage_combination_map comb_map
+--USING
+--  (
+--    SELECT combo.pnc_tx_stg_cmb_id pnc_tx_stg_cmb_id, combo.concept_id concept_id, combo.concept_name concept_name FROM @results_schema.pnc_tx_stage_combination combo
+--  ) adding_map
+--  ON
+--  (
+--    comb_map.pnc_tx_stg_cmb_id = adding_map.pnc_tx_stg_cmb_id
+--  )
+--WHEN NOT MATCHED THEN INSERT (pnc_tx_stg_cmb_id, concept_id, concept_name)
+--VALUES (adding_map.pnc_tx_stg_cmb_id, adding_map.concept_id, adding_map.concept_name);
 
+--refactor MERGE:
+insert into @results_schema.pnc_tx_stage_combination_map (pnc_tx_stg_cmb_id, concept_id, concept_name)
+select combo.pnc_tx_stg_cmb_id pnc_tx_stg_cmb_id, combo.concept_id concept_id, combo.concept_name concept_name 
+FROM @results_schema.pnc_tx_stage_combination combo
+where combo.pnc_tx_stg_cmb_id not in (select pnc_tx_stg_cmb_id from @results_schema.pnc_tx_stage_combination_map);
+  
+  
 -- Ahh quick workaround to remove sequences!!!
 update @results_schema.pnc_tx_stage_combination set concept_id = null, concept_name = null;
