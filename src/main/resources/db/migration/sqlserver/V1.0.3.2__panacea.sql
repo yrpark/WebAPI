@@ -31,7 +31,9 @@ CREATE TABLE ${ohdsiSchema}.panacea_study
 
 CREATE TABLE ${ohdsiSchema}.pnc_tx_stage_combination
 (
-    pnc_tx_stg_cmb_id INT IDENTITY (1, 1) PRIMARY KEY,
+-- stupid workaround for not being able to use SCOPE_IDENTITY() as auto generated ID for next pnc_tx_stage_combination_map insert (just use max())
+--    pnc_tx_stg_cmb_id INT IDENTITY (1, 1) PRIMARY KEY,
+    pnc_tx_stg_cmb_id INT PRIMARY KEY,
 --    pnc_tx_stg_cmb_id BIGINT NOT NULL DEFAULT NEXT VALUE FOR ${ohdsiSchema}.seq_pnc_tx_stg_cmb PRIMARY KEY,
     study_id    INT,
 -- quick workaround for removing sequence...
@@ -40,6 +42,9 @@ CREATE TABLE ${ohdsiSchema}.pnc_tx_stage_combination
     concept_name VARCHAR(255)
 --    CONSTRAINT fk_pnctxcmb_pncstdy FOREIGN KEY (study_id) REFERENCES ${ohdsiSchema}.panacea_study (study_id)
 );
+
+insert into ${ohdsiSchema}.pnc_tx_stage_combination (pnc_tx_stg_cmb_id, study_id, concept_id, concept_name)
+values (0, null, 0, 'No matching concept');
 
 --CREATE SEQUENCE ${ohdsiSchema}.seq_pnc_tx_stg_cmb_mp
 --START WITH 1

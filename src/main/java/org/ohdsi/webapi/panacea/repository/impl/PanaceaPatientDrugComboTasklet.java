@@ -1045,23 +1045,27 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             
             final String sourceDialect = (String) jobParams.get("sourceDialect");
             
-            if ("sql server".equalsIgnoreCase(sourceDialect)) {
+            /**
+             * oracle and postgres: use sequence for generating
+             * pnc_tx_stage_combination.PNC_TX_STG_CMB_ID
+             */
+            if ("oracle".equalsIgnoreCase(sourceDialect)) {
                 for (final PanaceaStageCombination psc : newPSCombo) {
                     sql += "delete from #_pnc_tmp_mssql_seq_id; \n "
-                            + "insert INTO @results_schema.pnc_tx_stage_combination (STUDY_ID) \n" + "values (@studyId) \n"
-                            //+ "GO \n"
-                            + "SELECT SCOPE_IDENTITY() AS [SCOPE_IDENTITY]; \n"
-                            //+ "GO \n"
-                            + "insert into #_pnc_tmp_mssql_seq_id (nextcombid) \n" + "SELECT @@IDENTITY AS [@@IDENTITY]; \n";
-                    //+ "GO \n";
+                            + "insert into #_pnc_tmp_mssql_seq_id select @results_schema.seq_pnc_tx_stg_cmb.NEXTVAL from dual; \n";
                     
                     for (final PanaceaStageCombinationMap pscm : psc.getCombMapList()) {
-                        sql += "insert into @results_schema.pnc_tx_stage_combination_map (pnc_tx_stg_cmb_id, concept_id, concept_name) \n"
-                                + "select nextcombid, \n" + pscm.getConceptId().toString() + ", '" + pscm.getConceptName()
+                        sql += "insert into @results_schema.pnc_tx_stage_combination_map (pnc_tx_stg_cmb_mp_id, pnc_tx_stg_cmb_id, concept_id, concept_name) \n"
+                                + "select @results_schema.seq_pnc_tx_stg_cmb_mp.NEXTVAL, nextcombid, \n"
+                                + pscm.getConceptId().toString() + ", '" + pscm.getConceptName()
                                 + "' from #_pnc_tmp_mssql_seq_id; \n";
                     }
+                    
+                    sql += "insert INTO @results_schema.pnc_tx_stage_combination (PNC_TX_STG_CMB_ID,STUDY_ID) \n"
+                            + "select nextcombid, @studyId from #_pnc_tmp_mssql_seq_id; \n";
                 }
             } else if ("postgresql".equalsIgnoreCase(sourceDialect)) {
+                //TODO - double check on this (if need to refactor out all postgres related sequenace, etc. It's actually good to use sequence than the silly workaround!!!)
                 for (final PanaceaStageCombination psc : newPSCombo) {
                     sql += "delete from #_pnc_tmp_mssql_seq_id; \n "
                             + "insert into #_pnc_tmp_mssql_seq_id select nextval('@results_schema.seq_pnc_tx_stg_cmb'); \n";
@@ -1077,20 +1081,41 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                             + "select nextcombid, @studyId from #_pnc_tmp_mssql_seq_id; \n";
                 }
             } else {
-                //oracle as default
+                /**
+                 * sql server as default:
+                 */
+                
                 for (final PanaceaStageCombination psc : newPSCombo) {
+                    /**
+                     * stupid workaround refactoring for not being able to use SCOPE_IDENTITY() as
+                     * auto generated ID for next pnc_tx_stage_combination_map insert (just use
+                     * max()) SqlRender does not support SCOPE_IDENTITY
+                     */
+                    //                    sql += "delete from #_pnc_tmp_mssql_seq_id; \n "
+                    //                            + "insert INTO @results_schema.pnc_tx_stage_combination (STUDY_ID) \n" + "values (@studyId) \n"
+                    //                            //+ "GO \n"
+                    //                            + "SELECT SCOPE_IDENTITY() AS [SCOPE_IDENTITY]; \n"
+                    //                            //+ "GO \n"
+                    //                            + "insert into #_pnc_tmp_mssql_seq_id (nextcombid) \n" + "SELECT @@IDENTITY AS [@@IDENTITY]; \n";
+                    //                    //+ "GO \n";
+                    //                    
+                    //                    for (final PanaceaStageCombinationMap pscm : psc.getCombMapList()) {
+                    //                        sql += "insert into @results_schema.pnc_tx_stage_combination_map (pnc_tx_stg_cmb_id, concept_id, concept_name) \n"
+                    //                                + "select nextcombid, \n" + pscm.getConceptId().toString() + ", '" + pscm.getConceptName()
+                    //                                + "' from #_pnc_tmp_mssql_seq_id; \n";
+                    //                    }
                     sql += "delete from #_pnc_tmp_mssql_seq_id; \n "
-                            + "insert into #_pnc_tmp_mssql_seq_id select @results_schema.seq_pnc_tx_stg_cmb.NEXTVAL from dual; \n";
+                            + "insert INTO @results_schema.pnc_tx_stage_combination (pnc_tx_stg_cmb_id, study_id) \n"
+                            + "SELECT MAX(pnc_tx_stg_cmb_id)+1, @studyId \n"
+                            + "from @results_schema.pnc_tx_stage_combination; \n"
+                            + "insert into #_pnc_tmp_mssql_seq_id (nextcombid) \n"
+                            + "select MAX(pnc_tx_stg_cmb_id) from @results_schema.pnc_tx_stage_combination; \n";
                     
                     for (final PanaceaStageCombinationMap pscm : psc.getCombMapList()) {
-                        sql += "insert into @results_schema.pnc_tx_stage_combination_map (pnc_tx_stg_cmb_mp_id, pnc_tx_stg_cmb_id, concept_id, concept_name) \n"
-                                + "select @results_schema.seq_pnc_tx_stg_cmb_mp.NEXTVAL, nextcombid, \n"
-                                + pscm.getConceptId().toString() + ", '" + pscm.getConceptName()
+                        sql += "insert into @results_schema.pnc_tx_stage_combination_map (pnc_tx_stg_cmb_id, concept_id, concept_name) \n"
+                                + "select nextcombid, \n" + pscm.getConceptId().toString() + ", '" + pscm.getConceptName()
                                 + "' from #_pnc_tmp_mssql_seq_id; \n";
                     }
-                    
-                    sql += "insert INTO @results_schema.pnc_tx_stage_combination (PNC_TX_STG_CMB_ID,STUDY_ID) \n"
-                            + "select nextcombid, @studyId from #_pnc_tmp_mssql_seq_id; \n";
                 }
             }
             
@@ -1107,7 +1132,7 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
             
             this.batchUpdate(sql);
         }
-    };
+    }
     
     /**
      * OHDSI-75: For all 3 databases now, difference is sql server version cannot use sequence for
