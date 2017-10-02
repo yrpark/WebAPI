@@ -25,37 +25,84 @@ from
     group by ptTxPath.combo_ids, ptTxPath.combo_seq, ptTxPath.tx_seq, ptTxPath.result_version) aggregatePath;
 
 -- version = 1
-merge into @results_schema.pnc_study_summary_path  m
-using
-  (
-	select pathsum.%%physloc%% as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
+-- refactor for removing %%physloc%% and get rid of merge
+--merge into @results_schema.pnc_study_summary_path  m
+--using
+--  (
+--	select pathsum.%%physloc%% as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
+--    parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(parentPath.tx_stg_cnt as float) * 100,2),0) percentage
+--    from @results_schema.pnc_study_summary_path pathSum
+--    join (select %%physloc%% as rowid, SUBSTRING(tx_stg_cmb_pth , 0 , len(tx_stg_cmb_pth) - len(tx_stg_cmb) ) as parentPath
+--    from @results_schema.pnc_study_summary_path
+--    where study_id = @studyId and tx_rslt_version = 1 
+--    ) updateParentPath
+--    on updateParentPath.rowid = pathSum.%%physloc%%
+--    join @results_schema.pnc_study_summary_path parentPath
+--    on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
+--    and parentPath.study_id = @studyId
+--    and parentPath.tx_rslt_version = 1
+--    where pathSum.study_id = @studyId 
+--    and pathSum.tx_rslt_version = 1 
+--    and parentPath.tx_rslt_version = 1 
+--    group by pathsum.%%physloc%%, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
+--  ) m1
+--  on
+--  (
+--     m.%%physloc%% = m1.the_rowid
+--  )
+--  WHEN MATCHED then update set m.tx_path_parent_key = m1.parentKey, m.tx_stg_percentage = m1.percentage;
+update m
+set m.tx_path_parent_key = m1.parentKey, m.tx_stg_percentage = m1.percentage
+from 
+@results_schema.pnc_study_summary_path m
+join (
+    select pathSum.pnc_stdy_smry_id, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath,
     parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(parentPath.tx_stg_cnt as float) * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum
-    join (select %%physloc%% as rowid, SUBSTRING(tx_stg_cmb_pth , 0 , len(tx_stg_cmb_pth) - len(tx_stg_cmb) ) as parentPath
+    join (select SUBSTRING(tx_stg_cmb_pth , 0 , len(tx_stg_cmb_pth) - len(tx_stg_cmb) ) as parentPath
+    ,*
     from @results_schema.pnc_study_summary_path
-    where study_id = @studyId and tx_rslt_version = 1 
+    where study_id = 3 and tx_rslt_version = 1 
     ) updateParentPath
-    on updateParentPath.rowid = pathSum.%%physloc%%
+    on updateParentPath.pnc_stdy_smry_id = pathSum.pnc_stdy_smry_id
     join @results_schema.pnc_study_summary_path parentPath
     on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
-    and parentPath.study_id = @studyId
+    and parentPath.study_id = 3
     and parentPath.tx_rslt_version = 1
-    where pathSum.study_id = @studyId 
-    and pathSum.tx_rslt_version = 1 
+    where pathSum.study_id = 3
+    and pathSum.tx_rslt_version = 1
     and parentPath.tx_rslt_version = 1 
-    group by pathsum.%%physloc%%, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
-  ) m1
-  on
-  (
-     m.%%physloc%% = m1.the_rowid
-  )
-  WHEN MATCHED then update set m.tx_path_parent_key = m1.parentKey, m.tx_stg_percentage = m1.percentage;
+    group by pathsum.pnc_stdy_smry_id, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
+) m1
+on m.pnc_stdy_smry_id = m1.pnc_stdy_smry_id
+;
 
 
-merge into @results_schema.pnc_study_summary_path  m
-using
-  (
-    select pathsum.%%physloc%% as the_rowid, rootCount.totalRootCount,
+-- refactor for removing %%physloc%% and get rid of merge
+--merge into @results_schema.pnc_study_summary_path  m
+--using
+--  (
+--    select pathsum.%%physloc%% as the_rowid, rootCount.totalRootCount,
+--    rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(rootCount.totalRootCount as float) * 100,2),0) percentage
+--    from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
+--    where tx_path_parent_key is null and tx_rslt_version = 1
+--      and study_id = @studyId 
+--      ) rootCount
+--    where tx_path_parent_key is null
+--    and pathSum.study_id = @studyId 
+--    and pathsum.tx_rslt_version = 1
+--  ) m1
+--  on
+--  (
+--     m.%%physloc%% = m1.the_rowid
+--  )
+--  WHEN MATCHED then update set m.tx_stg_percentage = m1.percentage;
+update m
+set m.tx_stg_percentage = m1.percentage
+from 
+@results_schema.pnc_study_summary_path m
+join (
+    select pathsum.pnc_stdy_smry_id, rootCount.totalRootCount,
     rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(rootCount.totalRootCount as float) * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
     where tx_path_parent_key is null and tx_rslt_version = 1
@@ -64,25 +111,51 @@ using
     where tx_path_parent_key is null
     and pathSum.study_id = @studyId 
     and pathsum.tx_rslt_version = 1
-  ) m1
-  on
-  (
-     m.%%physloc%% = m1.the_rowid
-  )
-  WHEN MATCHED then update set m.tx_stg_percentage = m1.percentage;
+) m1
+on m.pnc_stdy_smry_id = m1.pnc_stdy_smry_id
+;
 
 -- version = 2
-merge into @results_schema.pnc_study_summary_path  m
-using
-  (
-	select pathsum.%%physloc%% as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
+-- refactor for removing %%physloc%% and get rid of merge
+--merge into @results_schema.pnc_study_summary_path  m
+--using
+--  (
+--	select pathsum.%%physloc%% as the_rowid, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
+--    parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(parentPath.tx_stg_cnt as float) * 100,2),0) percentage
+--    from @results_schema.pnc_study_summary_path pathSum
+--    join (select %%physloc%% as rowid, SUBSTRING(tx_stg_cmb_pth , 0 , len(tx_stg_cmb_pth) - len(tx_stg_cmb) ) as parentPath
+--    from @results_schema.pnc_study_summary_path
+--    where study_id = @studyId and tx_rslt_version = 2 
+--    ) updateParentPath
+--    on updateParentPath.rowid = pathSum.%%physloc%%
+--    join @results_schema.pnc_study_summary_path parentPath
+--    on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
+--    and parentPath.study_id = @studyId
+--    and parentPath.tx_rslt_version = 2
+--    where pathSum.study_id = @studyId 
+--    and pathSum.tx_rslt_version = 2 
+--    and parentPath.tx_rslt_version = 2 
+--    group by pathsum.%%physloc%%, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
+--  ) m1
+--  on
+--  (
+--     m.%%physloc%% = m1.the_rowid
+--  )
+--  WHEN MATCHED then update set m.tx_path_parent_key = m1.parentKey, m.tx_stg_percentage = m1.percentage;
+update m
+set m.tx_path_parent_key = m1.parentKey, m.tx_stg_percentage = m1.percentage
+from 
+@results_schema.pnc_study_summary_path m
+join (
+  	select pathsum.pnc_stdy_smry_id, parentpath.pnc_stdy_smry_id as parentKey, updateParentPath.parentPath pPath, 
     parentPath.tx_stg_cnt parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(parentPath.tx_stg_cnt as float) * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum
-    join (select %%physloc%% as rowid, SUBSTRING(tx_stg_cmb_pth , 0 , len(tx_stg_cmb_pth) - len(tx_stg_cmb) ) as parentPath
+    join (select SUBSTRING(tx_stg_cmb_pth , 0 , len(tx_stg_cmb_pth) - len(tx_stg_cmb) ) as parentPath
+    , *
     from @results_schema.pnc_study_summary_path
     where study_id = @studyId and tx_rslt_version = 2 
     ) updateParentPath
-    on updateParentPath.rowid = pathSum.%%physloc%%
+    on updateParentPath.pnc_stdy_smry_id = pathSum.pnc_stdy_smry_id
     join @results_schema.pnc_study_summary_path parentPath
     on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
     and parentPath.study_id = @studyId
@@ -90,18 +163,36 @@ using
     where pathSum.study_id = @studyId 
     and pathSum.tx_rslt_version = 2 
     and parentPath.tx_rslt_version = 2 
-    group by pathsum.%%physloc%%, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
-  ) m1
-  on
-  (
-     m.%%physloc%% = m1.the_rowid
-  )
-  WHEN MATCHED then update set m.tx_path_parent_key = m1.parentKey, m.tx_stg_percentage = m1.percentage;
+    group by pathsum.pnc_stdy_smry_id, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
+) m1
+on m.pnc_stdy_smry_id = m1.pnc_stdy_smry_id
+;
 
-merge into @results_schema.pnc_study_summary_path  m
-using
-  (
-    select pathsum.%%physloc%% as the_rowid, rootCount.totalRootCount,
+-- refactor for removing %%physloc%% and get rid of merge
+--merge into @results_schema.pnc_study_summary_path  m
+--using
+--  (
+--    select pathsum.%%physloc%% as the_rowid, rootCount.totalRootCount,
+--    rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(rootCount.totalRootCount as float) * 100,2),0) percentage
+--    from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
+--    where tx_path_parent_key is null and tx_rslt_version = 2
+--      and study_id = @studyId 
+--      ) rootCount
+--    where tx_path_parent_key is null
+--    and pathSum.study_id = @studyId 
+--    and pathsum.tx_rslt_version = 2
+--  ) m1
+--  on
+--  (
+--     m.%%physloc%% = m1.the_rowid
+--  )
+--  WHEN MATCHED then update set m.tx_stg_percentage = m1.percentage;
+update m
+set m.tx_stg_percentage = m1.percentage
+from 
+@results_schema.pnc_study_summary_path m
+join (  
+    select pathsum.pnc_stdy_smry_id, rootCount.totalRootCount,
     rootCount.totalRootCount parentCount, pathSum.tx_stg_cnt childCount, isnull(ROUND(cast(pathSum.tx_stg_cnt as float)/cast(rootCount.totalRootCount as float) * 100,2),0) percentage
     from @results_schema.pnc_study_summary_path pathSum, (select sum(tx_stg_cnt) totalRootCount from @results_schema.pnc_study_summary_path
     where tx_path_parent_key is null and tx_rslt_version = 2
@@ -110,12 +201,9 @@ using
     where tx_path_parent_key is null
     and pathSum.study_id = @studyId 
     and pathsum.tx_rslt_version = 2
-  ) m1
-  on
-  (
-     m.%%physloc%% = m1.the_rowid
-  )
-  WHEN MATCHED then update set m.tx_stg_percentage = m1.percentage;
+) m1
+on m.pnc_stdy_smry_id = m1.pnc_stdy_smry_id
+;
 
 delete from @results_schema.pnc_study_summary where study_id = @studyId ;
 
