@@ -236,6 +236,14 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
                 }
             }
             
+            /**
+             * refactor for summary generate scripts for sql server's FOR XML PATH. look into
+             * insertPncSmryMsqlCmb method
+             */
+            if (!"oracle".equals(sourceDialect) && !"postgresql".equals(sourceDialect)) {
+                this.insertPncSmryMsqlCmb(jobParams, chunkContext);
+            }
+            
             return RepeatStatus.FINISHED;
         } catch (final Exception e) {
             e.printStackTrace();
@@ -1135,6 +1143,100 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
     }
     
     /**
+     * <pre>
+     * refactoring from summary generation sql scripts for removing using of sql server's: FOR XML PATH() for generating "collapsed" 
+     * concept_name, concept_id and json based string like:
+     * "1314002,974166,"
+     * "[{"innerConceptName":"Atenolol","innerConceptId":1314002},{"innerConceptName":"Hydrochlorothiazide","innerConceptId":974166}]"
+     * "Atenolol,Hydrochlorothiazide,"
+     * </pre>
+     */
+    private void insertPncSmryMsqlCmb(final Map<String, Object> jobParams, final ChunkContext chunkContext) {
+        String sql = "select comb.pnc_tx_stg_cmb_id comb_id, combMap.concept_id concept_id, combMap.concept_name concept_name \n"
+                + "from @results_schema.pnc_tx_stage_combination comb \n"
+                + "join @results_schema.pnc_tx_stage_combination_map combMap \n"
+                + "on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id \n" + "where comb.study_id = @studyId \n"
+                + "order by comb.pnc_tx_stg_cmb_id; \n";
+        
+        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        
+        final String[] params = new String[] { "results_schema", "studyId" };
+        final String[] values = new String[] { resultsTableQualifier, this.pncStudy.getStudyId().toString() };
+        
+        String jobExecId = chunkContext.getStepContext().getStepExecution().getJobExecution().getId().toString();
+        
+        sql = SqlRender.renderSql(sql, params, values);
+        sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
+        
+        List<PncTmpCmb> pncTmpCmbList = PanaceaPatientDrugComboTasklet.this.jdbcTemplate.query(sql, new RowMapper() {
+            
+            
+            @Override
+            public Object mapRow(ResultSet rs, int rowNum) throws SQLException {
+                PncTmpCmb ptc = new PncTmpCmb();
+                
+                ptc.setCmbId(rs.getLong("comb_id"));
+                ptc.setConceptId(rs.getLong("concept_id"));
+                ptc.setConceptName(rs.getString("concept_name"));
+                
+                return ptc;
+            }
+            
+        });
+        
+        Map<Long, List<PncTmpCmb>> pncTmpCmbMap = new HashMap<Long, List<PncTmpCmb>>();
+        for (PncTmpCmb ptc : pncTmpCmbList) {
+            if (!pncTmpCmbMap.containsKey(ptc.getCmbId())) {
+                List<PncTmpCmb> ptcList = new ArrayList<PncTmpCmb>();
+                pncTmpCmbMap.put(ptc.getCmbId(), ptcList);
+            }
+            pncTmpCmbMap.get(ptc.getCmbId()).add(ptc);
+        }
+        
+        String insertSql = "";
+        String insertCmbSql = "insert into @pnc_smry_msql_cmb (job_execution_id, pnc_tx_stg_cmb_id, concept_ids, conceptsArray, conceptsName) \n"
+                + "VALUES (";
+        String insertCmbSqlEnd = " ); \n";
+        long jobExeId = chunkContext.getStepContext().getStepExecution().getJobExecution().getId();
+        for (Map.Entry<Long, List<PncTmpCmb>> entry : pncTmpCmbMap.entrySet()) {
+            if (entry.getValue() != null && entry.getKey() != null) {
+                long cmdId = entry.getKey();
+                String conceptIds = "";
+                //[{"innerConceptName":"Atenolol","innerConceptId":1314002},{"innerConceptName":"Hydrochlorothiazide","innerConceptId":974166}]
+                String conceptArrays = "[";
+                String conceptNames = "";
+                
+                int i = 0;
+                for (PncTmpCmb pncTmpCmb : entry.getValue()) {
+                    conceptIds = conceptIds.concat(pncTmpCmb.getConceptId() + ",");
+                    if (i > 0) {
+                        conceptArrays = conceptArrays.concat(",");
+                    }
+                    conceptArrays = conceptArrays.concat("{\"innerConceptName\":\"" + pncTmpCmb.getConceptName()
+                            + "\",\"innerConceptId\":" + pncTmpCmb.getConceptId() + "}");
+                    conceptNames = conceptNames.concat(pncTmpCmb.getConceptName() + ",");
+                    i++;
+                }
+                conceptArrays = conceptArrays.concat("]");
+                insertSql = insertSql.concat(insertCmbSql).concat(Long.toString(jobExeId) + ",")
+                        .concat(Long.toString(cmdId) + ",").concat("'" + conceptIds + "',")
+                        .concat("'" + conceptArrays + "',").concat("'" + conceptNames + "'").concat(insertCmbSqlEnd);
+            }
+        }
+        
+        final String pncSmryMsqlCmbFullPathTableString = (String) jobParams.get("pnc_smry_msql_cmb");
+        
+        final String[] isnertParams = new String[] { "pnc_smry_msql_cmb" };
+        final String[] insertValues = new String[] { pncSmryMsqlCmbFullPathTableString };
+        
+        insertSql = SqlRender.renderSql(insertSql, isnertParams, insertValues);
+        insertSql = SqlTranslate.translateSql(insertSql, "sql server", sourceDialect, null, resultsTableQualifier);
+        
+        this.batchUpdate(insertSql);
+    }
+    
+    /**
      * OHDSI-75: For all 3 databases now, difference is sql server version cannot use sequence for
      * Janssen... Originally: sql server workaround (hibernate does not support sequence for sql
      * server dialect. Cause id always 0 for saved/persistent objects. That cases same session
@@ -1169,6 +1271,58 @@ public class PanaceaPatientDrugComboTasklet implements Tasklet {
         
         if (ret != null) {
             log.debug("Finished adding combo/map in batchUpdate: " + ret.toString());
+        }
+    }
+    
+    class PncTmpCmb {
+        
+        
+        long cmbId;
+        
+        long conceptId;
+        
+        String conceptName;
+        
+        /**
+         * @return the cmbId
+         */
+        public long getCmbId() {
+            return cmbId;
+        }
+        
+        /**
+         * @param cmbId the cmbId to set
+         */
+        public void setCmbId(long cmbId) {
+            this.cmbId = cmbId;
+        }
+        
+        /**
+         * @return the conceptId
+         */
+        public long getConceptId() {
+            return conceptId;
+        }
+        
+        /**
+         * @param conceptId the conceptId to set
+         */
+        public void setConceptId(long conceptId) {
+            this.conceptId = conceptId;
+        }
+        
+        /**
+         * @return the conceptName
+         */
+        public String getConceptName() {
+            return conceptName;
+        }
+        
+        /**
+         * @param conceptName the conceptName to set
+         */
+        public void setConceptName(String conceptName) {
+            this.conceptName = conceptName;
         }
     }
 }

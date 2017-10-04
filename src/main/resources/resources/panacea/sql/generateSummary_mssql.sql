@@ -1,4 +1,5 @@
-delete from @pnc_smry_msql_cmb where job_execution_id = @jobExecId;
+-- refactored to remove not supported SqlRender "for xml path()" look into PanaceaPatientDrugComboTasklet.insertPncSmryMsqlCmb
+--delete from @pnc_smry_msql_cmb where job_execution_id = @jobExecId;
 delete from @pnc_indv_jsn where job_execution_id = @jobExecId;
 delete from @pnc_unq_trtmt where job_execution_id = @jobExecId;
 delete from @pnc_unq_pth_id where job_execution_id = @jobExecId;
@@ -209,58 +210,59 @@ delete from @results_schema.pnc_study_summary where study_id = @studyId ;
 
 
 ---------------ms sql collapse/merge multiple rows to concatenate strings (JSON string for conceptsArrary and conceptsName) ------
-insert into @pnc_smry_msql_cmb (job_execution_id, pnc_tx_stg_cmb_id, concept_ids, conceptsArray, conceptsName)
-select @jobExecId, comb_id, concept_ids, conceptsArray, conceptsName 
-from
-(
-select distinct @jobExecId as jobExecId, tab1.pnc_tx_stg_cmb_id as comb_id,
-  STUFF((SELECT distinct CAST(tab2.concept_id as varchar(max)) + ','
-         from 
-         (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
-            from @results_schema.pnc_tx_stage_combination comb
-            join @results_schema.pnc_tx_stage_combination_map combMap 
-              on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
-              where comb.study_id = @studyId
-         ) tab2
-         where tab1.pnc_tx_stg_cmb_id = tab2.pnc_tx_stg_cmb_id
-            FOR XML PATH(''), TYPE
-            ).value('.', 'NVARCHAR(MAX)') 
-        ,1,0,'') as concept_ids,
-  '[' + STUFF((SELECT distinct ',{"innerConceptName":' + '"' + tab2.concept_name + '"' + 
-    ',"innerConceptId":' + convert(varchar, tab2.concept_id) + '}'
-         from 
-         (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
-            from @results_schema.pnc_tx_stage_combination comb
-            join @results_schema.pnc_tx_stage_combination_map combMap 
-              on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
-              where comb.study_id = @studyId
-         ) tab2
-         where tab1.pnc_tx_stg_cmb_id = tab2.pnc_tx_stg_cmb_id
-            FOR XML PATH(''), TYPE
-            ).value('.', 'NVARCHAR(MAX)') 
-        ,1,0,'') +  ']' as conceptsArray,
-  STUFF((SELECT distinct tab2.concept_name + ','
-         from 
-         (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
-            from @results_schema.pnc_tx_stage_combination comb
-            join @results_schema.pnc_tx_stage_combination_map combMap 
-              on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
-              where comb.study_id = @studyId
-         ) tab2
-         where tab1.pnc_tx_stg_cmb_id = tab2.pnc_tx_stg_cmb_id
-            FOR XML PATH(''), TYPE
-            ).value('.', 'NVARCHAR(MAX)') 
-        ,1,0,'') as conceptsName
-from (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
-        from @results_schema.pnc_tx_stage_combination comb
-        join @results_schema.pnc_tx_stage_combination_map combMap 
-          on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
-          where comb.study_id = @studyId) tab1
-) studyCombo;
-
-update @pnc_smry_msql_cmb 
-set conceptsArray = '[' + substring(conceptsArray, 3, len(conceptsArray))
-where job_execution_id = @jobExecId;
+-- refactored to remove not supported SqlRender "for xml path()" look into PanaceaPatientDrugComboTasklet.insertPncSmryMsqlCmb
+--insert into @pnc_smry_msql_cmb (job_execution_id, pnc_tx_stg_cmb_id, concept_ids, conceptsArray, conceptsName)
+--select @jobExecId, comb_id, concept_ids, conceptsArray, conceptsName 
+--from
+--(
+--select distinct @jobExecId as jobExecId, tab1.pnc_tx_stg_cmb_id as comb_id,
+--  STUFF((SELECT distinct CAST(tab2.concept_id as varchar(max)) + ','
+--         from 
+--         (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
+--            from @results_schema.pnc_tx_stage_combination comb
+--            join @results_schema.pnc_tx_stage_combination_map combMap 
+--              on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
+--              where comb.study_id = @studyId
+--         ) tab2
+--         where tab1.pnc_tx_stg_cmb_id = tab2.pnc_tx_stg_cmb_id
+--            FOR XML PATH(''), TYPE
+--            ).value('.', 'NVARCHAR(MAX)') 
+--        ,1,0,'') as concept_ids,
+--  '[' + STUFF((SELECT distinct ',{"innerConceptName":' + '"' + tab2.concept_name + '"' + 
+--    ',"innerConceptId":' + convert(varchar, tab2.concept_id) + '}'
+--         from 
+--         (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
+--            from @results_schema.pnc_tx_stage_combination comb
+--            join @results_schema.pnc_tx_stage_combination_map combMap 
+--              on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
+--              where comb.study_id = @studyId
+--         ) tab2
+--         where tab1.pnc_tx_stg_cmb_id = tab2.pnc_tx_stg_cmb_id
+--            FOR XML PATH(''), TYPE
+--            ).value('.', 'NVARCHAR(MAX)') 
+--        ,1,0,'') +  ']' as conceptsArray,
+--  STUFF((SELECT distinct tab2.concept_name + ','
+--         from 
+--         (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
+--            from @results_schema.pnc_tx_stage_combination comb
+--            join @results_schema.pnc_tx_stage_combination_map combMap 
+--              on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
+--              where comb.study_id = @studyId
+--         ) tab2
+--         where tab1.pnc_tx_stg_cmb_id = tab2.pnc_tx_stg_cmb_id
+--            FOR XML PATH(''), TYPE
+--            ).value('.', 'NVARCHAR(MAX)') 
+--        ,1,0,'') as conceptsName
+--from (select comb.study_id as study_id, comb.pnc_tx_stg_cmb_id as pnc_tx_stg_cmb_id, combmap.concept_id as concept_id, combmap.concept_name as concept_name
+--        from @results_schema.pnc_tx_stage_combination comb
+--        join @results_schema.pnc_tx_stage_combination_map combMap 
+--          on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
+--          where comb.study_id = @studyId) tab1
+--) studyCombo;
+--
+--update @pnc_smry_msql_cmb 
+--set conceptsArray = '[' + substring(conceptsArray, 3, len(conceptsArray))
+--where job_execution_id = @jobExecId;
 
 -----------------generate rows of JSON (based on hierarchical data, without using oracle connect/level, each path is a row) insert into temp table----------------------
 
