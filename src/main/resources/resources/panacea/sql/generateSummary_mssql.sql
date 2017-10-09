@@ -515,39 +515,68 @@ on
 WHEN MATCHED then update set m.path_unique_treatment = m1.modified_concepts;
 
 --split conceptIds with "," from #_pnc_unq_trtmt per smry_id and insert order by lastPos (which is used as the order of the concepts in the path)
-WITH splitter_cte(smry_id, origin, pos, lastPos) AS (
-      SELECT 
-        pnc_stdy_smry_id smry_id,
-        path_unique_treatment as origin,
---        CHARINDEX(path_unique_treatment, ',') as pos,
-        CHARINDEX(',', path_unique_treatment) as pos, 
-        0 as lastPos
-      from @pnc_unq_trtmt
-      where job_execution_id = @jobExecId
-      UNION ALL
-      SELECT 
-        smry_id as smry_id,
-        origin as origin, 
- --       CHARINDEX(origin, ',', pos + 1) as pos,
- 		CHARINDEX(',', origin, pos + 1) as pos,  
-        pos as lastPos
-      FROM splitter_cte
-      WHERE pos > 0
-    )
+--remove splitter_cte
+--WITH splitter_cte(smry_id, origin, pos, lastPos) AS (
+--      SELECT 
+--        pnc_stdy_smry_id smry_id,
+--        path_unique_treatment as origin,
+--        CHARINDEX(',', path_unique_treatment) as pos, 
+--        0 as lastPos
+--      from @pnc_unq_trtmt
+--      where job_execution_id = @jobExecId
+--      UNION ALL
+--      SELECT 
+--        smry_id as smry_id,
+--        origin as origin, 
+-- 		CHARINDEX(',', origin, pos + 1) as pos,  
+--        pos as lastPos
+--      FROM splitter_cte
+--      WHERE pos > 0
+--    )
+--insert into @pnc_unq_pth_id (job_execution_id, pnc_tx_smry_id, concept_id, concept_order)
+--SELECT 
+--	  @jobExecId,
+--      smry_id, 
+--      SUBSTRING(origin, lastPos + 1,
+--        case when pos = 0 then 80000
+--        else pos - lastPos -1 end) as ids,
+--      lastPos
+--    FROM splitter_cte
+--    order by smry_id, ids;
+create table #tmp_numbers(
+ID int
+);
+
+-- stupid workaround for not using identiy/primary key/sequence in #tmp_numbers (dont think Sql Render support this in temp table creation!!!) 
+insert into #tmp_numbers (ID)
+select top 8000 row_number() over (order by concept_id) from @cdm_schema.concept;
+
+create table #temp(
+-- use auto incremental primary key is the best, but dont think Sql Render support this!!!
+--ID int identity(1,1) primary key,
+ID int,
+StringValues varchar(8000),
+pnc_stdy_smry_id bigint
+);
+
+insert into #temp(ID, StringValues, pnc_stdy_smry_id)
+select ROW_NUMBER() OVER(ORDER BY (select NULL as noorder)), 
+substring(',' + trtmt.path_unique_treatment,ID+1,charindex(',',',' + trtmt.path_unique_treatment,ID+1)-ID-1), 
+trtmt.pnc_stdy_smry_id
+from #tmp_numbers, @pnc_unq_trtmt trtmt where ID < len(',' + trtmt.path_unique_treatment)
+and substring(',' + trtmt.path_unique_treatment,ID,1) = ','
+and trtmt.job_execution_id = @jobExecId;
+
 insert into @pnc_unq_pth_id (job_execution_id, pnc_tx_smry_id, concept_id, concept_order)
-SELECT 
-	  @jobExecId,
-      smry_id, 
---      origin, 
-      SUBSTRING(origin, lastPos + 1,
-        case when pos = 0 then 80000
-        else pos - lastPos -1 end) as ids,
---      pos,
-      lastPos
-    FROM splitter_cte
---try this (need more test): for order by conceptId for keep uniquenes of concept namesl like "Warfrin,Asparin" or "Asprin,Warfrin"
---    order by smry_id, lastPos) coneptIds;
-    order by smry_id, ids;
+select @jobExecId, trtmt.pnc_stdy_smry_id, CONVERT(INT, tmp.StringValues), tmp.ID
+from @pnc_unq_trtmt trtmt, #temp tmp
+where trtmt.job_execution_id = @jobExecId 
+and tmp.pnc_stdy_smry_id = trtmt.pnc_stdy_smry_id
+order by trtmt.pnc_stdy_smry_id, tmp.ID;
+
+drop table #temp;
+
+drop table #tmp_numbers;
 
 --sql server workaround.......
 delete from @pnc_unq_pth_id 
@@ -556,98 +585,216 @@ where
  and (concept_id = 0 or concept_id is null); 
 
 --delete duplicate concept_id per smry_id in the path if it's not the first on in the path by min(concept_order)
-delete from @pnc_unq_pth_id 
-where %%physloc%% in (select conceptIds.%%physloc%% from @pnc_unq_pth_id conceptIds, 
+--refactor for removing %%physloc%% 
+--delete from @pnc_unq_pth_id 	
+--where %%physloc%% in (select conceptIds.%%physloc%% from @pnc_unq_pth_id conceptIds, 
+--  (select pnc_tx_smry_id, concept_id, min(concept_order) as concept_order
+--    from @pnc_unq_pth_id
+--    where job_execution_id = @jobExecId
+--    group by pnc_tx_smry_id, concept_id
+--  ) uniqueIds
+--where
+--  conceptIds.pnc_tx_smry_id = uniqueIds.pnc_tx_smry_id
+--  and conceptIds.concept_id = uniqueIds.concept_id
+--  and conceptIds.concept_order != uniqueIds.concept_order
+--  and conceptIds.job_execution_id = @jobExecId
+--)
+--and job_execution_id = @jobExecId;
+delete from @pnc_unq_pth_id
+where exists(
+select * from
   (select pnc_tx_smry_id, concept_id, min(concept_order) as concept_order
     from @pnc_unq_pth_id
     where job_execution_id = @jobExecId
     group by pnc_tx_smry_id, concept_id
   ) uniqueIds
 where
-  conceptIds.pnc_tx_smry_id = uniqueIds.pnc_tx_smry_id
-  and conceptIds.concept_id = uniqueIds.concept_id
-  and conceptIds.concept_order != uniqueIds.concept_order
-  and conceptIds.job_execution_id = @jobExecId
-)
-and job_execution_id = @jobExecId;
-
+  @pnc_unq_pth_id.pnc_tx_smry_id = uniqueIds.pnc_tx_smry_id
+  and @pnc_unq_pth_id.concept_id = uniqueIds.concept_id
+  and @pnc_unq_pth_id.concept_order != uniqueIds.concept_order
+  and @pnc_unq_pth_id.job_execution_id = @jobExecId
+ );
+ 
 --update conceptsArray and conceptName JSON by join concept table
-merge into @pnc_unq_pth_id m
-using
+-- remove "for xml path" and merge: sql render does not support!!
+-- create a temp table #pnc_tmp_unq_pth_id_fix besically same as @pnc_unq_pth_id
+-- then insert first concept by min(concept_order) per pnc_tx_smry_id&job_execution_id
+-- then update #pnc_tmp_unq_pth_id_fix with all rest concepts with same pnc_tx_smry_id&job_execution_id
+--merge into @pnc_unq_pth_id m
+--using
+--(
+--	select path1.pnc_tx_smry_id,
+--    '[' + STUFF((SELECT distinct ',{"innerConceptName":' + '"' + path2.concept_name + '"' +
+--    ',"innerConceptId":' + convert(varchar, path2.concept_id) + '}'
+--         from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
+--			concepts.concept_name as concept_name
+--			from @pnc_unq_pth_id path
+--			join @cdm_schema.concept concepts
+--			on path.concept_id = concepts.concept_id
+--			where path.job_execution_id = @jobExecId
+--		) path2
+--         where path1.pnc_tx_smry_id = path2.pnc_tx_smry_id
+--            FOR XML PATH(''), TYPE
+--            ).value('.', 'NVARCHAR(MAX)') 
+--        ,1,0,'') +  ']' as conceptsArray,
+--	STUFF((SELECT distinct path2.concept_name + ','
+--         from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
+--			concepts.concept_name as concept_name
+--			from @pnc_unq_pth_id path
+--			join @cdm_schema.concept concepts
+--			on path.concept_id = concepts.concept_id
+--			where path.job_execution_id = @jobExecId
+--		) path2
+--         where path1.pnc_tx_smry_id = path2.pnc_tx_smry_id
+--            FOR XML PATH(''), TYPE
+--            ).value('.', 'NVARCHAR(MAX)')  
+--        ,1,0,'') as conceptsName
+--	from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
+--		concepts.concept_name as concept_name
+--		from @pnc_unq_pth_id path
+--		join @cdm_schema.concept concepts
+--		on path.concept_id = concepts.concept_id
+--		where path.job_execution_id = @jobExecId
+--	) path1
+--	group by pnc_tx_smry_id
+--) m1
+--on
+--(
+--  m.pnc_tx_smry_id = m1.pnc_tx_smry_id
+--  and m.job_execution_id = @jobExecId
+--)
+--WHEN MATCHED then update set m.conceptsArray = m1.conceptsArray,
+-- m.conceptsName = m1.conceptsName;
+--
+--update @pnc_unq_pth_id 
+--set conceptsArray = '[' + substring(conceptsArray, 3, len(conceptsArray))
+--where job_execution_id = @jobExecId;
+CREATE TABLE #pnc_tmp_unq_pth_id_fix
 (
-	select path1.pnc_tx_smry_id,
---    '[' + STUFF((SELECT distinct '{"innerConceptName":' + '"' + path2.concept_name + '"' +
-    '[' + STUFF((SELECT distinct ',{"innerConceptName":' + '"' + path2.concept_name + '"' +
-    ',"innerConceptId":' + convert(varchar, path2.concept_id) + '}'
-         from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
-			concepts.concept_name as concept_name
-			from @pnc_unq_pth_id path
-			join @cdm_schema.concept concepts
-			on path.concept_id = concepts.concept_id
-			where path.job_execution_id = @jobExecId
-		) path2
-         where path1.pnc_tx_smry_id = path2.pnc_tx_smry_id
-            FOR XML PATH(''), TYPE
-            ).value('.', 'NVARCHAR(MAX)') 
-        ,1,0,'') +  ']' as conceptsArray,
-	STUFF((SELECT distinct path2.concept_name + ','
-         from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
-			concepts.concept_name as concept_name
-			from @pnc_unq_pth_id path
-			join @cdm_schema.concept concepts
-			on path.concept_id = concepts.concept_id
-			where path.job_execution_id = @jobExecId
-		) path2
-         where path1.pnc_tx_smry_id = path2.pnc_tx_smry_id
-            FOR XML PATH(''), TYPE
-            ).value('.', 'NVARCHAR(MAX)')  
-        ,1,0,'') as conceptsName
-	from (select path.pnc_tx_smry_id as pnc_tx_smry_id, concepts.concept_id as concept_id, 
-		concepts.concept_name as concept_name
-		from @pnc_unq_pth_id path
-		join @cdm_schema.concept concepts
-		on path.concept_id = concepts.concept_id
-		where path.job_execution_id = @jobExecId
-	) path1
-	group by pnc_tx_smry_id
-) m1
-on
+    job_execution_id BIGINT,
+    pnc_tx_smry_id BIGINT,
+    concept_id BIGINT,
+    concept_order int,
+    concept_count int,
+    conceptsName varchar(1000),
+    conceptsArray varchar(1500)
+);
+
+insert into #pnc_tmp_unq_pth_id_fix(job_execution_id, pnc_tx_smry_id, concept_id, concept_order, concept_count, conceptsName, conceptsArray)
+select pId.job_execution_id, pId.pnc_tx_smry_id, pId.concept_id, pId.concept_order, pId.concept_count, 
+concepts.concept_name, 
+'[{"innerConceptName":' + '"' + concepts.concept_name + '"' + ',"innerConceptId":' + convert(varchar, concepts.concept_id) + '}'
+from @pnc_unq_pth_id pId
+join @cdm_schema.concept concepts
+on pId.concept_id = concepts.concept_id,
+(select pnc_tx_smry_id, min(concept_order) concept_order, job_execution_id  
+from  @pnc_unq_pth_id
+where job_execution_id = @jobExecId
+and concept_id != 0
+group by job_execution_id, pnc_tx_smry_id, job_execution_id) minPid
+where 
+pId.job_execution_id = minPid.job_execution_id
+and pid.pnc_tx_smry_id = minPid.pnc_tx_smry_id
+and pid.concept_order = minPid.concept_order;
+
+update a
+set a.conceptsName = a.conceptsName + allColPid.concatConceptName,
+a.conceptsArray = a.conceptsArray + allColPid.concatConceptArray
+from #pnc_tmp_unq_pth_id_fix a
+join (
+select pidFix.*, missPid.concatConceptName, missPid.concatConceptArray from #pnc_tmp_unq_pth_id_fix pidFix
+join (select pth.*, 
+',' + concepts.concept_name concatConceptName, 
+',{"innerConceptName":' + '"' + concepts.concept_name + '"' + ',"innerConceptId":' + convert(varchar, concepts.concept_id) + '}' concatConceptArray
+ from @pnc_unq_pth_id pth 
+join @cdm_schema.concept concepts
+on pth.concept_id = concepts.concept_id
+where exists
 (
-  m.pnc_tx_smry_id = m1.pnc_tx_smry_id
-  and m.job_execution_id = @jobExecId
+  select * from #pnc_tmp_unq_pth_id_fix pthFix
+  where 
+  pth.job_execution_id = @jobExecId 
+  and pth.job_execution_id = pthFix.job_execution_id 
+  and pth.pnc_tx_smry_id = pthFix.pnc_tx_smry_id
+  and pth.concept_order != pthFix.concept_order
 )
-WHEN MATCHED then update set m.conceptsArray = m1.conceptsArray,
- m.conceptsName = m1.conceptsName;
--- ,m.concept_count = m1.conceptCount;
+and pth.job_execution_id = @jobExecId
+and pth.concept_id != 0
+) missPid
+on pidFix.job_execution_id = missPid.job_execution_id
+and pidFix.pnc_tx_smry_id= missPid.pnc_tx_smry_id
+) allColPid
+on a.job_execution_id = allColPid.job_execution_id
+and a.pnc_tx_smry_id= allColPid.pnc_tx_smry_id;
 
-update @pnc_unq_pth_id 
-set conceptsArray = '[' + substring(conceptsArray, 3, len(conceptsArray))
-where job_execution_id = @jobExecId;
+update #pnc_tmp_unq_pth_id_fix
+set conceptsArray = conceptsArray + ']';
 
-merge into @pnc_unq_pth_id m
-using
+update pId
+set pId.conceptsName = fix.conceptsName,
+pId.conceptsArray = fix.conceptsArray
+from @pnc_unq_pth_id Pid
+join #pnc_tmp_unq_pth_id_fix fix
+on pId.job_execution_id = fix.job_execution_id
+and pId.pnc_tx_smry_id = fix.pnc_tx_smry_id;
+
+drop table #pnc_tmp_unq_pth_id_fix;
+
+-- refactor merge
+--merge into @pnc_unq_pth_id m
+--using
+--(
+--	select path1.pnc_tx_smry_id,
+--    count(distinct concepts.concept_id) conceptCount
+--    from @pnc_unq_pth_id path1
+--    join @cdm_schema.concept concepts
+--    on path1.concept_id = concepts.concept_id
+--    where path1.job_execution_id = @jobExecId
+--    group by path1.pnc_tx_smry_id
+--) m1
+--on
+--(
+--  m.pnc_tx_smry_id = m1.pnc_tx_smry_id
+--  and m.job_execution_id = @jobExecId
+--)
+--WHEN MATCHED then update set m.concept_count = m1.conceptCount;
+update m
+set m.concept_count = m1.conceptCount
+from @pnc_unq_pth_id m
+join
 (
-	select path1.pnc_tx_smry_id,
+    select path1.pnc_tx_smry_id,
     count(distinct concepts.concept_id) conceptCount
     from @pnc_unq_pth_id path1
     join @cdm_schema.concept concepts
     on path1.concept_id = concepts.concept_id
     where path1.job_execution_id = @jobExecId
+    and path1.concept_id != 0
     group by path1.pnc_tx_smry_id
 ) m1
 on
-(
   m.pnc_tx_smry_id = m1.pnc_tx_smry_id
-  and m.job_execution_id = @jobExecId
-)
-WHEN MATCHED then update set m.concept_count = m1.conceptCount;
-
+  and m.job_execution_id = @jobExecId;
 
 --delete duplicat smry_id rows (now we have smry_id with it's unique concepts conceptsArray and conceptsName)
+--refactor %%physloc%%
+--delete from @pnc_unq_pth_id 
+--where %%physloc%% in (select conceptIds.%%physloc%% from @pnc_unq_pth_id conceptIds, 
+--  (select pnc_tx_smry_id, min(concept_order) as concept_order
+--    from @pnc_unq_pth_id
+--    where job_execution_id = @jobExecId
+--    group by pnc_tx_smry_id
+--  ) uniqueIds
+--where
+--  conceptIds.pnc_tx_smry_id = uniqueIds.pnc_tx_smry_id
+--  and conceptIds.concept_order != uniqueIds.concept_order
+--  and conceptIds.job_execution_id = @jobExecId
+--)
+--and job_execution_id = @jobExecId;
 delete from @pnc_unq_pth_id 
-where %%physloc%% in (select conceptIds.%%physloc%% from @pnc_unq_pth_id conceptIds, 
+where concept_order in (select conceptIds.concept_order from @pnc_unq_pth_id conceptIds, 
   (select pnc_tx_smry_id, min(concept_order) as concept_order
-    from @pnc_unq_pth_id
+    from @pnc_unq_pth_id 
     where job_execution_id = @jobExecId
     group by pnc_tx_smry_id
   ) uniqueIds
