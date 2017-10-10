@@ -757,9 +757,16 @@ public class PanaceaService extends AbstractDaoService {
                             .tasklet(pncFilteredSummaryTasklet).exceptionHandler(new TerminateJobStepExceptionHandler())
                             .build();
                     
+                    final PanaceaInsertSummaryTasklet pncInsertSummaryTasklet = new PanaceaInsertSummaryTasklet(
+                            this.getSourceJdbcTemplate(source), this.getTransactionTemplate(), pncStudy);
+                    
+                    final Step pncInsertSummaryStep = this.stepBuilders.get("pncInsertSummaryStep")
+                            .tasklet(pncInsertSummaryTasklet).exceptionHandler(new TerminateJobStepExceptionHandler())
+                            .build();
+                    
                     final Job pncStudyJob = this.jobBuilders.get("panaceaStudy").start(pncStep1)
                             .next(pncGetPersonIdsTaskletStep).next(pncPatientDrugComboTaskletStep).next(pncSummaryStep)
-                            .next(pncFilteredSummaryStep).build();
+                            .next(pncFilteredSummaryStep).next(pncInsertSummaryStep).build();
                     
                     final JobExecutionResource jobExec = this.jobTemplate.launch(pncStudyJob, jobParameters);
                     

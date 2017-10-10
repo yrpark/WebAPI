@@ -385,37 +385,38 @@ select lastRow.rnum as rnum, lastRow.table_row_id as table_row_id, 1 as rslt_ver
 ) allRootsAndLastPadding;
 
 -------------------------------------version 1 into summary table-------------------------------------
-insert into @results_schema.pnc_study_summary (study_id, study_results)
-select @studyId, JSON from (
-select distinct
-  STUFF((SELECT '' + tab2.json
-         from @pnc_indv_jsn tab2
-         where 
-         tab2.job_execution_id = @jobExecId
-         and tab2.table_row_id = 1
-         and tab2.rslt_version = 1
-         order by rnum
-            FOR XML PATH(''), TYPE
-            ).value('.', 'NVARCHAR(MAX)') 
-        ,1,0,'') as JSON
-FROM @pnc_indv_jsn tab1
-where tab1.job_execution_id = @jobExecId
-and tab1.table_row_id = 1
-and tab1.rslt_version = 1
-group by table_row_id
---	select distinct row_number() over(order by t1.rnum) as rnum, t1.table_row_id,
---  	STUFF((SELECT distinct '' + t2.JSON
---    	     from @pnc_indv_jsn t2
---        	 where t1.table_row_id = t2.table_row_id
---				and t2.rslt_version = 1
---				and t2.job_execution_id = @jobExecId
---            	FOR XML PATH(''), TYPE
---	            ).value('.', 'NVARCHAR(MAX)') 
---    	    ,1,0,'') json
---	from @pnc_indv_jsn t1
---	where t1.rslt_version = 1
---	and t1.job_execution_id = @jobExecId
-) mergeJsonRowsTable;
+-- workaround for sql server version and sql render not supporting aggregatig concatenation: use PanaceaInsertSummaryTasklet
+--insert into @results_schema.pnc_study_summary (study_id, study_results)
+--select @studyId, JSON from (
+--select distinct
+--  STUFF((SELECT '' + tab2.json
+--         from @pnc_indv_jsn tab2
+--         where 
+--         tab2.job_execution_id = @jobExecId
+--         and tab2.table_row_id = 1
+--         and tab2.rslt_version = 1
+--         order by rnum
+--            FOR XML PATH(''), TYPE
+--            ).value('.', 'NVARCHAR(MAX)') 
+--        ,1,0,'') as JSON
+--FROM @pnc_indv_jsn tab1
+--where tab1.job_execution_id = @jobExecId
+--and tab1.table_row_id = 1
+--and tab1.rslt_version = 1
+--group by table_row_id
+----	select distinct row_number() over(order by t1.rnum) as rnum, t1.table_row_id,
+----  	STUFF((SELECT distinct '' + t2.JSON
+----    	     from @pnc_indv_jsn t2
+----        	 where t1.table_row_id = t2.table_row_id
+----				and t2.rslt_version = 1
+----				and t2.job_execution_id = @jobExecId
+----            	FOR XML PATH(''), TYPE
+----	            ).value('.', 'NVARCHAR(MAX)') 
+----    	    ,1,0,'') json
+----	from @pnc_indv_jsn t1
+----	where t1.rslt_version = 1
+----	and t1.job_execution_id = @jobExecId
+--) mergeJsonRowsTable;
 
 
 ------------------try unique path here-----------------
@@ -998,23 +999,24 @@ select lastRow.rnum as rnum, lastRow.table_row_id as table_row_id, 2 as rslt_ver
 --)
 --WHEN MATCHED THEN UPDATE SET m.study_results_2 = m1.json, m.last_update_time = CURRENT_TIMESTAMP;
 
-UPDATE @results_schema.pnc_study_summary set study_results_2 = m1.json, last_update_time = CURRENT_TIMESTAMP
-FROM
-	(select distinct
-		  STUFF((SELECT '' + tab2.json
-         from @pnc_indv_jsn tab2
-         where 
-         tab2.job_execution_id = @jobExecId
-         and tab2.table_row_id = 1
-         and tab2.rslt_version = 2
-         order by rnum
-            FOR XML PATH(''), TYPE
-            ).value('.', 'NVARCHAR(MAX)') 
-        ,1,0,'') as JSON
-		FROM @pnc_indv_jsn tab1
-		where tab1.job_execution_id = @jobExecId
-		and tab1.table_row_id = 1
-		and tab1.rslt_version = 2
-		group by table_row_id
-	) m1
-WHERE study_id = @studyId ;
+-- workaround for sql server version and sql render not supporting aggregatig concatenation: use PanaceaInsertSummaryTasklet
+--UPDATE @results_schema.pnc_study_summary set study_results_2 = m1.json, last_update_time = CURRENT_TIMESTAMP
+--FROM
+--	(select distinct
+--		  STUFF((SELECT '' + tab2.json
+--         from @pnc_indv_jsn tab2
+--         where 
+--         tab2.job_execution_id = @jobExecId
+--         and tab2.table_row_id = 1
+--         and tab2.rslt_version = 2
+--         order by rnum
+--            FOR XML PATH(''), TYPE
+--            ).value('.', 'NVARCHAR(MAX)') 
+--        ,1,0,'') as JSON
+--		FROM @pnc_indv_jsn tab1
+--		where tab1.job_execution_id = @jobExecId
+--		and tab1.table_row_id = 1
+--		and tab1.rslt_version = 2
+--		group by table_row_id
+--	) m1
+--WHERE study_id = @studyId ;
