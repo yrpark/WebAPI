@@ -38,6 +38,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
     
+    
     private static final Log log = LogFactory.getLog(PanaceaFiilteredSummaryGenerateTasklet.class);
     
     private JdbcTemplate jdbcTemplate;
@@ -71,9 +72,10 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
             
             final Map<String, Object> jobParams = chunkContext.getStepContext().getJobParameters();
             
-            final String sql = this.getSql(jobParams, chunkContext.getStepContext().getStepExecution().getJobExecution()
-                    .getId());
+            final String sql = this.getSql(jobParams,
+                chunkContext.getStepContext().getStepExecution().getJobExecution().getId());
             final int[] ret = this.transactionTemplate.execute(new TransactionCallback<int[]>() {
+                
                 
                 @Override
                 public int[] doInTransaction(final TransactionStatus status) {
@@ -97,8 +99,8 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
             //TODO
             final DefaultTransactionDefinition completeTx = new DefaultTransactionDefinition();
             completeTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            final TransactionStatus completeStatus = this.transactionTemplate.getTransactionManager().getTransaction(
-                completeTx);
+            final TransactionStatus completeStatus = this.transactionTemplate.getTransactionManager()
+                    .getTransaction(completeTx);
             this.transactionTemplate.getTransactionManager().commit(completeStatus);
         }
     }
@@ -151,35 +153,35 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
         
         String sql = "";
         if (hasConstraint()) {
-            /**
-             * default as "oracle"
-             */
-            sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary.sql");
-            
-            if ("sql server".equalsIgnoreCase(sourceDialect)) {
-                sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary_mssql.sql");
+            if ("oracle".equalsIgnoreCase(sourceDialect)) {
+                sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary.sql");
             } else if ("postgresql".equalsIgnoreCase(sourceDialect)) {
                 sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary_postgres.sql");
+            } else {
+                /**
+                 * default as sql server version
+                 */
+                sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary_mssql.sql");
             }
             
         } else {
             sql = "";
             
             if ("oracle".equalsIgnoreCase(sourceDialect)) {
-                sql += "IF OBJECT_ID('tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL \n"
-                        + "DROP TABLE #_pnc_smrypth_fltr; \n"
+                sql += "IF OBJECT_ID('tempdb..#_pnc_smrypth_fltr', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_smrypth_fltr; \n"
                         + "IF OBJECT_ID('tempdb..#_pnc_smry_ancstr', 'U') IS NOT NULL \n"
                         + "DROP TABLE #_pnc_smry_ancstr; \n" + "IF OBJECT_ID('tempdb..#_pnc_ptsq_ct', 'U') IS NOT NULL \n"
                         + "DROP TABLE #_pnc_ptsq_ct; \n" + "IF OBJECT_ID('tempdb..#_pnc_ptstg_ct', 'U') IS NOT NULL \n"
-                        + "DROP TABLE #_pnc_ptstg_ct; \n"
-                        + "IF OBJECT_ID('tempdb..#_pnc_tmp_cmb_sq_ct', 'U') IS NOT NULL \n"
-                        + "DROP TABLE #_pnc_tmp_cmb_sq_ct; \n"
-                        + "IF OBJECT_ID('tempdb..#_pnc_indv_jsn', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_indv_jsn; \n"
-                        + "IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL \n"
+                        + "DROP TABLE #_pnc_ptstg_ct; \n" + "IF OBJECT_ID('tempdb..#_pnc_tmp_cmb_sq_ct', 'U') IS NOT NULL \n"
+                        + "DROP TABLE #_pnc_tmp_cmb_sq_ct; \n" + "IF OBJECT_ID('tempdb..#_pnc_indv_jsn', 'U') IS NOT NULL \n"
+                        + "DROP TABLE #_pnc_indv_jsn; \n" + "IF OBJECT_ID('tempdb..#_pnc_smry_msql_cmb', 'U') IS NOT NULL \n"
                         + "DROP TABLE #_pnc_smry_msql_cmb; \n"
                         + "IF OBJECT_ID('tempdb..#_pnc_unq_trtmt', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_unq_trtmt; \n"
                         + "IF OBJECT_ID('tempdb..#_pnc_unq_pth_id', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_unq_pth_id; \n";
-            } else if ("sql server".equalsIgnoreCase(sourceDialect) || "postgresql".equalsIgnoreCase(sourceDialect)) {
+            } else {
+                /**
+                 * default as sql server version
+                 */
                 sql += "delete from @pnc_ptsq_ct where job_execution_id = @jobExecId \n"
                         + "delete from @pnc_ptstg_ct where job_execution_id = @jobExecId; \n"
                         + "delete from @pnc_tmp_cmb_sq_ct where job_execution_id = @jobExecId; \n"
@@ -195,7 +197,8 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
         
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "studyId", "sourceId",
                 "constraintSql", "pnc_smry_msql_cmb", "pnc_indv_jsn", "pnc_unq_trtmt", "pnc_unq_pth_id", "pnc_smrypth_fltr",
-                "pnc_smry_ancstr", "tempTableCreationSummary_oracle", "jobExecId", "pnc_tmp_cmb_sq_ct", "cohort_definition_id" };
+                "pnc_smry_ancstr", "tempTableCreationSummary_oracle", "jobExecId", "pnc_tmp_cmb_sq_ct",
+                "cohort_definition_id" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
                 this.pncStudy.getStudyId().toString(), sourceId, constraintSql, pnc_smry_msql_cmb, pnc_indv_jsn,
                 pnc_unq_trtmt, pnc_unq_pth_id, pnc_smrypth_fltr, pnc_smry_ancstr, tempTableCreationSummary_oracle,
@@ -215,30 +218,30 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
                 constraintSql = constraintSql.concat("\n where tx_stg_avg_dr >= " + this.pncStudy.getMinUnitDays());
             }
             if (this.pncStudy.getMinUnitCounts() != null) {
-                constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql.concat("\n where tx_stg_cnt >= "
-                        + this.pncStudy.getMinUnitCounts()) : constraintSql.concat("\n and tx_stg_cnt >= "
-                        + this.pncStudy.getMinUnitCounts());
+                constraintSql = StringUtils.isEmpty(constraintSql)
+                        ? constraintSql.concat("\n where tx_stg_cnt >= " + this.pncStudy.getMinUnitCounts())
+                        : constraintSql.concat("\n and tx_stg_cnt >= " + this.pncStudy.getMinUnitCounts());
             }
             if (this.pncStudy.getGapThreshold() != null) {
-                //todo - may remove this by just using isnull to feed into sql render later...
-                if ("oracle".equalsIgnoreCase(sourceDialect)) {
-                    constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql
-                            .concat("\n where NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
-                                    + this.pncStudy.getGapThreshold()) : constraintSql
-                            .concat("\n and NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
-                                    + this.pncStudy.getGapThreshold());
-                } else if ("sql server".equalsIgnoreCase(sourceDialect) || "postgresql".equalsIgnoreCase(sourceDialect)) {
-                    constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql
-                            .concat("\n where isnull(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
-                                    + this.pncStudy.getGapThreshold()) : constraintSql
-                            .concat("\n and isnull(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
-                                    + this.pncStudy.getGapThreshold());
-                }
+                //TODO - double check for other dialects
+                //                if ("oracle".equalsIgnoreCase(sourceDialect)) {
+                //                    constraintSql = StringUtils.isEmpty(constraintSql)
+                //                            ? constraintSql.concat("\n where NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
+                //                                    + this.pncStudy.getGapThreshold())
+                //                            : constraintSql.concat("\n and NVL(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
+                //                                    + this.pncStudy.getGapThreshold());
+                //                } else if ("sql server".equalsIgnoreCase(sourceDialect) || "postgresql".equalsIgnoreCase(sourceDialect)) {
+                constraintSql = StringUtils.isEmpty(constraintSql)
+                        ? constraintSql.concat("\n where isnull(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
+                                + this.pncStudy.getGapThreshold())
+                        : constraintSql.concat("\n and isnull(ROUND(tx_stg_avg_gap/tx_stg_avg_dr * 100,2),0) <= "
+                                + this.pncStudy.getGapThreshold());
+                //                }
             }
             
-            constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql
-                    .concat("\n where job_execution_id = @jobExecId ") : constraintSql
-                    .concat("\n and job_execution_id = @jobExecId ");
+            constraintSql = StringUtils.isEmpty(constraintSql)
+                    ? constraintSql.concat("\n where job_execution_id = @jobExecId ")
+                    : constraintSql.concat("\n and job_execution_id = @jobExecId ");
             
             constraintSql = StringUtils.isEmpty(constraintSql) ? constraintSql : constraintSql.concat("\n");
         }
@@ -264,16 +267,18 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
         
-        /**
-         * default as "oracle"
-         */
-        String tempTableCreationOracle = ResourceHelper
-                .GetResourceAsString("/resources/panacea/sql/tempTableCreationSummary_oracle.sql");
-        
-        tempTableCreationOracle += ResourceHelper
-                .GetResourceAsString("/resources/panacea/sql/tempTableCreationFilteredSummary_oracle.sql");
-        
-        if ("sql server".equalsIgnoreCase(sourceDialect) || "postgresql".equalsIgnoreCase(sourceDialect)) {
+        String tempTableCreationOracle = "";
+        if ("oracle".equalsIgnoreCase(sourceDialect)) {
+            tempTableCreationOracle = ResourceHelper
+                    .GetResourceAsString("/resources/panacea/sql/tempTableCreationSummary_oracle.sql");
+            
+            tempTableCreationOracle += ResourceHelper
+                    .GetResourceAsString("/resources/panacea/sql/tempTableCreationFilteredSummary_oracle.sql");
+            
+        } else {
+            /**
+             * default as sql server version
+             */
             tempTableCreationOracle = "\n";
         }
         

@@ -37,6 +37,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 public class PanaceaSummaryGenerateTasklet implements Tasklet {
     
+    
     private static final Log log = LogFactory.getLog(PanaceaSummaryGenerateTasklet.class);
     
     private JdbcTemplate jdbcTemplate;
@@ -68,10 +69,11 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
         try {
             final Map<String, Object> jobParams = chunkContext.getStepContext().getJobParameters();
             
-            final String sql = this.getSql(jobParams, chunkContext.getStepContext().getStepExecution().getJobExecution()
-                    .getId());
+            final String sql = this.getSql(jobParams,
+                chunkContext.getStepContext().getStepExecution().getJobExecution().getId());
             
             final int[] ret = this.transactionTemplate.execute(new TransactionCallback<int[]>() {
+                
                 
                 @Override
                 public int[] doInTransaction(final TransactionStatus status) {
@@ -94,8 +96,8 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
             //TODO
             final DefaultTransactionDefinition completeTx = new DefaultTransactionDefinition();
             completeTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            final TransactionStatus completeStatus = this.transactionTemplate.getTransactionManager().getTransaction(
-                completeTx);
+            final TransactionStatus completeStatus = this.transactionTemplate.getTransactionManager()
+                    .getTransaction(completeTx);
             this.transactionTemplate.getTransactionManager().commit(completeStatus);
         }
         
@@ -147,20 +149,22 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
         
         final String tempTableCreationSummary_oracle = this.getTempTableCreationOracle(jobParams);
         
-        /**
-         * default as "oracle"
-         */
-        String sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary.sql");
-        
-        if ("sql server".equalsIgnoreCase(sourceDialect)) {
-            sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary_mssql.sql");
+        String sql = "";
+        if ("oracle".equalsIgnoreCase(sourceDialect)) {
+            sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary.sql");
         } else if ("postgresql".equalsIgnoreCase(sourceDialect)) {
             sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary_postgres.sql");
+        } else {
+            /**
+             * default as sql server version
+             */
+            sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary_mssql.sql");
         }
         
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "cohortDefId", "studyId",
                 "drugConceptId", "sourceId", "pnc_smry_msql_cmb", "pnc_indv_jsn", "pnc_unq_trtmt", "pnc_unq_pth_id",
-                "pnc_smrypth_fltr", "pnc_smry_ancstr", "tempTableCreationSummary_oracle", "jobExecId", "pnc_tmp_cmb_sq_ct", "cohort_definition_id" };
+                "pnc_smrypth_fltr", "pnc_smry_ancstr", "tempTableCreationSummary_oracle", "jobExecId", "pnc_tmp_cmb_sq_ct",
+                "cohort_definition_id" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
                 this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, pnc_smry_msql_cmb, pnc_indv_jsn,
                 pnc_unq_trtmt, pnc_unq_pth_id, pnc_smrypth_fltr, pnc_smry_ancstr, tempTableCreationSummary_oracle,
@@ -177,13 +181,14 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
         final String sourceDialect = (String) jobParams.get("sourceDialect");
         final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
         
-        /**
-         * default as "oracle"
-         */
-        String tempTableCreationOracle = ResourceHelper
-                .GetResourceAsString("/resources/panacea/sql/tempTableCreationSummary_oracle.sql");
-        
-        if ("sql server".equalsIgnoreCase(sourceDialect) || "postgresql".equalsIgnoreCase(sourceDialect)) {
+        String tempTableCreationOracle = "";
+        if ("oracle".equalsIgnoreCase(sourceDialect)) {
+            tempTableCreationOracle = ResourceHelper
+                    .GetResourceAsString("/resources/panacea/sql/tempTableCreationSummary_oracle.sql");
+        } else {
+            /**
+             * default as sql server version
+             */
             tempTableCreationOracle = "\n";
         }
         
