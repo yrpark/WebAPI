@@ -291,31 +291,101 @@ create table #pnc_tmp_smry(
 	daysFromStart int
 );
 
-WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, 
-	tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, 
-	tx_stg_percentage, depthOrder, parent_comb) AS (
-        SELECT 
-           pnc_stdy_smry_id as pnc_stdy_smry_id, tx_path_parent_key as tx_path_parent_key,
-           1 AS lvl,
-           tx_stg_cmb as tx_stg_cmb, tx_stg_cmb_pth as tx_stg_cmb_pth, tx_seq as tx_seq, tx_stg_avg_dr as tx_stg_avg_dr, tx_stg_cnt as tx_stg_cnt, tx_stg_percentage as tx_stg_percentage
-           ,CAST(pnc_stdy_smry_id AS varchar(max))+'' as depthOrder, CAST(null as varchar(255)) as parent_comb
-          FROM   @results_schema.pnc_study_summary_path
-        WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
-              where 
-              study_id = @studyId
-              and tx_rslt_version = 1
-              and tx_path_parent_key is null)
-        UNION ALL
-        SELECT 
-              t2.pnc_stdy_smry_id as pnc_stdy_smry_id, t2.tx_path_parent_key as tx_path_parent_key,
-              t1.lvl+1 as lvl,
-              t2.tx_stg_cmb as tx_stg_cmb, t2.tx_stg_cmb_pth as tx_stg_cmb_pth, t2.tx_seq as tx_seq, t2.tx_stg_avg_dr as tx_stg_avg_dr, t2.tx_stg_cnt as tx_stg_cnt, t2.tx_stg_percentage as tx_stg_percentage
-              ,t1.depthOrder+'.'+CAST(t2.pnc_stdy_smry_id AS varchar(max)) as depthOrder, ISNULL(t1.tx_stg_cmb,'') as parent_comb
-        FROM   @results_schema.pnc_study_summary_path t2, t1
-        WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
-      )
-	  insert into #pnc_tmp_smry (rnum, combo_id, current_path, path_seq, avg_duration, pt_count, pt_percentage,	concept_names, combo_concepts, lvl,	parent_concept_names, parent_combo_concepts)
-      SELECT row_number() over(order by depthOrder) as rnum, 
+--refactor big hierarchical recursive CTE
+--WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, 
+--	tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, 
+--	tx_stg_percentage, depthOrder, parent_comb) AS (
+--        SELECT 
+--           pnc_stdy_smry_id as pnc_stdy_smry_id, tx_path_parent_key as tx_path_parent_key,
+--           1 AS lvl,
+--           tx_stg_cmb as tx_stg_cmb, tx_stg_cmb_pth as tx_stg_cmb_pth, tx_seq as tx_seq, tx_stg_avg_dr as tx_stg_avg_dr, tx_stg_cnt as tx_stg_cnt, tx_stg_percentage as tx_stg_percentage
+--           ,CAST(pnc_stdy_smry_id AS varchar(max))+'' as depthOrder, CAST(null as varchar(255)) as parent_comb
+--          FROM   @results_schema.pnc_study_summary_path
+--        WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
+--              where 
+--              study_id = @studyId
+--              and tx_rslt_version = 1
+--              and tx_path_parent_key is null)
+--        UNION ALL
+--        SELECT 
+--              t2.pnc_stdy_smry_id as pnc_stdy_smry_id, t2.tx_path_parent_key as tx_path_parent_key,
+--              t1.lvl+1 as lvl,
+--              t2.tx_stg_cmb as tx_stg_cmb, t2.tx_stg_cmb_pth as tx_stg_cmb_pth, t2.tx_seq as tx_seq, t2.tx_stg_avg_dr as tx_stg_avg_dr, t2.tx_stg_cnt as tx_stg_cnt, t2.tx_stg_percentage as tx_stg_percentage
+--              ,t1.depthOrder+'.'+CAST(t2.pnc_stdy_smry_id AS varchar(max)) as depthOrder, ISNULL(t1.tx_stg_cmb,'') as parent_comb
+--        FROM   @results_schema.pnc_study_summary_path t2, t1
+--        WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
+--      )
+--	  insert into #pnc_tmp_smry (rnum, combo_id, current_path, path_seq, avg_duration, pt_count, pt_percentage,	concept_names, combo_concepts, lvl,	parent_concept_names, parent_combo_concepts)
+--      SELECT row_number() over(order by depthOrder) as rnum, 
+--		tx_stg_cmb as combo_id, 
+--		tx_stg_cmb_pth as current_path,
+--		tx_seq as path_seq,
+--		tx_stg_avg_dr as avg_duration,
+--		tx_stg_cnt as pt_count,
+--		tx_stg_percentage as pt_percentage,
+--	    concepts.conceptsName                as concept_names,
+--		concepts.conceptsArray               as combo_concepts,
+--		lvl as lvl,
+--	    parentConcepts.conceptsName			 as parent_concept_names,
+--		parentConcepts.conceptsArray            as parent_combo_concepts
+--      FROM t1
+--  join @pnc_smry_msql_cmb concepts 
+--  on concepts.pnc_tx_stg_cmb_id = t1.tx_stg_cmb
+--  and concepts.job_execution_id = @jobExecId
+--  left join @pnc_smry_msql_cmb parentConcepts 
+--  on parentConcepts.pnc_tx_stg_cmb_id = t1.parent_comb
+--  and parentConcepts.job_execution_id = @jobExecId
+--  order by depthOrder;
+
+create table #replace_rcte
+(
+    pnc_stdy_smry_id INT,
+    tx_path_parent_key BIGINT,
+    tx_stg_cmb    VARCHAR(255),
+    tx_stg_cmb_pth VARCHAR(4000),
+    tx_seq         BIGINT,
+    tx_stg_cnt      BIGINT,
+    tx_stg_percentage numeric(5,2),
+    tx_stg_avg_dr   INT,
+    tx_stg_avg_gap  INT,
+    tx_avg_frm_strt INT,
+    lvl INT,
+    parent_comb VARCHAR(255)
+);
+
+INSERT INTO #replace_rcte
+(pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, 
+tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, 
+tx_avg_frm_strt, lvl, parent_comb)
+select pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, 
+tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, 
+tx_avg_frm_strt, 1 as Level, null as parent_comb
+from @results_schema.pnc_study_summary_path
+where 
+study_id = @studyId
+and tx_rslt_version = 1
+and tx_path_parent_key is null;
+
+--pull this part into a dynamic sql generation part inserted from Java (too many duplicate sql here to loop from lvl "level" 0 ~ 100)
+@insertReplaceCTE_1
+--INSERT INTO #replace_rcte
+--(pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, 
+--tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, 
+--tx_avg_frm_strt, lvl, parent_comb)
+--select N.pnc_stdy_smry_id, N.tx_path_parent_key, N.tx_stg_cmb, N.tx_stg_cmb_pth, 
+--N.tx_seq, N.tx_stg_cnt, N.tx_stg_percentage, N.tx_stg_avg_dr, N.tx_stg_avg_gap, 
+--N.tx_avg_frm_strt, (X.lvl + 1) as lvl, X.tx_stg_cmb as parent_comb
+--from ohdsi.ohdsi.pnc_study_summary_path N
+--join #replace_rcte X
+--    on X.pnc_stdy_smry_id = N.tx_path_parent_key
+--where X.lvl = 10;
+-- will have to hard code lvl = from 1 to maximum 100 for this, run one by one increasing lvl by 1 each time
+
+insert into #pnc_tmp_smry 
+(rnum, combo_id, current_path, path_seq, avg_duration, pt_count, pt_percentage,	
+concept_names, combo_concepts, lvl, parent_concept_names, parent_combo_concepts)
+-- order by tx_stg_cmb_pth to mimic what's in the recursive CTE's depthOrder which is concatenat parent's cmb+current for ordering hierarchy: 1, 1>2, 1>2>3, 2, 2>1, 2>1>3, etc
+      SELECT row_number() over(order by tx_stg_cmb_pth) as rnum, 
 		tx_stg_cmb as combo_id, 
 		tx_stg_cmb_pth as current_path,
 		tx_seq as path_seq,
@@ -327,16 +397,17 @@ WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl,
 		lvl as lvl,
 	    parentConcepts.conceptsName			 as parent_concept_names,
 		parentConcepts.conceptsArray            as parent_combo_concepts
-      FROM t1
+      FROM #replace_rcte t1
   join @pnc_smry_msql_cmb concepts 
   on concepts.pnc_tx_stg_cmb_id = t1.tx_stg_cmb
   and concepts.job_execution_id = @jobExecId
   left join @pnc_smry_msql_cmb parentConcepts 
   on parentConcepts.pnc_tx_stg_cmb_id = t1.parent_comb
   and parentConcepts.job_execution_id = @jobExecId
-  order by depthOrder;
+  order by rnum;
 
-  
+IF OBJECT_ID('tempdb..#replace_rcte', 'U') IS NOT NULL
+  DROP TABLE #replace_rcte;
 
 insert into @pnc_indv_jsn(job_execution_id, rnum, table_row_id, rslt_version, JSON)
 select @jobExecId as jobExecId, rnum as rnum, table_row_id as table_row_id, rslt_version as rslt_version, JSON as JSON
@@ -420,100 +491,170 @@ select lastRow.rnum as rnum, lastRow.table_row_id as table_row_id, 1 as rslt_ver
 
 
 ------------------try unique path here-----------------
-WITH t1(combo_id, current_path1, pnc_stdy_smry_id, parent_key, modified_path, Lvl, depthOrder) AS (
-        SELECT 
-          tx_stg_cmb                            as combo_id
-          ,tx_stg_cmb_pth                       as current_path1
-          ,pnc_stdy_smry_id                     as pnc_stdy_smry_id
-          ,tx_path_parent_key                   as parent_key
-          ,cast(tx_stg_cmb as varchar(max))                           as modified_path
-          ,1                                    as Lvl
-          ,cast(pnc_stdy_smry_id AS varchar(max))+''                 as depthOrder
-          FROM   @results_schema.pnc_study_summary_path
-  		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
-        where 
-	        study_id = @studyId
-        	and tx_rslt_version = 2
-	        and tx_path_parent_key is null)
-        UNION ALL
-        SELECT 
-          t2.tx_stg_cmb                           as combo_id
-          ,t2.tx_stg_cmb_pth                       as current_path1
-          ,t2.pnc_stdy_smry_id                     as pnc_stdy_smry_id
-          ,t2.tx_path_parent_key                   as parent_key
-          ,cast(t1.modified_path as varchar(max))+'>'+cast(t2.tx_stg_cmb as varchar(max))       as modified_path
-          ,lvl+1                                as Lvl
-          ,t1.depthOrder+'.'+cast(t2.pnc_stdy_smry_id AS varchar(max)) as depthOrder
-        FROM    @results_schema.pnc_study_summary_path t2, t1
-        WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
-      )
-	 insert into @pnc_unq_trtmt(job_execution_id, rnum, pnc_stdy_smry_id, path_cmb_ids)
-	 select @jobExecId, row_number() over(order by depthOrder) as rnum, pnc_stdy_smry_id as pnc_stdy_smry_id, modified_path as modified_path
-	 from t1
-order by depthOrder;
-
+--refactor big hierarchical recursive CTE
+--WITH t1(combo_id, current_path1, pnc_stdy_smry_id, parent_key, modified_path, Lvl, depthOrder) AS (
+--        SELECT 
+--          tx_stg_cmb                            as combo_id
+--          ,tx_stg_cmb_pth                       as current_path1
+--          ,pnc_stdy_smry_id                     as pnc_stdy_smry_id
+--          ,tx_path_parent_key                   as parent_key
+--          ,cast(tx_stg_cmb as varchar(max))                           as modified_path
+--          ,1                                    as Lvl
+--          ,cast(pnc_stdy_smry_id AS varchar(max))+''                 as depthOrder
+--          FROM   @results_schema.pnc_study_summary_path
+--  		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
+--        where 
+--	        study_id = @studyId
+--        	and tx_rslt_version = 2
+--	        and tx_path_parent_key is null)
+--        UNION ALL
+--        SELECT 
+--          t2.tx_stg_cmb                           as combo_id
+--          ,t2.tx_stg_cmb_pth                       as current_path1
+--          ,t2.pnc_stdy_smry_id                     as pnc_stdy_smry_id
+--          ,t2.tx_path_parent_key                   as parent_key
+--          ,cast(t1.modified_path as varchar(max))+'>'+cast(t2.tx_stg_cmb as varchar(max))       as modified_path
+--          ,lvl+1                                as Lvl
+--          ,t1.depthOrder+'.'+cast(t2.pnc_stdy_smry_id AS varchar(max)) as depthOrder
+--        FROM    @results_schema.pnc_study_summary_path t2, t1
+--        WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
+--      )
+--	 insert into @pnc_unq_trtmt(job_execution_id, rnum, pnc_stdy_smry_id, path_cmb_ids)
+--	 select @jobExecId, row_number() over(order by depthOrder) as rnum, pnc_stdy_smry_id as pnc_stdy_smry_id, modified_path as modified_path
+--	 from t1
+--order by depthOrder;
+--
 --update path_unique_treatment for current path unit concpetIds
-WITH t1(combo_id, current_path1, pnc_stdy_smry_id, parent_key, modified_path, modified_concepts, Lvl, depthOrder) AS (
-        SELECT 
-          rootPath.tx_stg_cmb                            as combo_id
-          ,tx_stg_cmb_pth                       as current_path1
-          ,pnc_stdy_smry_id                     as pnc_stdy_smry_id
-          ,tx_path_parent_key                   as parent_key
-          ,cast(tx_stg_cmb as varchar(max))                           as modified_path
-          ,cast(comb.concept_ids as varchar(max))                     as modified_concepts
-          ,1                                    as Lvl
-          ,cast(pnc_stdy_smry_id as varchar(max))+''                 as depthOrder
-          FROM @results_schema.pnc_study_summary_path rootPath
-          join @pnc_smry_msql_cmb comb
-          on rootPath.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
-          and comb.job_execution_id = @jobExecId
-  		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
-        where 
-	        study_id = @studyId
-        	and tx_rslt_version = 2
-	        and tx_path_parent_key is null)
-        UNION ALL
-        SELECT 
-          t2.tx_stg_cmb                           as combo_id
-          ,t2.tx_stg_cmb_pth                       as current_path1
-          ,t2.pnc_stdy_smry_id                     as pnc_stdy_smry_id
-          ,t2.tx_path_parent_key                   as parent_key
-          ,t1.modified_path+'>'+cast(t2.tx_stg_cmb as varchar(max))       as modified_path
---this case clause simplify caltulation of duplicate concept_ids by just assert if concept_ids string already in parents ids ',id1,id2,id3,'
---compare path too: if previous path contains current path combo '>combo_id>', no need to append again
---concepts_ids in #_pnc_smry_msql_cmb.concept_ids should help
-          ,
-          CASE 
---		     WHEN CHARINDEX(modified_concepts, ',' + comb.concept_ids + ',') > 0
-		     WHEN CHARINDEX(',' + comb.concept_ids + ',', modified_concepts) > 0
---    		 or CHARINDEX(modified_path, '>' + t2.tx_stg_cmb + '>') > 0
-    		 or CHARINDEX('>' + t2.tx_stg_cmb + '>', modified_path) > 0
-		     THEN modified_concepts
-    		 ELSE modified_concepts+','+cast(comb.concept_ids as varchar(max))
-		  END
-												as modified_concepts
-          ,lvl+1                                as Lvl
-          ,depthOrder+'.'+cast(t2.pnc_stdy_smry_id as varchar(max)) as depthOrder
-        FROM (@results_schema.pnc_study_summary_path t2
-        join @pnc_smry_msql_cmb comb
-        on t2.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
-        and comb.job_execution_id = @jobExecId), t1
-        WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
-      )
-	  merge into @pnc_unq_trtmt m
-	  using
-	  (
-	  SELECT row_number() over(order by depthOrder) as rnum, combo_id, modified_path, modified_concepts, lvl, current_path1, pnc_stdy_smry_id, parent_key, depthOrder
-      FROM   t1
---sql server change: no order by here... need test...
---order by depthOrder
-	  ) m1
-on
+--WITH t1(combo_id, current_path1, pnc_stdy_smry_id, parent_key, modified_path, modified_concepts, Lvl, depthOrder) AS (
+--        SELECT 
+--          rootPath.tx_stg_cmb                            as combo_id
+--          ,tx_stg_cmb_pth                       as current_path1
+--          ,pnc_stdy_smry_id                     as pnc_stdy_smry_id
+--          ,tx_path_parent_key                   as parent_key
+--          ,cast(tx_stg_cmb as varchar(max))                           as modified_path
+--          ,cast(comb.concept_ids as varchar(max))                     as modified_concepts
+--          ,1                                    as Lvl
+--          ,cast(pnc_stdy_smry_id as varchar(max))+''                 as depthOrder
+--          FROM @results_schema.pnc_study_summary_path rootPath
+--          join @pnc_smry_msql_cmb comb
+--          on rootPath.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
+--          and comb.job_execution_id = @jobExecId
+--  		WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
+--        where 
+--	        study_id = @studyId
+--        	and tx_rslt_version = 2
+--	        and tx_path_parent_key is null)
+--        UNION ALL
+--        SELECT 
+--          t2.tx_stg_cmb                           as combo_id
+--          ,t2.tx_stg_cmb_pth                       as current_path1
+--          ,t2.pnc_stdy_smry_id                     as pnc_stdy_smry_id
+--          ,t2.tx_path_parent_key                   as parent_key
+--          ,t1.modified_path+'>'+cast(t2.tx_stg_cmb as varchar(max))       as modified_path
+----this case clause simplify caltulation of duplicate concept_ids by just assert if concept_ids string already in parents ids ',id1,id2,id3,'
+----compare path too: if previous path contains current path combo '>combo_id>', no need to append again
+----concepts_ids in #_pnc_smry_msql_cmb.concept_ids should help
+--          ,
+--          CASE 
+--		     WHEN CHARINDEX(',' + comb.concept_ids + ',', modified_concepts) > 0
+--    		 or CHARINDEX('>' + t2.tx_stg_cmb + '>', modified_path) > 0
+--		     THEN modified_concepts
+--    		 ELSE modified_concepts+','+cast(comb.concept_ids as varchar(max))
+--		  END
+--												as modified_concepts
+--          ,lvl+1                                as Lvl
+--          ,depthOrder+'.'+cast(t2.pnc_stdy_smry_id as varchar(max)) as depthOrder
+--        FROM (@results_schema.pnc_study_summary_path t2
+--        join @pnc_smry_msql_cmb comb
+--        on t2.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
+--        and comb.job_execution_id = @jobExecId), t1
+--        WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
+--      )
+--	  merge into @pnc_unq_trtmt m
+--	  using
+--	  (
+--	  SELECT row_number() over(order by depthOrder) as rnum, combo_id, modified_path, modified_concepts, lvl, current_path1, pnc_stdy_smry_id, parent_key, depthOrder
+--      FROM   t1
+----sql server change: no order by here... need test...
+----order by depthOrder
+--	  ) m1
+--on
+--(
+--  m1.pnc_stdy_smry_id = m.pnc_stdy_smry_id
+--  and m.job_execution_id = @jobExecId
+--)
+--WHEN MATCHED then update set m.path_unique_treatment = m1.modified_concepts;
+create table #replace_rcte_2
 (
-  m1.pnc_stdy_smry_id = m.pnc_stdy_smry_id
-  and m.job_execution_id = @jobExecId
-)
-WHEN MATCHED then update set m.path_unique_treatment = m1.modified_concepts;
+    pnc_stdy_smry_id INT,
+    tx_path_parent_key BIGINT,
+    tx_stg_cmb    VARCHAR(255),
+    tx_stg_cmb_pth VARCHAR(4000),
+    tx_seq         BIGINT,
+    tx_stg_cnt      BIGINT,
+    tx_stg_percentage numeric(5,2),
+    tx_stg_avg_dr   INT,
+    tx_stg_avg_gap  INT,
+    tx_avg_frm_strt INT,
+    lvl INT,
+    parent_comb VARCHAR(255),
+    modified_path varchar(800),
+    path_unique_treatment varchar(4000)
+);
+
+INSERT INTO #replace_rcte_2
+(pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, 
+tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, 
+tx_avg_frm_strt, lvl, parent_comb, modified_path, path_unique_treatment)
+select pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, 
+tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, 
+tx_avg_frm_strt, 1 as Level, null as parent_comb,
+tx_stg_cmb, comb.concept_ids
+from @results_schema.pnc_study_summary_path sp
+join @pnc_smry_msql_cmb comb
+on sp.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
+and comb.job_execution_id = @jobExecId
+where 
+study_id = @studyId
+and tx_rslt_version = 2
+and tx_path_parent_key is null;
+
+--pull this part into a dynamic sql generation part inserted from Java (too many duplicate sql here to loop from lvl "level" 0 ~ 100)
+@insertReplaceCTE_2 
+--INSERT INTO #replace_rcte
+--(pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, 
+--tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, 
+--tx_avg_frm_strt, lvl, parent_comb, modified_path, path_unique_treatment)
+--select N.pnc_stdy_smry_id, N.tx_path_parent_key, N.tx_stg_cmb, N.tx_stg_cmb_pth, 
+--N.tx_seq, N.tx_stg_cnt, N.tx_stg_percentage, N.tx_stg_avg_dr, N.tx_stg_avg_gap, 
+--N.tx_avg_frm_strt, (X.lvl + 1) as lvl, X.tx_stg_cmb as parent_comb,
+--X.modified_path+'>' + N.tx_stg_cmb as modified_path,
+--CASE 
+--  WHEN CHARINDEX(comb.concept_ids + ',', X.path_unique_treatment) > 0
+--  or CHARINDEX(N.tx_stg_cmb + '>', X.modified_path) > 0
+--  THEN X.path_unique_treatment
+--  ELSE X.path_unique_treatment+','+comb.concept_ids
+--END
+--as path_unique_treatment
+--from ohdsi.ohdsi.pnc_study_summary_path N
+--join ohdsi.ohdsi.pnc_tmp_smry_msql_cmb comb
+--on N.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
+--and comb.job_execution_id = 228
+--join #replace_rcte X
+--on X.pnc_stdy_smry_id = N.tx_path_parent_key
+--where X.lvl = 9;
+-- will have to hard code lvl = from 1 to maximum 100 for this, run one by one increasing lvl by 1 each time
+insert into @pnc_unq_trtmt 
+(job_execution_id, rnum, pnc_stdy_smry_id, rslt_version, path_cmb_ids, path_unique_treatment)
+select @jobExecId, 
+  row_number() over(order by tx_stg_cmb_pth) as rnum, 
+  pnc_stdy_smry_id as pnc_stdy_smry_id, 
+  2 as rslt_version, modified_path, path_unique_treatment
+      FROM #replace_rcte_2
+  order by rnum;
+
+IF OBJECT_ID('tempdb..#replace_rcte_2', 'U') IS NOT NULL
+  DROP TABLE #replace_rcte_2;
 
 --split conceptIds with "," from #_pnc_unq_trtmt per smry_id and insert order by lastPos (which is used as the order of the concepts in the path)
 --remove splitter_cte
