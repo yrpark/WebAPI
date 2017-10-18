@@ -63,14 +63,14 @@ join (
     join (select SUBSTRING(tx_stg_cmb_pth , 0 , len(tx_stg_cmb_pth) - len(tx_stg_cmb) ) as parentPath
     ,*
     from @results_schema.pnc_study_summary_path
-    where study_id = 3 and tx_rslt_version = 1 
+    where study_id = @studyId and tx_rslt_version = 1 
     ) updateParentPath
     on updateParentPath.pnc_stdy_smry_id = pathSum.pnc_stdy_smry_id
     join @results_schema.pnc_study_summary_path parentPath
     on updateParentPath.parentPath = parentPath.tx_stg_cmb_pth
-    and parentPath.study_id = 3
+    and parentPath.study_id = @studyId
     and parentPath.tx_rslt_version = 1
-    where pathSum.study_id = 3
+    where pathSum.study_id = @studyId
     and pathSum.tx_rslt_version = 1
     and parentPath.tx_rslt_version = 1 
     group by pathsum.pnc_stdy_smry_id, parentpath.pnc_stdy_smry_id, updateParentPath.parentPath, parentPath.tx_stg_cnt, pathSum.tx_stg_cnt
@@ -976,67 +976,169 @@ and job_execution_id = @jobExecId;
 
 delete from #pnc_tmp_smry;
 
-WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, 
-	tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, 
-	tx_stg_percentage, tx_stg_avg_gap, depthOrder, parent_comb, daysFromStart) AS (
-	    SELECT 
-           pnc_stdy_smry_id as pnc_stdy_smry_id, tx_path_parent_key as tx_path_parent_key,
-           1 AS lvl,
-           tx_stg_cmb as tx_stg_cmb, tx_stg_cmb_pth as tx_stg_cmb_pth, tx_seq as tx_seq, tx_stg_avg_dr as tx_stg_avg_dr, tx_stg_cnt as tx_stg_cnt,
-           tx_stg_percentage as tx_stg_percentage
-           ,tx_stg_avg_gap as  tx_stg_avg_gap
-           ,CAST(pnc_stdy_smry_id AS varchar(max))+'' as depthOrder, 
-           CAST(null as varchar(255)) as parent_comb
-           ,tx_avg_frm_strt				  as daysFromStart
-          FROM   @results_schema.pnc_study_summary_path
-        WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
-              where 
-              study_id = @studyId
-              and tx_rslt_version = 2
-              and tx_path_parent_key is null)
-        UNION ALL
-        SELECT 
-              t2.pnc_stdy_smry_id as pnc_stdy_smry_id, t2.tx_path_parent_key as tx_path_parent_key,
-              t1.lvl+1 as lvl,
-              t2.tx_stg_cmb as tx_stg_cmb, t2.tx_stg_cmb_pth as tx_stg_cmb_pth, t2.tx_seq as tx_seq, t2.tx_stg_avg_dr as tx_stg_avg_dr, 
-              t2.tx_stg_cnt as tx_stg_cnt, t2.tx_stg_percentage as tx_stg_percentage
-              ,t2.tx_stg_avg_gap as tx_stg_avg_gap 
-              ,t1.depthOrder+'.'+CAST(t2.pnc_stdy_smry_id AS varchar(max)) as depthOrder, ISNULL(t1.tx_stg_cmb,'') as parent_comb
-              ,t2.tx_avg_frm_strt				  as daysFromStart
-        FROM   @results_schema.pnc_study_summary_path t2, t1
-        WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
-      )
-	  insert into #pnc_tmp_smry (rnum, combo_id, current_path, path_seq, avg_duration, pt_count, pt_percentage,	concept_names, 
-	  	combo_concepts, lvl, parent_concept_names, parent_combo_concepts,
-		avg_gap, gap_pcnt, uniqueConceptsName, uniqueConceptsArray, uniqueConceptCount, daysFromStart)
-      SELECT row_number() over(order by depthOrder) as rnum, 
+--refactor big hierarchical recursive CTE
+--WITH t1( pnc_stdy_smry_id, tx_path_parent_key, lvl, 
+--	tx_stg_cmb, tx_stg_cmb_pth, tx_seq, tx_stg_avg_dr, tx_stg_cnt, 
+--	tx_stg_percentage, tx_stg_avg_gap, depthOrder, parent_comb, daysFromStart) AS (
+--	    SELECT 
+--           pnc_stdy_smry_id as pnc_stdy_smry_id, tx_path_parent_key as tx_path_parent_key,
+--           1 AS lvl,
+--           tx_stg_cmb as tx_stg_cmb, tx_stg_cmb_pth as tx_stg_cmb_pth, tx_seq as tx_seq, tx_stg_avg_dr as tx_stg_avg_dr, tx_stg_cnt as tx_stg_cnt,
+--           tx_stg_percentage as tx_stg_percentage
+--           ,tx_stg_avg_gap as  tx_stg_avg_gap
+--           ,CAST(pnc_stdy_smry_id AS varchar(max))+'' as depthOrder, 
+--           CAST(null as varchar(255)) as parent_comb
+--           ,tx_avg_frm_strt				  as daysFromStart
+--          FROM   @results_schema.pnc_study_summary_path
+--        WHERE pnc_stdy_smry_id in (select pnc_stdy_smry_id from @results_schema.pnc_study_summary_path
+--              where 
+--              study_id = @studyId
+--              and tx_rslt_version = 2
+--              and tx_path_parent_key is null)
+--        UNION ALL
+--        SELECT 
+--              t2.pnc_stdy_smry_id as pnc_stdy_smry_id, t2.tx_path_parent_key as tx_path_parent_key,
+--              t1.lvl+1 as lvl,
+--              t2.tx_stg_cmb as tx_stg_cmb, t2.tx_stg_cmb_pth as tx_stg_cmb_pth, t2.tx_seq as tx_seq, t2.tx_stg_avg_dr as tx_stg_avg_dr, 
+--              t2.tx_stg_cnt as tx_stg_cnt, t2.tx_stg_percentage as tx_stg_percentage
+--              ,t2.tx_stg_avg_gap as tx_stg_avg_gap 
+--              ,t1.depthOrder+'.'+CAST(t2.pnc_stdy_smry_id AS varchar(max)) as depthOrder, ISNULL(t1.tx_stg_cmb,'') as parent_comb
+--              ,t2.tx_avg_frm_strt				  as daysFromStart
+--        FROM   @results_schema.pnc_study_summary_path t2, t1
+--        WHERE  t2.tx_path_parent_key = t1.pnc_stdy_smry_id
+--      )
+--	  insert into #pnc_tmp_smry (rnum, combo_id, current_path, path_seq, avg_duration, pt_count, pt_percentage,	concept_names, 
+--	  	combo_concepts, lvl, parent_concept_names, parent_combo_concepts,
+--		avg_gap, gap_pcnt, uniqueConceptsName, uniqueConceptsArray, uniqueConceptCount, daysFromStart)
+--      SELECT row_number() over(order by depthOrder) as rnum, 
+--		tx_stg_cmb as combo_id, 
+--		tx_stg_cmb_pth as current_path,
+--		tx_seq as path_seq,
+--		tx_stg_avg_dr as avg_duration,
+--		tx_stg_cnt as pt_count,
+--		tx_stg_percentage as pt_percentage,
+--	    concepts.conceptsName as concept_names,
+--		concepts.conceptsArray as combo_concepts,
+--		lvl as lvl,
+--	    parentConcepts.conceptsName as parent_concept_names,
+--		parentConcepts.conceptsArray as parent_combo_concepts
+--    	,tx_stg_avg_gap                       as avg_gap
+--    	,isnull(ROUND(cast(tx_stg_avg_gap as float)/cast(tx_stg_avg_dr as float) * 100,2),0)   as gap_pcnt
+--    	,uniqueConcepts.conceptsName		  as uniqueConceptsName
+--    	,uniqueConcepts.conceptsArray		  as uniqueConceptsArray
+--    	,uniqueConcepts.concept_count		  as uniqueConceptCount    
+--		,daysFromStart	   					  as daysFromStart
+--      FROM t1
+--	  join @pnc_smry_msql_cmb concepts 
+--	  on concepts.pnc_tx_stg_cmb_id = t1.tx_stg_cmb
+--  	  and concepts.job_execution_id = @jobExecId
+--  	  left join @pnc_smry_msql_cmb parentConcepts 
+--  	  on parentConcepts.pnc_tx_stg_cmb_id = t1.parent_comb
+--  	  and parentConcepts.job_execution_id = @jobExecId
+--	  join (select pnc_tx_smry_id, conceptsName, conceptsArray, concept_count from @pnc_unq_pth_id where job_execution_id = @jobExecId) uniqueConcepts
+--	  on uniqueConcepts.pnc_tx_smry_id = t1.pnc_stdy_smry_id  	  
+--  	  order by depthOrder;
+create table #replace_rcte_3
+(
+    pnc_stdy_smry_id INT,
+    tx_path_parent_key BIGINT,
+    tx_stg_cmb    VARCHAR(255),
+    tx_stg_cmb_pth VARCHAR(4000),
+    tx_seq         BIGINT,
+    tx_stg_cnt      BIGINT,
+    tx_stg_percentage numeric(5,2),
+    tx_stg_avg_dr   INT,
+    tx_stg_avg_gap  INT,
+    tx_avg_frm_strt INT,
+    lvl INT,
+    parent_comb VARCHAR(255),
+    gap_pcnt numeric(5, 2),
+    uniqueConceptsName varchar(4000),
+    uniqueConceptsArray varchar(4000),
+    uniqueConceptCount int
+);
+
+INSERT INTO #replace_rcte_3
+(pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, 
+tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, 
+tx_avg_frm_strt, lvl, parent_comb, 
+gap_pcnt, uniqueConceptsName, uniqueConceptsArray, uniqueConceptCount)
+select pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, 
+tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, 
+tx_avg_frm_strt, 1 as Level, null as parent_comb,
+isnull(ROUND(cast(tx_stg_avg_gap as float)/cast(tx_stg_avg_dr as float) * 100,2),0), 
+uniqueConcepts.conceptsName, 
+uniqueConcepts.conceptsArray, uniqueConcepts.concept_count
+from @results_schema.pnc_study_summary_path sp
+join @pnc_smry_msql_cmb comb
+on sp.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
+and comb.job_execution_id = @jobExecId 
+join (select pnc_tx_smry_id, conceptsName, conceptsArray, concept_count 
+from @pnc_unq_pth_id where job_execution_id = @jobExecId) uniqueConcepts
+on uniqueConcepts.pnc_tx_smry_id = sp.pnc_stdy_smry_id  	  
+where 
+study_id = @studyId 
+and tx_rslt_version = 2
+and tx_path_parent_key is null;
+
+--pull this part into a dynamic sql generation part inserted from Java (too many duplicate sql here to loop from lvl "level" 0 ~ 100)
+@insertReplaceCTE_3
+--INSERT INTO #replace_rcte_3
+--(pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, 
+--tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, 
+--tx_avg_frm_strt, lvl, parent_comb, 
+--gap_pcnt, uniqueConceptsName, uniqueConceptsArray, uniqueConceptCount)
+--select N.pnc_stdy_smry_id, N.tx_path_parent_key, N.tx_stg_cmb, N.tx_stg_cmb_pth, 
+--N.tx_seq, N.tx_stg_cnt, N.tx_stg_percentage, N.tx_stg_avg_dr, N.tx_stg_avg_gap, 
+--N.tx_avg_frm_strt, (X.lvl + 1) as lvl, X.tx_stg_cmb as parent_comb,
+--isnull(ROUND(cast(N.tx_stg_avg_gap as float)/cast(N.tx_stg_avg_dr as float) * 100,2),0), 
+--uniqueConcepts.conceptsName, 
+--uniqueConcepts.conceptsArray, uniqueConcepts.concept_count
+--from ohdsi.ohdsi.pnc_study_summary_path N
+--join ohdsi.ohdsi.pnc_tmp_smry_msql_cmb comb
+--on N.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
+--and comb.job_execution_id = 262
+--join #replace_rcte_3 X
+--on X.pnc_stdy_smry_id = N.tx_path_parent_key
+--join (select pnc_tx_smry_id, conceptsName, conceptsArray, concept_count 
+--from ohdsi.ohdsi.pnc_tmp_unq_pth_id where job_execution_id = 262) uniqueConcepts
+--on uniqueConcepts.pnc_tx_smry_id = N.pnc_stdy_smry_id  	  
+--where X.lvl = 3;
+-- will have to hard code lvl = from 1 to maximum 100 for this, run one by one increasing lvl by 1 each time
+
+insert into #pnc_tmp_smry 
+(rnum, combo_id, current_path, path_seq, avg_duration, pt_count, pt_percentage,	concept_names, 
+combo_concepts, lvl, parent_concept_names, parent_combo_concepts,
+avg_gap, gap_pcnt, uniqueConceptsName, uniqueConceptsArray, uniqueConceptCount, daysFromStart)
+SELECT row_number() over(order by tx_stg_cmb_pth) as rnum, 
 		tx_stg_cmb as combo_id, 
 		tx_stg_cmb_pth as current_path,
 		tx_seq as path_seq,
 		tx_stg_avg_dr as avg_duration,
 		tx_stg_cnt as pt_count,
 		tx_stg_percentage as pt_percentage,
-	    concepts.conceptsName as concept_names,
-		concepts.conceptsArray as combo_concepts,
+	    concepts.conceptsName                as concept_names,
+		concepts.conceptsArray               as combo_concepts,
 		lvl as lvl,
-	    parentConcepts.conceptsName as parent_concept_names,
-		parentConcepts.conceptsArray as parent_combo_concepts
+	    parentConcepts.conceptsName			 as parent_concept_names,
+		parentConcepts.conceptsArray            as parent_combo_concepts
     	,tx_stg_avg_gap                       as avg_gap
-    	,isnull(ROUND(cast(tx_stg_avg_gap as float)/cast(tx_stg_avg_dr as float) * 100,2),0)   as gap_pcnt
-    	,uniqueConcepts.conceptsName		  as uniqueConceptsName
-    	,uniqueConcepts.conceptsArray		  as uniqueConceptsArray
-    	,uniqueConcepts.concept_count		  as uniqueConceptCount    
-		,daysFromStart	   					  as daysFromStart
-      FROM t1
-	  join @pnc_smry_msql_cmb concepts 
-	  on concepts.pnc_tx_stg_cmb_id = t1.tx_stg_cmb
-  	  and concepts.job_execution_id = @jobExecId
-  	  left join @pnc_smry_msql_cmb parentConcepts 
-  	  on parentConcepts.pnc_tx_stg_cmb_id = t1.parent_comb
-  	  and parentConcepts.job_execution_id = @jobExecId
-	  join (select pnc_tx_smry_id, conceptsName, conceptsArray, concept_count from @pnc_unq_pth_id where job_execution_id = @jobExecId) uniqueConcepts
-	  on uniqueConcepts.pnc_tx_smry_id = t1.pnc_stdy_smry_id  	  
-  	  order by depthOrder;
+    	,gap_pcnt   as gap_pcnt
+    	,uniqueConceptsName		  as uniqueConceptsName
+    	,uniqueConceptsArray		  as uniqueConceptsArray
+    	,uniqueConceptCount  as uniqueConceptCount    
+		,tx_avg_frm_strt	   					  as daysFromStart
+      FROM #replace_rcte_3 t1
+  join @pnc_smry_msql_cmb concepts 
+  on concepts.pnc_tx_stg_cmb_id = t1.tx_stg_cmb
+  and concepts.job_execution_id = @jobExecId 
+  left join @pnc_smry_msql_cmb parentConcepts 
+  on parentConcepts.pnc_tx_stg_cmb_id = t1.parent_comb
+  and parentConcepts.job_execution_id = @jobExecId
+  order by rnum;
+
+IF OBJECT_ID('tempdb..#replace_rcte_3', 'U') IS NOT NULL
+  DROP TABLE #replace_rcte_3;
 
 insert into @pnc_indv_jsn(job_execution_id, rnum, table_row_id, rslt_version, JSON)
 select @jobExecId as jobExecId, rnum as rnum, table_row_id as table_row_id, rslt_version as rslt_version, JSON as JSON

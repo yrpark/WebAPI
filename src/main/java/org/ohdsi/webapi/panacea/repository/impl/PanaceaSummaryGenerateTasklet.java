@@ -152,6 +152,7 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
         String sql = "";
         String insertReplaceCTE_1Sql = "";
         String insertReplaceCTE_2Sql = "";
+        String insertReplaceCTE_3Sql = "";
         if ("oracle".equalsIgnoreCase(sourceDialect)) {
             sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary.sql");
         } else if ("postgresql".equalsIgnoreCase(sourceDialect)) {
@@ -163,20 +164,22 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
             sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateSummary_mssql.sql");
             
             //replace @insertReplaceCTE_1
-            insertReplaceCTE_1Sql = getInsertReplaceCTE_1Sql(jobParams);
+            insertReplaceCTE_1Sql = getInsertReplaceCTE_1Sql();
             //replace @insertReplaceCTE_2
-            insertReplaceCTE_2Sql = getInsertReplaceCTE_2Sql(jobParams, jobExecId);
+            insertReplaceCTE_2Sql = getInsertReplaceCTE_2Sql();
+            //replace @insertReplaceCTE_3
+            insertReplaceCTE_3Sql = getInsertReplaceCTE_3Sql();
         }
         
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "cohortDefId", "studyId",
                 "drugConceptId", "sourceId", "pnc_smry_msql_cmb", "pnc_indv_jsn", "pnc_unq_trtmt", "pnc_unq_pth_id",
                 "pnc_smrypth_fltr", "pnc_smry_ancstr", "tempTableCreationSummary_oracle", "jobExecId", "pnc_tmp_cmb_sq_ct",
-                "cohort_definition_id", "insertReplaceCTE_1", "insertReplaceCTE_2" };
+                "cohort_definition_id", "insertReplaceCTE_1", "insertReplaceCTE_2", "insertReplaceCTE_3" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier, cohortDefId,
                 this.pncStudy.getStudyId().toString(), drugConceptId, sourceId, pnc_smry_msql_cmb, pnc_indv_jsn,
                 pnc_unq_trtmt, pnc_unq_pth_id, pnc_smrypth_fltr, pnc_smry_ancstr, tempTableCreationSummary_oracle,
                 jobExecId.toString(), pnc_tmp_cmb_sq_ct, this.pncStudy.getCohortDefId().toString(), insertReplaceCTE_1Sql,
-                insertReplaceCTE_2Sql };
+                insertReplaceCTE_2Sql, insertReplaceCTE_3Sql };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
@@ -217,17 +220,15 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
      * 
      * @return
      */
-    private String getInsertReplaceCTE_1Sql(final Map<String, Object> jobParams) {
-        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
-        
+    private String getInsertReplaceCTE_1Sql() {
         String oneInsertSql = "INSERT INTO #replace_rcte \n"
                 + "(pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, \n"
                 + "tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, \n"
                 + "tx_avg_frm_strt, lvl, parent_comb) \n"
                 + "select N.pnc_stdy_smry_id, N.tx_path_parent_key, N.tx_stg_cmb, N.tx_stg_cmb_pth, \n"
                 + "N.tx_seq, N.tx_stg_cnt, N.tx_stg_percentage, N.tx_stg_avg_dr, N.tx_stg_avg_gap, \n"
-                + "N.tx_avg_frm_strt, (X.lvl + 1) as lvl, X.tx_stg_cmb as parent_comb \n" + "from " + resultsTableQualifier
-                + ".pnc_study_summary_path N \n" + "join #replace_rcte X \n"
+                + "N.tx_avg_frm_strt, (X.lvl + 1) as lvl, X.tx_stg_cmb as parent_comb \n" + "from "
+                + "@results_schema.pnc_study_summary_path N \n" + "join #replace_rcte X \n"
                 + "on X.pnc_stdy_smry_id = N.tx_path_parent_key \n" + "where X.lvl = ";
         String insertSql = "";
         
@@ -261,9 +262,7 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
      * 
      * @return
      */
-    private String getInsertReplaceCTE_2Sql(final Map<String, Object> jobParams, final Long jobExecId) {
-        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
-        
+    private String getInsertReplaceCTE_2Sql() {
         String oneInsertSql = "INSERT INTO #replace_rcte_2 \n"
                 + "(pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, \n"
                 + "tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, \n"
@@ -275,10 +274,9 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
                 + "  WHEN CHARINDEX(comb.concept_ids + ',', X.path_unique_treatment) > 0  \n"
                 + "  or CHARINDEX(N.tx_stg_cmb + '>', X.modified_path) > 0  \n" + "  THEN X.path_unique_treatment  \n"
                 + "  ELSE X.path_unique_treatment+','+comb.concept_ids  \n" + "END  \n" + "as path_unique_treatment  \n"
-                + "from " + resultsTableQualifier + ".pnc_study_summary_path N \n" + "join " + resultsTableQualifier
-                + ".pnc_tmp_smry_msql_cmb comb  \n" + "on N.tx_stg_cmb = comb.pnc_tx_stg_cmb_id  \n"
-                + "and comb.job_execution_id = " + jobExecId.toString() + " \n" + "join #replace_rcte_2 X  \n"
-                + "on X.pnc_stdy_smry_id = N.tx_path_parent_key  \n" + "where X.lvl = ";
+                + "from @results_schema.pnc_study_summary_path N \n" + "join " + "@pnc_smry_msql_cmb comb  \n"
+                + "on N.tx_stg_cmb = comb.pnc_tx_stg_cmb_id  \n" + "and comb.job_execution_id = @jobExecId \n"
+                + "join #replace_rcte_2 X  \n" + "on X.pnc_stdy_smry_id = N.tx_path_parent_key  \n" + "where X.lvl = ";
         String insertSql = "";
         
         /**
@@ -304,6 +302,65 @@ public class PanaceaSummaryGenerateTasklet implements Tasklet {
          * and comb.job_execution_id = 228
          * join #replace_rcte_2 X
          * on X.pnc_stdy_smry_id = N.tx_path_parent_key
+         * where X.lvl = 1;
+         * -- hard code lvl = from 1 to maximum 100 for this, run one by one increasing lvl by 1 each time
+         * </pre>
+         */
+        for (int i = 1; i <= 100; i++) {
+            insertSql = insertSql.concat(oneInsertSql).concat(String.valueOf(i)).concat("; \n");
+        }
+        
+        return insertSql;
+    }
+    
+    /**
+     * generateSummary_mssql.sql replacing string @insertReplaceCTE_3 with level 1~100 hierarchical
+     * insert SQL into temp table #replace_rcte_3 as a refactoring of recursive CTE (SQL render and
+     * some other DB doesn't support recursive CTE!)
+     * 
+     * @return
+     */
+    private String getInsertReplaceCTE_3Sql() {
+        String oneInsertSql = "INSERT INTO #replace_rcte_3 \n"
+                + "(pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth,  \n"
+                + "tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap,  \n"
+                + "tx_avg_frm_strt, lvl, parent_comb,  \n"
+                + "gap_pcnt, uniqueConceptsName, uniqueConceptsArray, uniqueConceptCount) \n"
+                + "select N.pnc_stdy_smry_id, N.tx_path_parent_key, N.tx_stg_cmb, N.tx_stg_cmb_pth,  \n"
+                + "N.tx_seq, N.tx_stg_cnt, N.tx_stg_percentage, N.tx_stg_avg_dr, N.tx_stg_avg_gap,  \n"
+                + "N.tx_avg_frm_strt, (X.lvl + 1) as lvl, X.tx_stg_cmb as parent_comb, \n"
+                + "isnull(ROUND(cast(N.tx_stg_avg_gap as float)/cast(N.tx_stg_avg_dr as float) * 100,2),0),  \n"
+                + "uniqueConcepts.conceptsName,  \n" + "uniqueConcepts.conceptsArray, uniqueConcepts.concept_count \n"
+                + "from @results_schema.pnc_study_summary_path N \n" + "join @pnc_smry_msql_cmb comb \n"
+                + "on N.tx_stg_cmb = comb.pnc_tx_stg_cmb_id \n" + "and comb.job_execution_id = @jobExecId \n"
+                + "join #replace_rcte_3 X \n" + "on X.pnc_stdy_smry_id = N.tx_path_parent_key \n"
+                + "join (select pnc_tx_smry_id, conceptsName, conceptsArray, concept_count  \n"
+                + "from @pnc_unq_pth_id where job_execution_id = @jobExecId) uniqueConcepts \n"
+                + "on uniqueConcepts.pnc_tx_smry_id = N.pnc_stdy_smry_id \n" + "where X.lvl = ";
+        String insertSql = "";
+        
+        /**
+         * <pre>
+         * INSERT INTO #replace_rcte_3
+         * (pnc_stdy_smry_id, tx_path_parent_key, tx_stg_cmb, tx_stg_cmb_pth, 
+         * tx_seq, tx_stg_cnt, tx_stg_percentage, tx_stg_avg_dr, tx_stg_avg_gap, 
+         * tx_avg_frm_strt, lvl, parent_comb, 
+         * gap_pcnt, uniqueConceptsName, uniqueConceptsArray, uniqueConceptCount)
+         * select N.pnc_stdy_smry_id, N.tx_path_parent_key, N.tx_stg_cmb, N.tx_stg_cmb_pth, 
+         * N.tx_seq, N.tx_stg_cnt, N.tx_stg_percentage, N.tx_stg_avg_dr, N.tx_stg_avg_gap, 
+         * N.tx_avg_frm_strt, (X.lvl + 1) as lvl, X.tx_stg_cmb as parent_comb,
+         * isnull(ROUND(cast(N.tx_stg_avg_gap as float)/cast(N.tx_stg_avg_dr as float) * 100,2),0), 
+         * uniqueConcepts.conceptsName, 
+         * uniqueConcepts.conceptsArray, uniqueConcepts.concept_count
+         * from ohdsi.ohdsi.pnc_study_summary_path N
+         * join ohdsi.ohdsi.pnc_tmp_smry_msql_cmb comb
+         * on N.tx_stg_cmb = comb.pnc_tx_stg_cmb_id
+         * and comb.job_execution_id = 262
+         * join #replace_rcte_3 X
+         * on X.pnc_stdy_smry_id = N.tx_path_parent_key
+         * join (select pnc_tx_smry_id, conceptsName, conceptsArray, concept_count 
+         * from ohdsi.ohdsi.pnc_tmp_unq_pth_id where job_execution_id = 262) uniqueConcepts
+         * on uniqueConcepts.pnc_tx_smry_id = N.pnc_stdy_smry_id     
          * where X.lvl = 1;
          * -- hard code lvl = from 1 to maximum 100 for this, run one by one increasing lvl by 1 each time
          * </pre>
