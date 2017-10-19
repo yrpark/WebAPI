@@ -152,6 +152,7 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
         final String tempTableCreationSummary_oracle = this.getTempTableCreationOracle(jobParams);
         
         String sql = "";
+        String insertReplaceCTE_1Sql = "";
         if (hasConstraint()) {
             if ("oracle".equalsIgnoreCase(sourceDialect)) {
                 sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary.sql");
@@ -162,6 +163,9 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
                  * default as sql server version
                  */
                 sql = ResourceHelper.GetResourceAsString("/resources/panacea/sql/generateFilteredSummary_mssql.sql");
+                
+                //replace @insertReplaceCTE_1
+                insertReplaceCTE_1Sql = getInsertReplaceCTE_1Sql();
             }
             
         } else {
@@ -198,11 +202,11 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "studyId", "sourceId",
                 "constraintSql", "pnc_smry_msql_cmb", "pnc_indv_jsn", "pnc_unq_trtmt", "pnc_unq_pth_id", "pnc_smrypth_fltr",
                 "pnc_smry_ancstr", "tempTableCreationSummary_oracle", "jobExecId", "pnc_tmp_cmb_sq_ct",
-                "cohort_definition_id" };
+                "cohort_definition_id", "insertReplaceCTE_1" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
                 this.pncStudy.getStudyId().toString(), sourceId, constraintSql, pnc_smry_msql_cmb, pnc_indv_jsn,
                 pnc_unq_trtmt, pnc_unq_pth_id, pnc_smrypth_fltr, pnc_smry_ancstr, tempTableCreationSummary_oracle,
-                jobExecId.toString(), pnc_tmp_cmb_sq_ct, this.pncStudy.getCohortDefId().toString() };
+                jobExecId.toString(), pnc_tmp_cmb_sq_ct, this.pncStudy.getCohortDefId().toString(), insertReplaceCTE_1Sql };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
@@ -291,4 +295,41 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
         
         return tempTableCreationOracle;
     }
+    
+    /**
+     * generateFilteredSummary_mssql.sql replacing string @insertReplaceCTE_1 with level 0~100
+     * hierarchical insert SQL into temp table #replace_rcte as a refactoring of recursive CTE (SQL
+     * render and some other DB doesn't support recursive CTE!)
+     * 
+     * @return
+     */
+    private String getInsertReplaceCTE_1Sql() {
+        String oneInsertSql = "INSERT INTO #replace_rcte \n" + "(pnc_stdy_smry_id, ancestor, lvl) \n" + "select  \n"
+                + "N.pnc_stdy_smry_id as pnc_stdy_smry_id, \n" + "X.ancestor as ancestor, \n" + "X.lvl + 1 as lvl \n"
+                + "from ohdsi.ohdsi.pnc_study_summary_path N \n" + "join #replace_rcte X \n"
+                + "on X.pnc_stdy_smry_id = N.tx_path_parent_key \n" + "where X.lvl = ";
+        String insertSql = "";
+        
+        /**
+         * <pre>
+         * INSERT INTO #replace_rcte
+         * (pnc_stdy_smry_id, ancestor, lvl)
+         * select 
+         * N.pnc_stdy_smry_id as pnc_stdy_smry_id,
+         * X.ancestor as ancestor, 
+         * X.lvl + 1 as lvl
+         * from ohdsi.ohdsi.pnc_study_summary_path N
+         * join #replace_rcte X
+         * on X.pnc_stdy_smry_id = N.tx_path_parent_key
+         * where X.lvl = 8;
+         * -- hard code lvl = from 0 to maximum 100 for this, run one by one increasing lvl by 1 each time
+         * </pre>
+         */
+        for (int i = 0; i <= 100; i++) {
+            insertSql = insertSql.concat(oneInsertSql).concat(String.valueOf(i)).concat("; \n");
+        }
+        
+        return insertSql;
+    }
+    
 }

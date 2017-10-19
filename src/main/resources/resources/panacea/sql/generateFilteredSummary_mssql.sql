@@ -114,25 +114,88 @@ and job_execution_id = @jobExecId;
 
 
 --table to hold null parent ids (which have been deleted from #_pnc_smrypth_fltr as not qualified rows) and all their ancestor_id with levels
-with AncestryTree (pnc_stdy_smry_id, ancestor, lvl) as (
-  		  	select 
-		      pnc_stdy_smry_id as pnc_stdy_smry_id,
-    		  tx_path_parent_key as ancestor, 
-    		  0 as lvl
-	  	  	  FROM @results_schema.pnc_study_summary_path
-  			  where
-				study_id = @studyId
-        		and tx_rslt_version = 2
-    			and tx_path_parent_key is not null
-  			union all
-	  		select 
-    			Items.pnc_stdy_smry_id as pnc_stdy_smry_id,
-    			t.ancestor as ancestor, 
-    			t.lvl + 1 as lvl
-	  		from AncestryTree t 
-  			join @results_schema.pnc_study_summary_path items 
-  				on t.pnc_stdy_smry_id = Items.tx_path_parent_key
- 		)
+--refactor big hierarchical recursive CTE
+--with AncestryTree (pnc_stdy_smry_id, ancestor, lvl) as (
+--  		  	select 
+--		      pnc_stdy_smry_id as pnc_stdy_smry_id,
+--    		  tx_path_parent_key as ancestor, 
+--    		  0 as lvl
+--	  	  	  FROM @results_schema.pnc_study_summary_path
+--  			  where
+--				study_id = @studyId
+--        		and tx_rslt_version = 2
+--    			and tx_path_parent_key is not null
+--  			union all
+--	  		select 
+--    			Items.pnc_stdy_smry_id as pnc_stdy_smry_id,
+--    			t.ancestor as ancestor, 
+--    			t.lvl + 1 as lvl
+--	  		from AncestryTree t 
+--  			join @results_schema.pnc_study_summary_path items 
+--  				on t.pnc_stdy_smry_id = Items.tx_path_parent_key
+-- 		)
+--insert into @pnc_smry_ancstr
+--select @jobExecId, nullParentKey, pnc_stdy_smry_id, realLevel
+--from (
+--  select validancestor.nullParentKey, validancestor.ancestorlevel, 
+--  case 
+--      when path.pnc_stdy_smry_id is not null then validancestor.ancestorlevel
+--      when path.pnc_stdy_smry_id is null then 1000000000
+--    end as realLevel,
+--  validancestor.parentid, path.pnc_stdy_smry_id
+--  from @pnc_smrypth_fltr path
+--  right join
+--  (select smry.tx_path_parent_key nullParentKey, nullParentAncestors.l ancestorLevel, nullParentAncestors.parent parentId from @pnc_smrypth_fltr smry
+--    join
+--    (SELECT pnc_stdy_smry_id, ancestor AS parent, lvl as l
+--      FROM
+--      (
+--		select pnc_stdy_smry_id, ancestor, lvl from AncestryTree
+--      ) t
+--      WHERE t.ancestor <> t.pnc_stdy_smry_id
+--      and t.pnc_stdy_smry_id in 
+--      (select tx_path_parent_key from @pnc_smrypth_fltr where tx_path_parent_key not in (select PNC_STDY_SMRY_ID from @pnc_smrypth_fltr
+--      	where job_execution_id = @jobExecId)
+--      	and job_execution_id = @jobExecId)
+--    ) nullParentAncestors
+--    on smry.tx_path_parent_key = nullParentAncestors.pnc_stdy_smry_id
+--    where smry.job_execution_id = @jobExecId) validAncestor
+--  on path.pnc_stdy_smry_id = validAncestor.parentId
+--  where path.job_execution_id = @jobExecId) a;
+create table #replace_rcte
+(
+    pnc_stdy_smry_id INT,
+    ancestor INT,
+    lvl INT
+);
+
+INSERT INTO #replace_rcte
+(pnc_stdy_smry_id, ancestor, lvl)
+select 
+pnc_stdy_smry_id as pnc_stdy_smry_id,
+tx_path_parent_key as ancestor, 
+0 as lvl
+FROM 
+@results_schema.pnc_study_summary_path
+where
+study_id = @studyId 
+and tx_rslt_version = 2
+and tx_path_parent_key is not null;
+
+--pull this part into a dynamic sql generation part inserted from Java (too many duplicate sql here to loop from lvl "level" 0 ~ 100)
+@insertReplaceCTE_1
+--INSERT INTO #replace_rcte
+--(pnc_stdy_smry_id, ancestor, lvl)
+--select 
+--N.pnc_stdy_smry_id as pnc_stdy_smry_id,
+--X.ancestor as ancestor, 
+--X.lvl + 1 as lvl
+--from ohdsi.ohdsi.pnc_study_summary_path N
+--join #replace_rcte X
+--    on X.pnc_stdy_smry_id = N.tx_path_parent_key
+--where X.lvl = 8;
+-- will have to hard code lvl = from 0 to maximum 100 for this, run one by one increasing lvl by 1 each time
+
 insert into @pnc_smry_ancstr
 select @jobExecId, nullParentKey, pnc_stdy_smry_id, realLevel
 from (
@@ -149,7 +212,7 @@ from (
     (SELECT pnc_stdy_smry_id, ancestor AS parent, lvl as l
       FROM
       (
-		select pnc_stdy_smry_id, ancestor, lvl from AncestryTree
+		select pnc_stdy_smry_id, ancestor, lvl from #replace_rcte
       ) t
       WHERE t.ancestor <> t.pnc_stdy_smry_id
       and t.pnc_stdy_smry_id in 
@@ -161,7 +224,6 @@ from (
     where smry.job_execution_id = @jobExecId) validAncestor
   on path.pnc_stdy_smry_id = validAncestor.parentId
   where path.job_execution_id = @jobExecId) a;
-
   
 --update null parent key in #_pnc_smrypth_fltr with valid ancestor id which exists in #_pnc_smrypth_fltr or null (null is from level set to 1000000 from table of #_pnc_smry_ancstr)
 --refactor merge
