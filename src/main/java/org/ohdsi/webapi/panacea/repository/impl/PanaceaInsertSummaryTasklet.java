@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.ohdsi.sql.SqlRender;
@@ -100,6 +101,9 @@ public class PanaceaInsertSummaryTasklet implements Tasklet {
                     ptij.setRnum(rs.getFloat("rnum"));
                     ptij.setVersion(rs.getInt("rslt_version"));
                     ptij.setIndvJsn(rs.getString("JSON"));
+                    ptij.setLvl(rs.getInt("lvl"));
+                    ptij.setLeadLvl(rs.getInt("leadLvl"));
+                    ptij.setLagLvl(rs.getInt("lagLvl"));
                     
                     return ptij;
                 }
@@ -133,6 +137,7 @@ public class PanaceaInsertSummaryTasklet implements Tasklet {
                     return 0;
                 }
             });
+            attachEndingJSONByLead(indvJsnList);
             String JSON = "";
             for (PncTmpIndvJsn indvJsn : indvJsnList) {
                 JSON = JSON.concat(indvJsn.getIndvJsn());
@@ -165,6 +170,7 @@ public class PanaceaInsertSummaryTasklet implements Tasklet {
                     return 0;
                 }
             });
+            attachEndingJSONByLead(indvJsnList);
             JSON = "";
             for (PncTmpIndvJsn indvJsn : indvJsnList) {
                 JSON = JSON.concat(indvJsn.getIndvJsn());
@@ -195,6 +201,7 @@ public class PanaceaInsertSummaryTasklet implements Tasklet {
                     return 0;
                 }
             });
+            attachEndingJSONByLead(indvJsnList);
             JSON = "";
             for (PncTmpIndvJsn indvJsn : indvJsnList) {
                 JSON = JSON.concat(indvJsn.getIndvJsn());
@@ -232,6 +239,32 @@ public class PanaceaInsertSummaryTasklet implements Tasklet {
     }
     
     /**
+     * Refactor for summary generation sql script's lead function
+     * 
+     * @param indvJsnList
+     */
+    private void attachEndingJSONByLead(List<PncTmpIndvJsn> indvJsnList) {
+        for (PncTmpIndvJsn ptij : indvJsnList) {
+            if (ptij != null && ptij.getLeadLvl() != null && ptij.getLeadLvl() > 0) {
+                /**
+                 * <pre>
+                 * for refactor following:
+                 *  + CASE WHEN LEAD(connect_by_query.Lvl, 1, 1) OVER (order by connect_by_query.rnum) - connect_by_query.Lvl <= 0
+                 *  THEN '}' + replicate(']}', connect_by_query.lvl - LEAD(connect_by_query.Lvl, 1, 1) OVER (order by connect_by_query.rnum)) 
+                 *     ELSE ''
+                 *  END
+                 * </pre>
+                 */
+                if (ptij.getLeadLvl() - ptij.getLvl() <= 0) {
+                    ptij.setIndvJsn(
+                        ptij.getIndvJsn().concat("}".concat(StringUtils.repeat("]}", ptij.getLvl() - ptij.getLeadLvl()))));
+                }
+                
+            }
+        }
+    }
+    
+    /**
      * @return the jdbcTemplate
      */
     public JdbcTemplate getJdbcTemplate() {
@@ -260,7 +293,7 @@ public class PanaceaInsertSummaryTasklet implements Tasklet {
     }
     
     private String getSql(final Map<String, Object> jobParams, final Long jobExecId) {
-        String sql = "select rnum, rslt_version, JSON FROM @pnc_indv_jsn tab1 \n"
+        String sql = "select rnum, rslt_version, JSON, lvl, leadLvl, lagLvl FROM @pnc_indv_jsn tab1 \n"
                 + "where tab1.job_execution_id = @jobExecId \n" + "and tab1.table_row_id = 1 \n";
         
         final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
@@ -347,6 +380,8 @@ public class PanaceaInsertSummaryTasklet implements Tasklet {
         
         String indvJsn;
         
+        Integer lvl, leadLvl, lagLvl;
+        
         /**
          * @return the rnum
          */
@@ -388,5 +423,48 @@ public class PanaceaInsertSummaryTasklet implements Tasklet {
         public void setIndvJsn(String indvJsn) {
             this.indvJsn = indvJsn;
         }
+        
+        /**
+         * @return the lvl
+         */
+        public Integer getLvl() {
+            return lvl;
+        }
+        
+        /**
+         * @param lvl the lvl to set
+         */
+        public void setLvl(Integer lvl) {
+            this.lvl = lvl;
+        }
+        
+        /**
+         * @return the leadLvl
+         */
+        public Integer getLeadLvl() {
+            return leadLvl;
+        }
+        
+        /**
+         * @param leadLvl the leadLvl to set
+         */
+        public void setLeadLvl(Integer leadLvl) {
+            this.leadLvl = leadLvl;
+        }
+        
+        /**
+         * @return the lagLvl
+         */
+        public Integer getLagLvl() {
+            return lagLvl;
+        }
+        
+        /**
+         * @param lagLvl the lagLvl to set
+         */
+        public void setLagLvl(Integer lagLvl) {
+            this.lagLvl = lagLvl;
+        }
+        
     }
 }

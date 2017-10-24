@@ -1003,8 +1003,10 @@ SELECT row_number() over(order by tx_stg_cmb_pth) as rnum,
 IF OBJECT_ID('tempdb..#replace_rcte_3', 'U') IS NOT NULL
   DROP TABLE #replace_rcte_3;
 
-insert into @pnc_indv_jsn(job_execution_id, rnum, table_row_id, JSON)
-select @jobExecId, rnum, table_row_id, JSON 
+--refactor lag/lead/replicate function
+insert into @pnc_indv_jsn(job_execution_id, rnum, table_row_id, JSON, lvl, leadLvl,lagLvl)
+select @jobExecId, rnum, table_row_id, JSON, 
+lvl, leadValueSubstitute, lagValueSubstitute
 from
 (
 select allRoots.rnum as rnum, cast(1 as bigint) as table_row_id,
@@ -1040,13 +1042,16 @@ CASE
     ELSE JSON_SNIPPET
 END
 as JSON
+, lvl, leadValueSubstitute, lagValueSubstitute
 from 
 (
   select 
-  rnum as rnum,
+  connect_by_query.rnum as rnum,
   CASE 
-    WHEN Lvl = 1 THEN ',{'
-    WHEN Lvl - LAG(Lvl) OVER (order by rnum) = 1 THEN ',"children" : [{' 
+    WHEN connect_by_query.Lvl = 1 THEN ',{'
+--refactor lag/lead/replicate function
+--    WHEN Lvl - LAG(Lvl) OVER (order by rnum) = 1 THEN ',"children" : [{'
+		WHEN connect_by_query.Lvl - selfTmpSmryLag.lvl = 1 THEN ',"children" : [{' 
     ELSE ',{' 
   END 
   + ' "comboId" : ' + cast(combo_id as varchar(max))+ ' '
@@ -1061,23 +1066,37 @@ from
   + ',"uniqueConceptsName" : "' + uniqueConceptsName + '" '
   + ',"uniqueConceptsArray" : ' + uniqueConceptsArray
   + ' ,"uniqueConceptCount" : ' + cast(uniqueConceptCount as varchar(max))+ ' '
-  + CASE WHEN Lvl > 1 THEN    
+  + CASE WHEN connect_by_query.Lvl > 1 THEN    
         ',"parentConcept": { "parentConceptName": "' + parent_concept_names + '", '  
         + '"parentConcepts":' + parent_combo_concepts   + '}'
 	ELSE ''
-    END 
-   + CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0
---sql server: simplify without rpad... no formatting here
---     THEN '}' || rpad( ' ', 1+ (-2 * (LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl)), ']}' )
---     THEN '}' + ']}'
---     ELSE cast(NULL as varchar(max))
-     THEN '}' + replicate(']}', lvl - LEAD(Lvl, 1, 1) OVER (order by rnum))
-     ELSE ''
-  END as JSON_SNIPPET
+    END
+--refactor lag/lead/replicate function
+--   + CASE WHEN LEAD(Lvl, 1, 1) OVER (order by rnum) - Lvl <= 0
+--     THEN '}' + replicate(']}', lvl - LEAD(Lvl, 1, 1) OVER (order by rnum))
+--     ELSE ''
+--  END 
+  as JSON_SNIPPET
+--refactor lag/lead/replicate function
+	, connect_by_query.lvl as lvl
+  , ISNULL(selfTmpSmryLead.lvl, 1) AS leadValueSubstitute
+  , selfTmpSmryLag.lvl AS lagValueSubstitute
 from #pnc_tmp_smry connect_by_query
+--refactor lag/lead/replicate function
+LEFT OUTER JOIN 
+(select rnum, lvl, 
+ row_number() OVER (order by rnum) as orderRnum from #pnc_tmp_smry) selfTmpSmryLead
+ON selfTmpSmryLead.rnum = connect_by_query.rnum+1
+--refactor lag/lead/replicate function
+LEFT OUTER JOIN 
+(select rnum, lvl, 
+ row_number() OVER (order by rnum) as orderRnum from #pnc_tmp_smry) selfTmpSmryLag
+ON selfTmpSmryLag.rnum = connect_by_query.rnum-1
 ) allRoots
 union all
-select lastRow.rnum as rnum, lastRow.table_row_id as table_row_id, ']}' as JSON from (
+--refactor lag/lead/replicate function
+select lastRow.rnum as rnum, lastRow.table_row_id as table_row_id, ']}' as JSON 
+, 0, 0, 0 from (
 	select distinct 1000000000 as rnum, 1 as table_row_id from @pnc_smrypth_fltr) lastRow
 ) allRootsAndLastPadding;
   	  

@@ -186,7 +186,10 @@ CREATE TABLE ${ohdsiSchema}.pnc_tmp_indv_jsn
     rnum float,
     table_row_id int,
 	rslt_version int,
-	JSON varchar(4000)
+	JSON varchar(4000),
+	lvl int,
+	leadLvl int,
+	lagLvl int
 );
 
 CREATE TABLE ${ohdsiSchema}.pnc_tmp_unq_trtmt
