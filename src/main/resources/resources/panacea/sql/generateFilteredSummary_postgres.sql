@@ -567,3 +567,13 @@ update @results_schema.pnc_study_summary set study_results_filtered =
 ) mergeJsonRowsTable ),
 last_update_time = CURRENT_TIMESTAMP 
 where study_id = @studyId ;
+
+delete from @pnc_ptsq_ct where job_execution_id = @jobExecId;
+delete from @pnc_ptstg_ct where job_execution_id = @jobExecId;
+delete from @pnc_tmp_cmb_sq_ct where job_execution_id = @jobExecId;
+delete from @pnc_smry_msql_cmb where job_execution_id = @jobExecId;
+delete from @pnc_indv_jsn where job_execution_id = @jobExecId;
+delete from @pnc_unq_trtmt where job_execution_id = @jobExecId;
+delete from @pnc_unq_pth_id where job_execution_id = @jobExecId;
+delete from @pnc_smrypth_fltr where job_execution_id = @jobExecId;
+delete from @pnc_smry_ancstr where job_execution_id = @jobExecId;

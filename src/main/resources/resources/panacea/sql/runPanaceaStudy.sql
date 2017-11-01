@@ -52,24 +52,43 @@
 --from ptsq1
 --where 
 --@rowIdString = ptsq1.the_rowid;
-UPDATE  a
-SET     a.tx_seq = b.real_tx_seq
-FROM    @pnc_ptsq_ct a
-        INNER JOIN (SELECT rank() OVER (PARTITION BY person_id
+--UPDATE  a
+--SET     a.tx_seq = b.real_tx_seq
+--FROM    @pnc_ptsq_ct a
+--        INNER JOIN (SELECT rank() OVER (PARTITION BY person_id
+--        ORDER BY person_id, idx_start_date, idx_end_date, concept_id) real_tx_seq,
+--        *
+--        FROM @pnc_ptsq_ct
+--  WHERE  job_execution_id = @jobExecId) b
+--on 
+--  a.job_execution_id = b.job_execution_id
+--  and a.study_id = b.study_id
+--  and a.source_id = b.source_id
+--  and a.person_id = b.person_id
+--  and a.concept_id = b.concept_id
+--  and a.concept_name = b.concept_name
+--  and a.idx_start_date = b.idx_start_date
+--  and a.idx_end_date = b.idx_end_date
+--  and a.duration_days = b.duration_days;
+--refactor again, postgres cannot do alias from "from" clause for update (apparently sqlrender does not support this either)
+UPDATE  @pnc_ptsq_ct
+SET     tx_seq = b.real_tx_seq
+FROM
+        (SELECT rank() OVER (PARTITION BY person_id
         ORDER BY person_id, idx_start_date, idx_end_date, concept_id) real_tx_seq,
         *
         FROM @pnc_ptsq_ct
-  WHERE  job_execution_id = @jobExecId) b
-on 
-  a.job_execution_id = b.job_execution_id
-  and a.study_id = b.study_id
-  and a.source_id = b.source_id
-  and a.person_id = b.person_id
-  and a.concept_id = b.concept_id
-  and a.concept_name = b.concept_name
-  and a.idx_start_date = b.idx_start_date
-  and a.idx_end_date = b.idx_end_date
-  and a.duration_days = b.duration_days;
+  WHERE  job_execution_id = @jobExecId) as b
+where 
+  @pnc_ptsq_ct.job_execution_id = b.job_execution_id
+  and @pnc_ptsq_ct.study_id = b.study_id
+  and @pnc_ptsq_ct.source_id = b.source_id
+  and @pnc_ptsq_ct.person_id = b.person_id
+  and @pnc_ptsq_ct.concept_id = b.concept_id
+  and @pnc_ptsq_ct.concept_name = b.concept_name
+  and @pnc_ptsq_ct.idx_start_date = b.idx_start_date
+  and @pnc_ptsq_ct.idx_end_date = b.idx_end_date
+  and @pnc_ptsq_ct.duration_days = b.duration_days;
 
 --IF OBJECT_ID('tempdb..#_pnc_sngl_cmb', 'U') IS NOT NULL
 --  DROP TABLE #_pnc_sngl_cmb;

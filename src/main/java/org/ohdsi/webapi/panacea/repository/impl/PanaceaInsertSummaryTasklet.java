@@ -220,6 +220,8 @@ public class PanaceaInsertSummaryTasklet implements Tasklet {
                 }
             });
             
+            cleanTempData(jobParams, chunkContext);
+            
             return RepeatStatus.FINISHED;
         } catch (final Exception e) {
             e.printStackTrace();
@@ -369,6 +371,58 @@ public class PanaceaInsertSummaryTasklet implements Tasklet {
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
         
         return sql;
+    }
+    
+    private void cleanTempData(final Map<String, Object> jobParams, final ChunkContext chunkContext) {
+        String cleanDataSql = "delete from @pnc_ptsq_ct where job_execution_id = @jobExecId; \n"
+                + "delete from @pnc_ptstg_ct where job_execution_id = @jobExecId; \n"
+                + "delete from @pnc_tmp_cmb_sq_ct where job_execution_id = @jobExecId; \n"
+                + "delete from @pnc_smry_msql_cmb where job_execution_id = @jobExecId; \n"
+                + "delete from @pnc_indv_jsn where job_execution_id = @jobExecId; \n"
+                + "delete from @pnc_unq_trtmt where job_execution_id = @jobExecId; \n"
+                + "delete from @pnc_unq_pth_id where job_execution_id = @jobExecId; \n"
+                + "delete from @pnc_smrypth_fltr where job_execution_id = @jobExecId; \n"
+                + "delete from @pnc_smry_ancstr where job_execution_id = @jobExecId; \n";
+        
+        final String cdmTableQualifier = (String) jobParams.get("cdm_schema");
+        final String resultsTableQualifier = (String) jobParams.get("ohdsi_schema");
+        final String sourceDialect = (String) jobParams.get("sourceDialect");
+        final String sourceId = (String) jobParams.get("sourceId");
+        
+        final String pnc_ptsq_ct = (String) jobParams.get("pnc_ptsq_ct");
+        final String pnc_ptstg_ct = (String) jobParams.get("pnc_ptstg_ct");
+        final String pnc_smry_msql_cmb = (String) jobParams.get("pnc_smry_msql_cmb");
+        final String pnc_indv_jsn = (String) jobParams.get("pnc_indv_jsn");
+        final String pnc_unq_trtmt = (String) jobParams.get("pnc_unq_trtmt");
+        final String pnc_unq_pth_id = (String) jobParams.get("pnc_unq_pth_id");
+        final String pnc_smrypth_fltr = (String) jobParams.get("pnc_smrypth_fltr");
+        final String pnc_smry_ancstr = (String) jobParams.get("pnc_smry_ancstr");
+        final String pnc_tmp_cmb_sq_ct = (String) jobParams.get("pnc_tmp_cmb_sq_ct");
+        
+        final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "studyId", "sourceId",
+                "pnc_smry_msql_cmb", "pnc_indv_jsn", "pnc_unq_trtmt", "pnc_unq_pth_id", "pnc_smrypth_fltr",
+                "pnc_smry_ancstr", "jobExecId", "pnc_tmp_cmb_sq_ct", "cohort_definition_id", "pnc_ptsq_ct", "pnc_ptstg_ct" };
+        final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
+                this.pncStudy.getStudyId().toString(), sourceId, pnc_smry_msql_cmb, pnc_indv_jsn, pnc_unq_trtmt,
+                pnc_unq_pth_id, pnc_smrypth_fltr, pnc_smry_ancstr,
+                chunkContext.getStepContext().getStepExecution().getJobExecution().getId().toString(), pnc_tmp_cmb_sq_ct,
+                this.pncStudy.getCohortDefId().toString(), pnc_ptsq_ct, pnc_ptstg_ct };
+        
+        cleanDataSql = SqlRender.renderSql(cleanDataSql, params, values);
+        cleanDataSql = SqlTranslate.translateSql(cleanDataSql, "sql server", sourceDialect, null, resultsTableQualifier);
+        final String cleanDataSqlString = cleanDataSql;
+        
+        int[] ret = this.transactionTemplate.execute(new TransactionCallback<int[]>() {
+            
+            
+            @Override
+            public int[] doInTransaction(final TransactionStatus status) {
+                
+                final String[] stmts = SqlSplit.splitSql(cleanDataSqlString);
+                
+                return PanaceaInsertSummaryTasklet.this.jdbcTemplate.batchUpdate(stmts);
+            }
+        });
     }
     
     class PncTmpIndvJsn {

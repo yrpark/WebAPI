@@ -120,15 +120,15 @@ select @jobExecId, comb_id, concept_ids, conceptsArray, conceptsName
 from
 (
 	select @jobExecId, comb.pnc_tx_stg_cmb_id comb_id,
-    wm_concat(combMap.concept_id) concept_ids,
-    '[' || wm_concat('{"innerConceptName":' || '"' || combMap.concept_name  || '"' || 
-    ',"innerConceptId":' || combMap.concept_id || '}') || ']' conceptsArray,
-    wm_concat(combMap.concept_name) conceptsName
+    LISTAGG(combMap.concept_id, ',') WITHIN GROUP (order by comb.pnc_tx_stg_cmb_id) over (PARTITION BY comb.pnc_tx_stg_cmb_id) concept_ids,
+    '[' || LISTAGG('{"innerConceptName":' || '"' || combMap.concept_name  || '"' || 
+    ',"innerConceptId":' || combMap.concept_id || '}', ',') WITHIN GROUP (order by comb.pnc_tx_stg_cmb_id) over (PARTITION BY comb.pnc_tx_stg_cmb_id) || ']' conceptsArray,
+    LISTAGG(combMap.concept_name, ',') WITHIN GROUP (order by comb.pnc_tx_stg_cmb_id) over (PARTITION BY comb.pnc_tx_stg_cmb_id) conceptsName
     from @results_schema.pnc_tx_stage_combination comb
     join @results_schema.pnc_tx_stage_combination_map combMap 
     on comb.pnc_tx_stg_cmb_id = combmap.pnc_tx_stg_cmb_id
     where comb.study_id = @studyId
-    group by comb.pnc_tx_stg_cmb_id
+--    group by comb.pnc_tx_stg_cmb_id
 ) studyCombo;
 
 -----------------generate rows of JSON (based on hierarchical data, each path is a row) insert into temp table----------------------
@@ -394,9 +394,9 @@ merge into @pnc_unq_pth_id m
 using
 (
 	select path.pnc_tx_smry_id,
-    '[' || wm_concat('{"innerConceptName":' || '"' || concepts.concept_name  || '"' || 
-    ',"innerConceptId":' || concepts.concept_id || '}') || ']' conceptsArray,
-    wm_concat(concepts.concept_name) conceptsName
+    '[' || LISTAGG('{"innerConceptName":' || '"' || concepts.concept_name  || '"' || 
+    ',"innerConceptId":' || concepts.concept_id || '}', ',') WITHIN GROUP (order by path.pnc_tx_smry_id) || ']' conceptsArray,
+    LISTAGG(concepts.concept_name, ',') WITHIN GROUP (order by path.pnc_tx_smry_id) conceptsName
     , count(distinct concepts.concept_id) conceptCount
     from @pnc_unq_pth_id path
     join @cdm_schema.concept concepts

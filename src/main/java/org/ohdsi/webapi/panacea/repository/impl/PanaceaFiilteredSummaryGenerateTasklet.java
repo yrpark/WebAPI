@@ -74,6 +74,11 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
             
             final String sql = this.getSql(jobParams,
                 chunkContext.getStepContext().getStepExecution().getJobExecution().getId());
+            
+            if ("".equals(sql.trim())) {
+                return RepeatStatus.FINISHED;
+            }
+            
             final int[] ret = this.transactionTemplate.execute(new TransactionCallback<int[]>() {
                 
                 
@@ -191,14 +196,14 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
                         + "DROP TABLE #_pnc_smry_msql_cmb; \n"
                         + "IF OBJECT_ID('tempdb..#_pnc_unq_trtmt', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_unq_trtmt; \n"
                         + "IF OBJECT_ID('tempdb..#_pnc_unq_pth_id', 'U') IS NOT NULL \n" + "DROP TABLE #_pnc_unq_pth_id; \n";
-            } else {
+            } else if ("postgresql".equalsIgnoreCase(sourceDialect)) {
                 /**
-                 * default as sql server version
+                 * refactor cleanup part here for non-constraint situation (used to be in filtered
+                 * part same as mssql but now mssql part is moved to PanaceaInsertSummaryTasklet)
                  */
-                sql += "delete from @pnc_ptsq_ct where job_execution_id = @jobExecId \n"
+                sql += "delete from @pnc_ptsq_ct where job_execution_id = @jobExecId; \n"
                         + "delete from @pnc_ptstg_ct where job_execution_id = @jobExecId; \n"
                         + "delete from @pnc_tmp_cmb_sq_ct where job_execution_id = @jobExecId; \n"
-                        
                         + "delete from @pnc_smry_msql_cmb where job_execution_id = @jobExecId; \n"
                         + "delete from @pnc_indv_jsn where job_execution_id = @jobExecId; \n"
                         + "delete from @pnc_unq_trtmt where job_execution_id = @jobExecId; \n"
@@ -206,18 +211,40 @@ public class PanaceaFiilteredSummaryGenerateTasklet implements Tasklet {
                         + "delete from @pnc_smrypth_fltr where job_execution_id = @jobExecId; \n"
                         + "delete from @pnc_smry_ancstr where job_execution_id = @jobExecId; \n";
             }
+            /**
+             * refactor cleanup part to PanaceaInsertSummaryTasklet for dialect other than oracle
+             * and postgres
+             */
+            //            else {
+            //                /**
+            //                 * default as sql server version
+            //                 */
+            //                sql += "delete from @pnc_ptsq_ct where job_execution_id = @jobExecId \n"
+            //                        + "delete from @pnc_ptstg_ct where job_execution_id = @jobExecId; \n"
+            //                        + "delete from @pnc_tmp_cmb_sq_ct where job_execution_id = @jobExecId; \n"
+            //                        
+            //                        + "delete from @pnc_smry_msql_cmb where job_execution_id = @jobExecId; \n"
+            //                        + "delete from @pnc_indv_jsn where job_execution_id = @jobExecId; \n"
+            //                        + "delete from @pnc_unq_trtmt where job_execution_id = @jobExecId; \n"
+            //                        + "delete from @pnc_unq_pth_id where job_execution_id = @jobExecId; \n"
+            //                        + "delete from @pnc_smrypth_fltr where job_execution_id = @jobExecId; \n"
+            //                        + "delete from @pnc_smry_ancstr where job_execution_id = @jobExecId; \n";
+            //            }
         }
+        
+        final String pnc_ptsq_ct = (String) jobParams.get("pnc_ptsq_ct");
+        final String pnc_ptstg_ct = (String) jobParams.get("pnc_ptstg_ct");
         
         final String[] params = new String[] { "cdm_schema", "ohdsi_schema", "results_schema", "studyId", "sourceId",
                 "constraintSql", "pnc_smry_msql_cmb", "pnc_indv_jsn", "pnc_unq_trtmt", "pnc_unq_pth_id", "pnc_smrypth_fltr",
                 "pnc_smry_ancstr", "tempTableCreationSummary_oracle", "jobExecId", "pnc_tmp_cmb_sq_ct",
                 "cohort_definition_id", "insertReplaceCTE_1", "insertReplaceCTE_2", "insertReplaceCTE_3",
-                "insertReplaceCTE_4" };
+                "insertReplaceCTE_4", "pnc_ptsq_ct", "pnc_ptstg_ct" };
         final String[] values = new String[] { cdmTableQualifier, resultsTableQualifier, resultsTableQualifier,
                 this.pncStudy.getStudyId().toString(), sourceId, constraintSql, pnc_smry_msql_cmb, pnc_indv_jsn,
                 pnc_unq_trtmt, pnc_unq_pth_id, pnc_smrypth_fltr, pnc_smry_ancstr, tempTableCreationSummary_oracle,
                 jobExecId.toString(), pnc_tmp_cmb_sq_ct, this.pncStudy.getCohortDefId().toString(), insertReplaceCTE_1Sql,
-                insertReplaceCTE_2Sql, insertReplaceCTE_3Sql, insertReplaceCTE_4Sql };
+                insertReplaceCTE_2Sql, insertReplaceCTE_3Sql, insertReplaceCTE_4Sql, pnc_ptsq_ct, pnc_ptstg_ct };
         
         sql = SqlRender.renderSql(sql, params, values);
         sql = SqlTranslate.translateSql(sql, "sql server", sourceDialect, null, resultsTableQualifier);
